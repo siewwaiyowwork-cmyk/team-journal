@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 import sqlite3
@@ -6,9 +6,12 @@ import json
 from datetime import datetime, timedelta
 from typing import List, Optional
 import os
+import shutil
+import tempfile
 
 app = FastAPI(title="Scoreboard API")
 DB_PATH = os.environ.get('DB_PATH', 'scoreboard.db')
+BACKUP_SECRET = os.environ.get('BACKUP_SECRET', 'changeme')
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -240,6 +243,58 @@ def get_leave(
         result.append({"name": name, "type": "Others", "total": total})
     
     return {"leave": result}
+
+@app.get("/api/backup")
+def backup_db(secret: str = Query(...)):
+    if secret != BACKUP_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid secret")
+    if not os.path.exists(DB_PATH):
+        raise HTTPException(status_code=404, detail="Database file not found")
+    return FileResponse(DB_PATH, media_type="application/x-sqlite3", filename=os.path.basename(DB_PATH))
+
+@app.post("/api/restore")
+async def restore_db(secret: str = Query(...), file: UploadFile = File(...)):
+    if secret != BACKUP_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid secret")
+    
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = tmp.name
+    
+    try:
+        conn = sqlite3.connect(tmp_path)
+        conn.execute("SELECT 1")
+        conn.close()
+    except sqlite3.Error:
+        os.unlink(tmp_path)
+        raise HTTPException(status_code=400, detail="Invalid SQLite database file")
+    
+    shutil.move(tmp_path, DB_PATH)
+    return {"ok": True, "message": "Database restored successfully"}
+
+@app.post("/api/clear")
+def clear_db(secret: str = Query(...), payload: dict = Body(...)):
+    if secret != BACKUP_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid secret")
+    if payload.get("confirm") != "DELETE_ALL_RECORDS":
+        raise HTTPException(status_code=400, detail="Confirmation string missing or incorrect")
+    
+    conn = get_db()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM updates")
+        u_count = cursor.rowcount
+        cursor.execute("DELETE FROM leave_records")
+        l_count = cursor.rowcount
+        conn.commit()
+        
+        journal_path = DB_PATH + "-journal"
+        if os.path.exists(journal_path):
+            os.remove(journal_path)
+            
+        return {"ok": True, "deleted_updates": u_count, "deleted_leave": l_count, "total": u_count + l_count}
+    finally:
+        conn.close()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
