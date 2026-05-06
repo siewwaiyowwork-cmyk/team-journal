@@ -22,6 +22,10 @@ def get_db():
 def root():
     return FileResponse('static/index.html')
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 @app.get("/api/updates")
 def get_updates(
     from_date: Optional[str] = None,
