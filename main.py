@@ -14,17 +14,15 @@ DB_PATH = os.environ.get('DB_PATH', 'scoreboard.db')
 BACKUP_SECRET = os.environ.get('BACKUP_SECRET', 'changeme')
 
 def init_db():
+    db_dir = os.path.dirname(DB_PATH)
+    if db_dir and not os.path.exists(db_dir):
+        os.makedirs(db_dir, exist_ok=True)
     if not os.path.exists(DB_PATH):
         conn = sqlite3.connect(DB_PATH)
         with open('schema.sql', 'r') as f:
             conn.executescript(f.read())
         conn.commit()
         conn.close()
-
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 @app.get("/")
 def root():
