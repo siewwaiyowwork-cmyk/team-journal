@@ -10,4 +10,4 @@ restartPolicyMaxRetries = 3
 
 [[mounts]]
 source = "data"
-destination = "/app"
+destination = "/data"
