@@ -66,7 +66,7 @@ def get_updates(
         where.append('status = ?')
         params.append(status)
     
-    sql = f"SELECT * FROM updates WHERE {' AND '.join(where)} ORDER BY date DESC, timestamp DESC LIMIT ? OFFSET ?"
+    sql = f"SELECT * FROM updates WHERE {' AND '.join(where)} ORDER BY date DESC, id DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
     rows = conn.execute(sql, params).fetchall()
     conn.close()
@@ -79,15 +79,13 @@ def submit(payload: dict):
     cursor = conn.cursor()
     for e in entries:
         date = e.get('date', datetime.now().strftime('%Y-%m-%d'))
-        timestamp = f"{date} 00:00:00"
         status = e.get('status', 'in_progress')
         leave_type = e.get('leave_type', None)
         
         cursor.execute('''
-            INSERT INTO updates (timestamp, date, name, module, description, status, leave_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO updates (date, name, module, description, status, leave_type)
+            VALUES (?, ?, ?, ?, ?, ?)
         ''', (
-            timestamp,
             date,
             e.get('name'),
             e.get('module', ''),

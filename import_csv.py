@@ -27,7 +27,6 @@ def import_csv(csv_path, db_path='scoreboard.db'):
             if not date_str:
                 continue
             
-            timestamp = f"{date_str} 00:00:00"
             name = row.get('Name', '').strip()
             module = row.get('Module', '').strip()
             description = row.get('Description', '').strip()
@@ -47,9 +46,9 @@ def import_csv(csv_path, db_path='scoreboard.db'):
             normalized_status = status_map.get(status.lower(), 'in_progress')
             
             cursor.execute('''
-                INSERT INTO updates (timestamp, date, name, module, description, status)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (timestamp, date_str, name, module, description, normalized_status))
+                INSERT INTO updates (date, name, module, description, status)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (date_str, name, module, description, normalized_status))
     
     conn.commit()
     conn.close()

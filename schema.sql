@@ -1,11 +1,11 @@
 CREATE TABLE IF NOT EXISTS updates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp DATETIME NOT NULL,
     date TEXT NOT NULL,
     name TEXT NOT NULL,
     module TEXT DEFAULT '',
     description TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'in_progress',
+    leave_type TEXT,
     flagged INTEGER DEFAULT 0,
     flag_reason TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
