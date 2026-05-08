@@ -1233,12 +1233,12 @@ function renderVelocityChart(data){
                 <div class="chart-box"><div class="chart-title">90-Day Streak <span class="info-icon" data-tooltip="Activity grid for the last 90 working days (weekends & public holidays excluded). Bright cells = days with updates (brighter = more entries). Orange = leave days. Blank = no activity. Keep logging daily to build and maintain your streak!">ℹ</span></div><div class="streak-grid" id="streak-${safeId}"></div></div>
             <div class="chart-box"><div class="chart-title">Last 3 Weeks Calendar</div><div class="cal-grid" id="cal-${safeId}"></div></div>
             </div>
+            <div class="detail-yeardone"><h3 class="section-title">This Year<span class="badge" style="margin-left:12px">0</span></h3><div class="task-loading">Loading yearly accomplishments...</div><div class="task-content" style="display:none"></div></div>
             <div class="detail-tasklist"><h3 class="section-title">Recent Tasks</h3><div class="task-loading">Loading recent tasks...</div><div class="task-content" style="display:none"></div></div>
             <div class="collab-section" id="collaboratorsSection">
                 <div class="collab-title">👥 Who I Work With</div>
                 <div class="collab-grid" id="collabGrid"></div>
             </div>
-            <div class="detail-yeardone"><h3 class="section-title">This Year<span class="badge" style="margin-left:12px">0</span></h3><div class="task-loading">Loading yearly accomplishments...</div><div class="task-content" style="display:none"></div></div>
         `;
         
         document.getElementById('detail-content').innerHTML = html;
