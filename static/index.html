@@ -1259,7 +1259,7 @@ function renderVelocityChart(data){
         var hasBadge=false;
         if (streak >= 7) badgesHtml += '<span class="ach-badge fire" title="🔥 Fire Starter: Maintained a streak of 7+ consecutive working days with updates. Keep logging daily!">\uD83D\uDD25 Fire Starter</span>';
         if (streak >= 20) badgesHtml += '<span class="ach-badge marathon" title="🏃 Marathon Runner: Impressive 20+ day streak! You are unstoppable!">\uD83C\uDFC3 Marathon Runner</span>';
-        if (weeklyCounts.filter(c => c > 0).length >= 5) badgesHtml += '<span class="ach-badge perfectweek" title="📅 Perfect Week: Active every single weekday!">\uD83D\uDCC5 Perfect Week</span>';
+        if (weeklyStatusCounts.filter(d => d.done + d.in_progress + d.blocked > 0).length >= 5) badgesHtml += '<span class="ach-badge perfectweek" title="📅 Perfect Week: Active every single weekday!">\uD83D\uDCC5 Perfect Week</span>';
         if (doneCount >= 10) badgesHtml += '<span class="ach-badge closer" title="✅ Task Closer: Completed 10+ tasks marked as Done. Get things finished!">\u2705 Task Closer</span>';
         if (updates.length >= 100) badgesHtml += '<span class="ach-badge centurion" title="💯 Centurion: 100+ total updates! Major contributor!">\uD83D\uDCAF Centurion</span>';
         if (attendancePct >= 90) badgesHtml += '<span class="ach-badge workaholic" title="💪 Workaholic: 90%+ attendance rate! Dedicated!">\uD83D\uDCAA Workaholic</span>';
