@@ -120,6 +120,16 @@
         .streak-cell.ip{background:rgba(0,229,255,.5)}
         .streak-cell.leave{background:rgba(255,23,68,.3)}
         .streak-cell.intense{background:var(--yellow)}
+.header-emoji{font-size:1.2em;margin-right:6px;display:inline-block;animation:emoji-bounce 2s ease-in-out infinite}
+@keyframes emoji-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.xp-section{margin-top:6px}
+.xp-bar{height:4px;background:var(--bg);border-radius:2px;overflow:hidden;margin-top:4px}
+.xp-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:2px;transition:width .5s}
+.xp-label{display:flex;justify-content:space-between;font-size:.6em;color:var(--text-dim);margin-top:2px}
+.level-badge{font-size:.6em;padding:1px 7px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--green));color:#0a0a0f;font-weight:700;margin-left:4px;vertical-align:middle}
+.fire-particles{position:absolute;top:0;right:0;width:30px;height:100%;pointer-events:none;overflow:hidden}
+.fire-particle{position:absolute;width:4px;height:4px;background:var(--orange);border-radius:50%;animation:fire-rise 1.5s ease-out infinite}
+@keyframes fire-rise{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-25px) scale(0)}}
 .collab-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:20px 0}
 .collab-title{font-size:.9em;font-weight:700;margin-bottom:12px}
 .collab-grid{display:flex;gap:8px;flex-wrap:wrap}
@@ -329,7 +339,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Team Overview</h1>
+            <h1><span id="headerEmoji"></span>Team Overview</h1>
             <div class="subtitle" id="dateRange">Loading...</div>
 <div id="pulseBar"></div>
             <div class="stats-row" id="statsRow"></div>
@@ -766,7 +776,14 @@ function renderVelocityChart(data){
     function renderOverviewGrid(members){
         var todayStr=new Date().toISOString().split("T")[0];
         const grid = document.getElementById('overviewGrid');
+        var fireCards=[];
         grid.innerHTML = members.map((m,i)=>{
+            const levelInfo=getLevel(m.total||0);
+            const level=levelInfo.level;
+            const levelTitle=levelInfo.title;
+            const xp=levelInfo.xp;
+            const levelHtml='<span class="level-badge">LV'+level+' '+levelTitle+'</span>';
+            if(hasRecent) fireCards.push(m.name);
             const rank = i+1;
             const rankClass = rank===1?'g1':rank===2?'g2':rank===3?'g3':'';
             const lastUpdateDate = m.recent && m.recent.length > 0 ? m.recent[0].date : null;
@@ -793,10 +810,14 @@ function renderVelocityChart(data){
                 <div class="overview-card" onclick="showDetail('${m.name}')">
                     <div class="ov-header">
                         <div class="ov-rank ${rankClass}">#${rank}</div>
-                        <div class="ov-name">${m.name}${(m.recent && m.recent.length > 0 && m.recent[0].date === todayStr) ? '<span class="active-dot"></span>' : ''}</div>
+                        <div class="ov-name">${m.name}${(m.recent && m.recent.length > 0 && m.recent[0].date === todayStr) ? '<span class="active-dot"></span>' : ''}</div>${levelHtml}
                     </div>
-                    <div class="ov-body">
+                    <div class="ov-body" id="card-${m.name.replace(/[^a-zA-Z]/g,'')}">
                         <div class="ov-row"><span class="lab">Updates</span><span class="val">${m.total} tasks</span></div>
+                        <div class="xp-section">
+                            <div class="xp-bar"><div class="xp-fill" style="width:${xp}%"></div></div>
+                            <div class="xp-label"><span>Level ${level}</span><span>${levelTitle}</span></span></div>
+                        </div>
                         <div class="ov-row"><span class="lab">Streak</span><span class="val" style="color:${hasRecent ? 'var(--green)' : 'var(--orange)'}">${hasRecent ? '🔥 Active' : '⚪ Away'}</span></div>
                         <div class="badge-grid">${bdgHtml}</div>
                         <div class="recent-tasks"><div class="recent-tasks-title">Recent Tasks</div>${recentHtml}</div>
@@ -805,6 +826,13 @@ function renderVelocityChart(data){
                 </div>
             `;
         }).join('');
+        setTimeout(function(){
+            fireCards.forEach(function(name){
+                var safe=name.replace(/[^a-zA-Z]/g,'');
+                var el=document.getElementById('card-'+safe);
+                if(el) addFireParticles(el);
+            });
+        },100);
     }
 
     // ── PANEL ──────────────────────────────────────────────
@@ -1352,7 +1380,40 @@ function renderVelocityChart(data){
         });
     }
 
+    function randomizeHeaderEmojis(){
+        var combos=[['🚀','⚡','🎯'],['🌈','🔥','✨'],['💪','📈','🏆'],['⚙️','💻','🎮'],['🔮','🌟','💡'],['🎪','🎨','🎭'],['🚀','💫','🌠'],['🔥','💥','⚡'],['🏆','🎖️','🎗️']];
+        var combo=combos[Math.floor(Math.random()*combos.length)];
+        var el=document.getElementById('headerEmoji');
+        if(el){
+            el.innerHTML=combo.map(function(e,i){return'<span class="header-emoji" style="animation-delay:'+(i*.3)+'s">'+e+'</span>';}).join('');
+        }
+    }
+    function getLevel(total){
+        if(total >= 500) return {level:50,title:'Legend',xp:100,next:500};
+        if(total >= 400) return {level:40,title:'Master',xp:Math.round((total-400)/100*100),next:500};
+        if(total >= 300) return {level:30,title:'Expert',xp:Math.round((total-300)/100*100),next:400};
+        if(total >= 200) return {level:20,title:'Veteran',xp:Math.round((total-200)/100*100),next:300};
+        if(total >= 100) return {level:10,title:'Regular',xp:Math.round((total-100)/100*100),next:200};
+        if(total >= 50) return {level:5,title:'Contributor',xp:Math.round((total-50)/50*100),next:100};
+        if(total >= 20) return {level:2,title:'Rookie',xp:Math.round((total-20)/30*100),next:50};
+        return {level:1,title:'Newbie',xp:Math.round(total/20*100),next:20};
+    }
+    function addFireParticles(el){
+        if(!el) return;
+        var container=document.createElement('div');
+        container.className='fire-particles';
+        for(var i=0;i<5;i++){
+            var p=document.createElement('div');
+            p.className='fire-particle';
+            p.style.cssText='right:'+(Math.random()*20)+'px;animation-delay:'+(Math.random()*1.5)+'s;animation-duration:'+(1+Math.random())+'s;background:'+(Math.random()>.5?'#ff9100':'#ff1744')+';';
+            container.appendChild(p);
+        }
+        el.style.position='relative';
+        el.appendChild(container);
+    }
+    
     document.addEventListener('DOMContentLoaded',function(){
+        randomizeHeaderEmojis();
         initDashboard();
         document.addEventListener('keydown',function(e){if(e.key==='n'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName))openPanel();});
         
