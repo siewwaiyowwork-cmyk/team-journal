@@ -1047,6 +1047,12 @@ function renderVelocityChart(data){
         const avatar = name.charAt(0).toUpperCase();
         const safeId = name.replace(/[^a-zA-Z]/g,'').toLowerCase();
 
+        // Filter to current dashboard range so metrics align
+        const range = window.currentRange;
+        if (range && range.from && range.to) {
+            updates = updates.filter(u => u.date >= range.from && u.date <= range.to);
+        }
+
         // Get leave for this person
         const leave = leaveData[name] || {AL:0, MC:0, Others:0, total:0};
 
