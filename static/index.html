@@ -888,6 +888,8 @@ function renderVelocityChart(data){
         }
         
         validate();
+        document.getElementById('panelOverlay').classList.add('open');
+        document.body.style.overflow='hidden';
     }
     function closePanel(){document.getElementById('panelOverlay').classList.remove('open');document.body.style.overflow='';}
     function selName(b,n){document.querySelectorAll('.name-chip').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');pName=n;validate();}
@@ -1157,14 +1159,16 @@ function renderVelocityChart(data){
             .sort((a, b) => (b[1].done + b[1].in_progress + b[1].blocked) - (a[1].done + a[1].in_progress + a[1].blocked))
             .slice(0, 5);
 
-        // Weekly rhythm
+        // Weekly rhythm with per-status counts for stacked bar
         const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-        const weeklyCounts = [0,0,0,0,0,0,0];
+        var weeklyStatusCounts = [{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0}];
         updates.forEach(u => {
-            if (u.status !== 'leave') {
-                const d = new Date(u.date);
-                weeklyCounts[d.getDay()]++;
-            }
+            if (u.status === 'leave') return;
+            var d = new Date(u.date);
+            var day = d.getDay();
+            if (u.status === 'done') weeklyStatusCounts[day].done++;
+            else if (u.status === 'in_progress') weeklyStatusCounts[day].in_progress++;
+            else if (u.status === 'blocked') weeklyStatusCounts[day].blocked++;
         });
 
         // Module Champion
@@ -1259,7 +1263,7 @@ function renderVelocityChart(data){
                 <div class="chart-box"><div class="chart-title">Weekly Rhythm ${rangeLabel} <span class="info-icon" data-tooltip="Shows how many updates you submitted on each weekday. Higher bars = more activity on that day. Only non-leave entries are counted. Mon-Fri pattern helps identify your most productive days.">ℹ</span></div><div class="chart-wrapper"><canvas id="c-week-${safeId}"></canvas></div></div>
                 <div class="chart-box"><div class="chart-title">90-Day Streak <span class="info-icon" data-tooltip="Activity grid for the last 90 working days (weekends & public holidays excluded). Bright cells = days with updates (brighter = more entries). Orange = leave days. Blank = no activity. Keep logging daily to build and maintain your streak!">ℹ</span></div><div class="streak-grid" id="streak-${safeId}"></div></div>
             </div>
-            <div class="detail-yeardone"><h3 class="section-title">Legendary Achievements<span class="badge" style="margin-left:12px">0</span></h3><div class="task-loading">Loading legendary achievements...</div><div class="task-content" style="display:none"></div></div>
+            <div class="detail-yeardone"><h3 class="section-title">Yearly Achievements<span class="badge" style="margin-left:12px">0</span></h3><div class="task-loading">Loading yearly achievements...</div><div class="task-content" style="display:none"></div></div>
             <div class="detail-tasklist"><h3 class="section-title">Recent Tasks</h3><div class="task-loading">Loading recent tasks...</div><div class="task-content" style="display:none"></div></div>
             <div class="collab-section" id="collaboratorsSection">
                 <div class="collab-title">👥 Who I Work With</div>
@@ -1409,13 +1413,43 @@ function renderVelocityChart(data){
                 });
             }
             
-            // Weekly Rhythm Bar
+            // Weekly Rhythm Stacked Bar
             const weekChart = document.getElementById(`c-week-${safeId}`);
             if(weekChart){
+                var weekLabels = weekdays.slice(1).concat(weekdays[0]);
+                var weekDone = weeklyStatusCounts.slice(1).concat(weeklyStatusCounts[0]).map(function(d){ return d.done; });
+                var weekIP = weeklyStatusCounts.slice(1).concat(weeklyStatusCounts[0]).map(function(d){ return d.in_progress; });
+                var weekBlocked = weeklyStatusCounts.slice(1).concat(weeklyStatusCounts[0]).map(function(d){ return d.blocked; });
                 new Chart(weekChart.getContext('2d'),{
                     type:'bar',
-                    data:{labels:weekdays.slice(1).concat(weekdays[0]), datasets:[{data:weeklyCounts.slice(1).concat(weeklyCounts[0]), backgroundColor:'rgba(0,229,255,.6)',borderRadius:4}]},
-                    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.1)'},ticks:{color:'#fff',font:{size:10}}},x:{grid:{display:false},ticks:{color:'#fff',font:{size:11}}}}}
+                    data:{
+                        labels:weekLabels,
+                        datasets:[
+                            {label:'Done',data:weekDone,backgroundColor:'rgba(0,230,118,.7)',borderRadius:2},
+                            {label:'In Progress',data:weekIP,backgroundColor:'rgba(0,229,255,.7)',borderRadius:2},
+                            {label:'Blocked',data:weekBlocked,backgroundColor:'rgba(255,23,68,.6)',borderRadius:2}
+                        ]
+                    },
+                    options:{
+                        responsive:true,
+                        maintainAspectRatio:false,
+                        plugins:{
+                            legend:{display:true,position:'bottom',labels:{color:'#fff',font:{size:11},usePointStyle:true,pointStyle:'rectRounded'}}
+                        },
+                        scales:{
+                            x:{
+                                stacked:true,
+                                grid:{display:false},
+                                ticks:{color:'#fff',font:{size:11}}
+                            },
+                            y:{
+                                stacked:true,
+                                beginAtZero:true,
+                                grid:{color:'rgba(255,255,255,.1)'},
+                                ticks:{color:'#fff',font:{size:10}}
+                            }
+                        }
+                    }
                 });
             }
         },50);
