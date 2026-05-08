@@ -40,6 +40,14 @@ def health():
 @app.on_event("startup")
 def on_startup():
     init_db()
+    migrate_lowercase_modules()
+
+def migrate_lowercase_modules():
+    conn = get_db()
+    conn.execute("UPDATE updates SET module = lower(module) WHERE module != lower(module)")
+    conn.execute("UPDATE leave_records SET type = lower(type) WHERE type != lower(type)")
+    conn.commit()
+    conn.close()
 
 @app.get("/api/updates")
 def get_updates(
