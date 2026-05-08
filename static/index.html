@@ -115,11 +115,14 @@
 .ticker-item .t-name{color:var(--accent);font-weight:600}
 .ticker-item .t-done{color:var(--green);font-weight:600}
         .streak-grid{display:grid;grid-template-columns:repeat(15,1fr);gap:3px;padding:10px 0}
-        .streak-cell{aspect-ratio:1;border-radius:3px;background-color:var(--bg);position:relative;transition:.2s}
+        .streak-cell{aspect-ratio:1;border-radius:3px;background-color:var(--bg);position:relative;transition:.2s;font-size:.55em;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.25)}
         .streak-cell:hover{transform:scale(1.3);z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.5)}
-        .streak-cell.done{background-color:var(--green)}
-        .streak-cell.leave{background-color:rgba(255,23,68,.3)}
-        .streak-cell.intense{background-color:var(--yellow)}
+        .streak-cell.weekend{background:rgba(40,100,180,.55);color:rgba(200,220,255,.5)}
+        .streak-cell.ph{background:rgba(230,150,40,.45);color:rgba(255,220,120,.6)}
+        .streak-cell.done{background-color:var(--green);color:#000}
+        .streak-cell.leave{background-color:rgba(255,23,68,.3);color:rgba(255,200,200,.7)}
+        .streak-cell.intense{background-color:var(--yellow);color:#000}
+        .streak-cell.today{border:1px solid var(--accent)}
 .header-emoji{font-size:1.2em;margin-right:6px;display:inline-block;animation:emoji-bounce 2s ease-in-out infinite}
 @keyframes emoji-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 .xp-section{margin-top:6px}
@@ -1150,19 +1153,20 @@ function renderVelocityChart(data){
                 <div class="metric-label">Module Champ · ${bestModule[1]}</div>
             </div>` : '';
 
-        // Daily grid for last 90 working days (exclude weekends & public holidays)
+        // Daily grid for last 90 calendar days (show all including weekends & holidays)
         const today = new Date();
+        today.setHours(12,0,0,0);
         const gridData = {};
-        let workdaysAdded = 0;
+        let daysAdded = 0;
         let dayOffset = 0;
-        while (workdaysAdded < 90) {
-            const d = new Date(today);
+        while (daysAdded < 90) {
+            var d = new Date(today);
             d.setDate(d.getDate() - dayOffset);
+            d.setHours(12,0,0,0);
+            const k = d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0');
+            gridData[k] = { count: 0, hasLeave: false, isWeekend: isWeekend(d), isPH: isPH(k), isToday: dayOffset === 0 };
             dayOffset++;
-            if (isWeekend(d) || isPH(d.toISOString().split('T')[0])) continue;
-            const k = d.toISOString().split('T')[0];
-            gridData[k] = {count:0, hasLeave:false};
-            workdaysAdded++;
+            daysAdded++;
         }
         updates.forEach(u => {
             if (gridData[u.date]) {
@@ -1395,18 +1399,30 @@ function renderVelocityChart(data){
         if(streakGrid){
             let streakHtml = '';
             gridDates.forEach(d => {
-                const data = gridData[d];
-                let cls = 'streak-cell';
-                const niceDate = new Date(d).toLocaleDateString('en-US', {weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'});
-                let title = niceDate;
-                if(data.hasLeave){
-                    cls += ' leave'; title += ' (Leave)';
-                } else if(data.count > 0){
-                    if(data.count >= 3) cls += ' intense';
+                var entry = gridData[d];
+                // Local Date from YMD string to avoid UTC shift
+                var dateParts = d.split('-').map(Number);
+                var cellDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+                cellDate.setHours(12, 0, 0, 0);
+                var dayChar = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][cellDate.getDay()];
+                var niceDate = cellDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+                var cls = 'streak-cell';
+                var title = niceDate;
+                
+                // Weekend / Public Holiday styling (same as 3-week calendar)
+                if (entry.isWeekend) { cls += ' weekend'; title += ' (Weekend)'; }
+                if (entry.isPH) { cls += ' ph'; title += ' (Public Holiday)'; }
+                if (entry.isToday) { cls += ' today'; title += ' — Today'; }
+                
+                // Leave / Update styling
+                if (entry.hasLeave) { cls += ' leave'; title += ' — Leave'; }
+                else if (entry.count > 0) {
+                    if (entry.count >= 3) cls += ' intense';
                     else cls += ' done';
-                    title += ` · ${data.count} updates`;
+                    title += ' · ' + entry.count + ' updates';
                 }
-                streakHtml += `<div class="${cls}" title="${title}"></div>`;
+                
+                streakHtml += '<div class="' + cls + '" title="' + title + '">' + dayChar + '</div>';
             });
             streakGrid.innerHTML = streakHtml;
         }
