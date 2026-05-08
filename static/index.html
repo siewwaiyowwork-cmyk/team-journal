@@ -1105,7 +1105,12 @@ function renderVelocityChart(data){
         if (leaveCountCount === 0 && updates.length > 0) badgesHtml += '<span class="ach-badge perfectatt" title="📆 Perfect Attendance: Zero leave taken! Ironman!">\uD83D\uDCC6 Perfect Attendance</span>';
         if (specificity >= 90) badgesHtml += '<span class="ach-badge quality" title="🎯 Quality Control: 90%+ specificity! Crystal clear updates!">\uD83C\uDFAF Quality Control</span>';
         if (Object.keys(moduleCounts).length >= 3) badgesHtml += '<span class="ach-badge allrounder" title="🌟 All-Rounder: Worked across 3+ different modules. Versatile!">\uD83C\uDF1F All-Rounder</span>';
-        if (weeklyCounts[5] > 0 || weeklyCounts[6] > 0) badgesHtml += '<span class="ach-badge nightowl" title="🌑 Night Owl: Working on Friday or weekend! Going the extra mile!">\uD83C\uDF19 Night Owl</span>';
+        const weekendHolidayDays = new Set(updates.filter(u => {
+            const d = new Date(u.date);
+            const day = d.getDay();
+            return day === 0 || day === 6 || isPH(u.date);
+        }).map(u => u.date)).size;
+        if (weekendHolidayDays > 30) badgesHtml += '<span class="ach-badge nightowl" title="🌑 Night Owl: Worked ' + weekendHolidayDays + ' weekend or public holiday days! Dedication beyond regular hours!">\uD83C\uDF19 Night Owl (' + weekendHolidayDays + ')</span>';
         const bugDoneCount = updates.filter(u => u.status === 'done' && u.description && u.description.toLowerCase().includes('bug')).length;
         if (bugDoneCount >= 20) badgesHtml += '<span class="ach-badge bugslayer" title="🗡️ Bug Slayer: Fixed ' + bugDoneCount + ' bugs marked as Done!">\uD83D\uDD31 Bug Slayer (' + bugDoneCount + ')</span>';
         if (updates.length === 1) badgesHtml += '<span class="ach-badge freshstart" title="🌱 Fresh Start: First update logged! Welcome aboard!">\uD83C\uDF31 Fresh Start</span>';
