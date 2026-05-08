@@ -1063,8 +1063,14 @@ function renderVelocityChart(data){
         // Days
         const totalDays = new Set(updates.map(u => u.date)).size;
         const totalWorkdays = (window.currentRange && window.currentRange.workdays) ? window.currentRange.workdays : 56;
-        const cappedDays = Math.min(totalDays, totalWorkdays);
-        const attendancePct = totalWorkdays > 0 ? Math.round((cappedDays/totalWorkdays)*1000)/10 : 0;
+
+        // Attendance = (total workdays - absent days) / total workdays
+        const absentDays = (leave.AL || 0) + (leave.MC || 0) + (leave.EL || 0) + (leave.Others || 0);
+        const attendancePct = totalWorkdays > 0 ? Math.max(0, Math.min(100, Math.round(((totalWorkdays - absentDays) / totalWorkdays) * 1000) / 10)) : 0;
+
+        // Consistency Score = unique days with updates / total workdays (cap at 100%)
+        const uniqueWorkDates = new Set(updates.filter(u => u.status !== 'leave').map(u => u.date)).size;
+        const consistencyPct = totalWorkdays > 0 ? Math.min(100, Math.round((uniqueWorkDates / totalWorkdays) * 1000) / 10) : 0;
 
         // Rank (global sortedMembers must exist)
         let rank = '--';
@@ -1118,10 +1124,6 @@ function renderVelocityChart(data){
         updates.forEach(u => { if(u.status !== 'leave') dateCounts[u.date] = (dateCounts[u.date]||0) + 1; });
         const bestDay = Object.entries(dateCounts).sort((a,b)=>b[1]-a[1])[0] || ['--',0];
         const bestDayLabel = bestDay[0] !== '--' ? `${bestDay[0]} · ${bestDay[1]} tasks` : '--';
-
-        // Consistency Score
-        const uniqueWorkDates = new Set(updates.filter(u=>u.status!=='leave').map(u=>u.date)).size;
-        const consistencyPct = totalWorkdays > 0 ? Math.round((uniqueWorkDates / totalWorkdays) * 1000) / 10 : 0;
 
         // Module Champion
         const bestModule = topModules.length > 0 ? topModules[0] : ['--',0];
@@ -1194,7 +1196,7 @@ function renderVelocityChart(data){
                         <div class="metric-card"><div class="metric-num" style="color:var(--accent)">${inProgressCount}</div><div class="metric-label">In Progress</div></div>
                         <div class="metric-card"><div class="metric-num" style="color:var(--orange)">${blockedCount}</div><div class="metric-label">Blocked</div></div>
                         <div class="metric-card"><div class="metric-num" style="color:${streak >= 7 ? 'var(--gold)' : 'var(--text)'}">${streak}</div><div class="metric-label">Streak</div></div>
-                        <div class="metric-card"><div class="metric-num">${cappedDays}/${totalWorkdays}</div><div class="metric-label">Days Logged</div></div>
+                        <div class="metric-card"><div class="metric-num">${totalDays}/${totalWorkdays}</div><div class="metric-label">Days Logged</div></div>
                         <div class="metric-card"><div class="metric-num">${attendancePct}%</div><div class="metric-label">Attendance</div></div>
                         <div class="metric-card"><div class="metric-num" style="color:var(--yellow)">${consistencyPct}%</div><div class="metric-label">Consistency</div></div>
                         <div class="metric-card"><div class="metric-num" style="color:var(--purple)">${bestDayLabel}</div><div class="metric-label">Best Day</div></div>
