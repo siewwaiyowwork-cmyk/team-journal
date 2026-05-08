@@ -127,20 +127,26 @@
 .xp-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:2px;transition:width .5s}
 .xp-label{display:flex;justify-content:space-between;font-size:.6em;color:var(--text-dim);margin-top:2px}
 .level-badge{font-size:.6em;padding:1px 7px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--green));color:#0a0a0f;font-weight:700;margin-left:4px;vertical-align:middle}
-.fire-particles{position:absolute;top:0;right:0;width:30px;height:100%;pointer-events:none;overflow:hidden}
-.fire-particle{position:absolute;width:4px;height:4px;background:var(--orange);border-radius:50%;animation:fire-rise 1.5s ease-out infinite}
-@keyframes fire-rise{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-25px) scale(0)}}
-.collab-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:20px 0}
-.collab-title{font-size:.9em;font-weight:700;margin-bottom:12px}
-.collab-grid{display:flex;gap:8px;flex-wrap:wrap}
-.collab-item{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);font-size:.78em}
-.collab-item .c-name{color:var(--accent);font-weight:600}
-.collab-item .c-mod{color:var(--text-dim)}
-.cal-grid{display:grid;grid-template-columns:repeat(21,1fr);gap:2px;padding:10px 0}
-.cal-cell{aspect-ratio:1;border-radius:2px;background:var(--bg);font-size:.5em;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
-.cal-cell.has-update{background:var(--green);color:#000}
-.cal-cell.leave{background:rgba(255,23,68,.3)}
-.cal-cell.today{border:1px solid var(--accent)}
+        .fire-particles{position:absolute;top:0;right:0;width:30px;height:100%;pointer-events:none;overflow:hidden}
+        .fire-particle{position:absolute;width:4px;height:4px;background:var(--orange);border-radius:50%;animation:fire-rise 1.5s ease-out infinite}
+        @keyframes fire-rise{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-25px) scale(0)}}
+        .collab-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:20px 0}
+        .collab-title{font-size:.9em;font-weight:700;margin-bottom:12px}
+        .collab-grid{display:flex;gap:8px;flex-wrap:wrap}
+        .collab-item{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);font-size:.78em}
+        .collab-item .c-name{color:var(--accent);font-weight:600}
+        .collab-item .c-mod{color:var(--text-dim)}
+        .cal-grid{display:grid;grid-template-columns:repeat(21,1fr);gap:2px;padding:10px 0}
+        .cal-cell{aspect-ratio:1;border-radius:2px;background:var(--bg);font-size:.5em;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
+        .cal-cell.has-update{background:var(--green);color:#000}
+        .cal-cell.leave{background:rgba(255,23,68,.3)}
+        .cal-cell.today{border:1px solid var(--accent)}
+        @keyframes celebIn{0%{opacity:0;transform:scale(.8)}100%{opacity:1;transform:scale(1)}}
+        @keyframes celebOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.9)}}
+        @keyframes celebEmoji{0%{transform:scale(0) rotate(-20deg)}60%{transform:scale(1.2) rotate(5deg)}100%{transform:scale(1) rotate(0)}}
+        .fun-fact-panel{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px;z-index:250;font-size:.75em;color:var(--text);box-shadow:0 8px 30px rgba(0,0,0,.4);transition:transform .5s}
+        .fun-fact-panel h4{color:var(--accent);margin:0 0 6px;font-size:.9em}
+        .fun-fact-body{line-height:1.4}
         .detail-metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;padding:20px}
         .metric-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
         .metric-card .metric-num{font-size:1.6em;font-weight:700;color:var(--accent)}
@@ -944,7 +950,10 @@ function renderVelocityChart(data){
             fill.style.width='100%';
             if(result.ok){
                 showToast(pName+' - '+dates.length+' day'+(dates.length!==1?'s':'')+' submitted!');
-                setTimeout(()=>{closePanel();resetPanel();initDashboard();},500);
+                showCelebration(pName, '\u2705', '+1 Strike!');
+                setTimeout(function(){showFunFact();},3000);
+                setTimeout(function(){rollStreak();},6000);
+                setTimeout(function(){closePanel();resetPanel();initDashboard();},9500);
             }else{
                 showToast('Submission failed','err');
             }
@@ -1411,7 +1420,66 @@ function renderVelocityChart(data){
         el.style.position='relative';
         el.appendChild(container);
     }
-    
+
+    function showCelebration(name, emoji, subText){
+        var ov=document.createElement('div');
+        ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:"Syne",sans-serif;animation:celebIn .4s ease-out';
+        var r=Math.random();
+        var msgs=['Good work today! Keep it up!','Awesome progress!','Crushing it!','One more step forward!','Boom! Logged!','Building momentum!','Another day, another done!','Consistent effort pays off!'];
+        var phrases=['Getting stronger!','Progress unlocked!','Log submitted! Keep going!','Stacking wins!','Adding to the streak!'];
+        var big=msgs[Math.floor(Math.random()*msgs.length)];
+        var small=phrases[Math.floor(Math.random()*phrases.length)];
+        ov.innerHTML='<div style="text-align:center">'+
+            '<div style="font-size:5em;margin-bottom:20px;animation:celebEmoji .6s ease-out">'+emoji+'</div>'+
+            '<div style="font-size:2.2em;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px">'+big+'</div>'+
+            '<div style="font-size:1.1em;color:var(--text-dim);margin-bottom:8px">'+name+' — '+small+'</div>'+
+            '<div style="font-size:.9em;color:var(--accent);font-weight:700">'+subText+'</div>'+
+            '</div>';
+        document.body.appendChild(ov);
+        setTimeout(function(){ov.style.animation='celebOut .3s ease-in forwards';},2200);
+        setTimeout(function(){ov.remove();},2500);
+    }
+
+    function showFunFact(){
+        var facts=['The first computer bug was an actual moth found in a Harvard Mark II in 1947.','The average developer writes about 10-20 lines of code per day.','Sprints were named after rugby, not running — the whole team moves together.','The term "debugging" predates computers and was used in radio engineering.','Monday and Tuesday are the most productive coding days globally.','Friday has the highest commit-to-bug ratio of any weekday.','Developers are 23% more productive when they document their work daily.','The most productive hour for developers is 10am — just after standup.'];
+        var fact=facts[Math.floor(Math.random()*facts.length)];
+        var pnl=document.createElement('div');
+        pnl.style.cssText='position:fixed;bottom:20px;right:20px;background:linear-gradient(135deg,#1a1a3a,#1a1a2e);border:1px solid rgba(0,229,255,.3);border-radius:14px;padding:14px 18px;max-width:280px;z-index:250;font-size:.8em;color:var(--text);box-shadow:0 8px 30px rgba(0,0,0,.4);transform:translateX(120%);transition:transform .5s cubic-bezier(.175,.885,.32,1.275)';
+        pnl.innerHTML='<div style="font-weight:700;color:var(--accent);margin-bottom:6px;font-size:.85em">💡 Did You Know?</div>'+'<div style="line-height:1.4">'+fact+'</div>';
+        document.body.appendChild(pnl);
+        setTimeout(function(){pnl.style.transform='translateX(0)';},100);
+        setTimeout(function(){pnl.style.transform='translateX(120%)';},8500);
+        setTimeout(function(){pnl.remove();},9500);
+    }
+
+    function rollStreak(){
+        var emojis=['🌶️','🔥','💯','⚡','🚀','🔮','🃏','🎲','🎰','🎪','👑','🌟','🎯','🎨'];
+        var ov=document.createElement('div');
+        ov.style.cssText='position:fixed;top:0;left:0;right:0;text-align:center;z-index:260;padding-top:15px;pointer-events:none;';
+        ov.innerHTML='<div id="streakBanner" style="display:inline-flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 20px;font-size:.85em;transform:translateY(-80px);transition:transform .5s cubic-bezier(.175,.885,.32,1.275);box-shadow:0 4px 20px rgba(0,0,0,.3)">'+
+            '<span style="font-size:1.4em" id="streakRoll1">🎲</span>'+
+            '<span style="font-size:1.4em" id="streakRoll2">🎲</span>'+
+            '<span style="font-size:1.4em" id="streakRoll3">🎲</span>'+
+            '<span id="rollMsg">Rolling bonus...</span>'+
+        '</div>';
+        document.body.appendChild(ov);
+        setTimeout(function(){document.getElementById('streakBanner').style.transform='translateY(0)';},50);
+        var slots=['streakRoll1','streakRoll2','streakRoll3'];
+        var speed=[80,120,160];
+        slots.forEach(function(id,idx){
+            var count=0,final=emojis[Math.floor(Math.random()*emojis.length)];
+            var iv=setInterval(function(){
+                document.getElementById(id).textContent=emojis[Math.floor(Math.random()*emojis.length)];
+                count++;
+                if(count>10+idx*5){clearInterval(iv);document.getElementById(id).textContent=final;}
+            },speed[idx]);
+        });
+        setTimeout(function(){document.getElementById('rollMsg').textContent='Bonus unlocked!';},2200);
+        setTimeout(function(){document.getElementById('streakBanner').style.transform='translateY(-80px)';},3500);
+        setTimeout(function(){ov.remove();},4100);
+        return emojis;
+    }
+
     document.addEventListener('DOMContentLoaded',function(){
         randomizeHeaderEmojis();
         initDashboard();
