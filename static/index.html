@@ -925,11 +925,13 @@ function renderVelocityChart(data){
         progress.classList.add('visible');
         
         var entries = dates.map(d=>{
+            var leaveDescMap={'AL':'Annual Leave','MC':'Medical Certificate','EL':'Emergency Leave','CL':'Compassionate Leave'};
+            var leaveDesc=leaveDescMap[pLeaveType] || (pLeaveType ? pLeaveType + ' Leave' : 'Leave');
             var entry = {
                 date: d,
                 name: pName,
                 module: pSt==='leave'?'':pMod,
-                description: pSt==='leave'?'':desc,
+                description: pSt==='leave'?leaveDesc:desc,
                 status: pSt
             };
             if(pSt==='leave'){
