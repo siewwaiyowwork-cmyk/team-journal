@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
 import json
 from datetime import datetime, timedelta
@@ -10,6 +11,14 @@ import shutil
 import tempfile
 
 app = FastAPI(title="Scoreboard API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=False,
+)
 DB_PATH = os.environ.get('DB_PATH', 'scoreboard.db')
 BACKUP_SECRET = os.environ.get('BACKUP_SECRET', 'changeme')
 
