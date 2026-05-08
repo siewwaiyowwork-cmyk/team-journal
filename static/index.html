@@ -783,13 +783,13 @@ function renderVelocityChart(data){
             const levelTitle=levelInfo.title;
             const xp=levelInfo.xp;
             const levelHtml='<span class="level-badge">LV'+level+' '+levelTitle+'</span>';
-            if(hasRecent) fireCards.push(m.name);
             const rank = i+1;
             const rankClass = rank===1?'g1':rank===2?'g2':rank===3?'g3':'';
             const lastUpdateDate = m.recent && m.recent.length > 0 ? m.recent[0].date : null;
             const daysSinceUpdate = lastUpdateDate ? (new Date() - new Date(lastUpdateDate)) / (1000 * 60 * 60 * 24) : Infinity;
             const isCurrentlyActive = daysSinceUpdate <= 7;
             const hasRecent = isCurrentlyActive;
+            if(hasRecent) fireCards.push(m.name);
             
             const recentHtml = (m.recent||[]).slice(0,5).map(r=>{
                 const st = (r.status||'').toLowerCase();
