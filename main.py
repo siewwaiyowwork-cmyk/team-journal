@@ -313,6 +313,355 @@ def clear_db(secret: str = Query(...), payload: dict = Body(...)):
     finally:
         conn.close()
 
+@app.get("/api/goals")
+def get_goals(
+    year: int = Query(None),
+    month: int = Query(None)
+):
+    now = datetime.now()
+    if year is None:
+        year = now.year
+    if month is None:
+        month = now.month
+    target = 50
+    month_start = f"{year}-{month:02d}-01"
+    if month == 12:
+        month_end = f"{year + 1}-01-01"
+    else:
+        month_end = f"{year}-{month + 1:02d}-01"
+
+    conn = get_db()
+    row = conn.execute('''
+        SELECT COALESCE(SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END), 0) as current
+        FROM updates
+        WHERE date >= ? AND date < ?
+    ''', (month_start, month_end)).fetchone()
+
+    contributors = conn.execute('''
+        SELECT name, SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done
+        FROM updates
+        WHERE date >= ? AND date < ?
+        GROUP BY name
+        HAVING done > 0
+        ORDER BY done DESC
+        LIMIT 5
+    ''', (month_start, month_end)).fetchall()
+    conn.close()
+
+    current = dict(row)['current'] or 0
+    percentage = round((current / target) * 100, 1) if target > 0 else 0
+    remaining = max(target - current, 0)
+    month_name = datetime(year, month, 1).strftime('%B')
+
+    return {
+        "target": target,
+        "current": current,
+        "percentage": percentage,
+        "top_contributors": [{"name": r["name"], "done": r["done"]} for r in contributors],
+        "remaining": remaining,
+        "month_name": month_name
+    }
+
+
+@app.get("/api/pulse")
+def get_pulse():
+    now = datetime.now()
+    today = now.strftime('%Y-%m-%d')
+    week_ago = (now - timedelta(days=7)).strftime('%Y-%m-%d')
+
+    conn = get_db()
+
+    active_today = conn.execute('''
+        SELECT COUNT(DISTINCT name) FROM updates
+        WHERE date = ? AND status != 'leave'
+    ''', (today,)).fetchone()[0] or 0
+
+    total_updates_week = conn.execute('''
+        SELECT COUNT(*) FROM updates
+        WHERE date >= ? AND date <= ?
+    ''', (week_ago, today)).fetchone()[0] or 0
+
+    done_this_week = conn.execute('''
+        SELECT COUNT(*) FROM updates
+        WHERE date >= ? AND date <= ? AND status = 'done'
+    ''', (week_ago, today)).fetchone()[0] or 0
+
+    blockers_today = conn.execute('''
+        SELECT COUNT(*) FROM updates
+        WHERE date = ? AND status = 'blocked'
+    ''', (today,)).fetchone()[0] or 0
+
+    active_members = conn.execute(
+        "SELECT COUNT(*) FROM members WHERE active = 1"
+    ).fetchone()[0] or 0
+
+    last_updated_row = conn.execute('''
+        SELECT created_at FROM updates ORDER BY created_at DESC LIMIT 1
+    ''').fetchone()
+    last_updated = dict(last_updated_row)['created_at'] if last_updated_row else None
+
+    # Streak calculation: members with >= 2 day streak
+    streak_rows = conn.execute('''
+        SELECT name, GROUP_CONCAT(DISTINCT date) as dates
+        FROM updates
+        WHERE date >= ? AND date <= ? AND status != 'leave'
+        GROUP BY name
+    ''', (week_ago, today)).fetchall()
+
+    on_streak = 0
+    for r in streak_rows:
+        dates = sorted(dict(r)['dates'].split(','))
+        max_streak = 1
+        current_streak = 1
+        for i in range(1, len(dates)):
+            prev = datetime.strptime(dates[i - 1], '%Y-%m-%d')
+            curr = datetime.strptime(dates[i], '%Y-%m-%d')
+            if (curr - prev).days == 1:
+                current_streak += 1
+                max_streak = max(max_streak, current_streak)
+            else:
+                current_streak = 1
+        if max_streak >= 2:
+            on_streak += 1
+
+    conn.close()
+
+    return {
+        "active_today": active_today,
+        "on_streak": on_streak,
+        "blockers_today": blockers_today,
+        "active_members": active_members,
+        "total_updates_week": total_updates_week,
+        "done_this_week": done_this_week,
+        "last_updated": last_updated
+    }
+
+
+@app.get("/api/activity")
+def get_activity(
+    limit: int = Query(10, ge=1, le=50)
+):
+    STATUS_LABELS = {
+        'in_progress': 'In Progress',
+        'done': 'Done',
+        'blocked': 'Blocked',
+        'vague': 'Vague'
+    }
+
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT name, date, status, description, module
+        FROM updates
+        WHERE status != 'leave'
+        ORDER BY created_at DESC
+        LIMIT ?
+    ''', (limit,)).fetchall()
+    conn.close()
+
+    activity = []
+    for r in rows:
+        d = dict(r)
+        d['status_label'] = STATUS_LABELS.get(d['status'], d['status'].replace('_', ' ').title())
+        activity.append(d)
+
+    return {"activity": activity}
+
+
+@app.get("/api/velocity")
+def get_velocity(
+    weeks: int = Query(12, ge=1, le=52)
+):
+    conn = get_db()
+
+    raw = conn.execute('''
+        SELECT
+            strftime('%Y', date) as year,
+            strftime('%W', date) as week,
+            module,
+            COUNT(*) as done_count
+        FROM updates
+        WHERE status = 'done' AND module != ''
+        GROUP BY year, week, module
+        ORDER BY year, week, module
+    ''').fetchall()
+    conn.close()
+
+    week_data = {}
+    modules_set = set()
+    for r in raw:
+        d = dict(r)
+        wk = f"W{int(d['week']):02d}"
+        key = (d['year'], wk)
+        if key not in week_data:
+            week_data[key] = {}
+        mod = d['module']
+        modules_set.add(mod)
+        week_data[key][mod] = week_data[key].get(mod, 0) + d['done_count']
+
+    sorted_keys = sorted(week_data.keys(), key=lambda x: (int(x[0]), int(x[1][1:])))
+    sorted_keys = sorted_keys[-weeks:] if len(sorted_keys) > weeks else sorted_keys
+
+    weeks_labels = [wk for _, wk in sorted_keys]
+    modules_list = sorted(modules_set)
+
+    data = {}
+    for mod in modules_list:
+        data[mod] = []
+        for key in sorted_keys:
+            data[mod].append(week_data.get(key, {}).get(mod, 0))
+
+    return {
+        "weeks": weeks_labels,
+        "modules": modules_list,
+        "data": data
+    }
+
+
+@app.get("/api/spotlight")
+def get_spotlight():
+    now = datetime.now()
+    today = now.strftime('%Y-%m-%d')
+    week_ago = (now - timedelta(days=7)).strftime('%Y-%m-%d')
+
+    conn = get_db()
+
+    scores_raw = conn.execute('''
+        SELECT name,
+            SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done_count,
+            SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as ip_count
+        FROM updates
+        WHERE date >= ? AND date <= ? AND status != 'leave'
+        GROUP BY name
+    ''', (week_ago, today)).fetchall()
+
+    streaks = {}
+    streak_rows = conn.execute('''
+        SELECT name, GROUP_CONCAT(DISTINCT date) as dates
+        FROM updates
+        WHERE date >= ? AND date <= ? AND status != 'leave'
+        GROUP BY name
+    ''', (week_ago, today)).fetchall()
+
+    for r in streak_rows:
+        d = dict(r)
+        dates = sorted(d['dates'].split(','))
+        # Calculate streak ending on most recent update day
+        if not dates:
+            streaks[d['name']] = 0
+            continue
+        last_date = datetime.strptime(dates[-1], '%Y-%m-%d')
+        streak = 1
+        for i in range(len(dates) - 2, -1, -1):
+            prev = datetime.strptime(dates[i], '%Y-%m-%d')
+            if (last_date - prev).days == 1:
+                streak += 1
+                last_date = prev
+            else:
+                break
+        streaks[d['name']] = streak
+
+    conn.close()
+
+    candidates = []
+    for r in scores_raw:
+        d = dict(r)
+        done_c = d['done_count'] or 0
+        ip_c = d['ip_count'] or 0
+        streak = streaks.get(d['name'], 0)
+        score = (done_c * 3) + (ip_c * 1) + (streak * 2)
+        candidates.append({
+            'name': d['name'],
+            'week_done': done_c,
+            'week_ip': ip_c,
+            'streak': streak,
+            'score': score
+        })
+
+    if not candidates:
+        return {
+            "name": None,
+            "avatar": None,
+            "week_done": 0,
+            "week_ip": 0,
+            "streak": 0,
+            "score": 0,
+            "message": "No activity this week yet. Be the first!"
+        }
+
+    candidates.sort(key=lambda x: x['score'], reverse=True)
+    winner = candidates[0]
+
+    avatar = winner['name'][0].upper() if winner['name'] else '?'
+    message = f"{winner['name']} crushed this week with {winner['week_done']} tasks done and a {winner['streak']}-day streak!"
+
+    return {
+        "name": winner['name'],
+        "avatar": avatar,
+        "week_done": winner['week_done'],
+        "week_ip": winner['week_ip'],
+        "streak": winner['streak'],
+        "score": winner['score'],
+        "message": message
+    }
+
+
+@app.get("/api/challenge")
+def get_challenge():
+    conn = get_db()
+    today = datetime.now().strftime('%Y-%m-%d')
+    week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+    
+    # Get all active members
+    members = [row['name'] for row in conn.execute(
+        "SELECT name FROM members WHERE active = 1 ORDER BY name"
+    ).fetchall()]
+    
+    rows = conn.execute('''
+        SELECT name, GROUP_CONCAT(DISTINCT date) as dates
+        FROM updates
+        WHERE date >= ? AND date <= ? AND status != 'leave'
+        GROUP BY name
+    ''', (week_ago, today)).fetchall()
+    
+    conn.close()
+    
+    result = []
+    for r in rows:
+        d = dict(r)
+        dates = sorted(d['dates'].split(','))
+        streak = 1
+        max_streak = 1
+        for i in range(1, len(dates)):
+            prev = datetime.strptime(dates[i-1], '%Y-%m-%d')
+            curr = datetime.strptime(dates[i], '%Y-%m-%d')
+            if (curr - prev).days == 1:
+                streak += 1
+                max_streak = max(max_streak, streak)
+            else:
+                streak = 1
+        result.append({
+            "name": d['name'],
+            "streak": max_streak,
+            "days_updated": len(dates)
+        })
+    
+    # Add members with no updates
+    for m in members:
+        if not any(r['name'] == m for r in result):
+            result.append({"name": m, "streak": 0, "days_updated": 0})
+    
+    result.sort(key=lambda x: (-x['streak'], x['name']))
+    total = len(result)
+    on_track = sum(1 for r in result if r['streak'] >= 2)
+    
+    return {
+        "total": total,
+        "on_track": on_track,
+        "percentage": round(on_track / max(total, 1) * 100, 1),
+        "members": result[:10]
+    }
+
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 if __name__ == '__main__':
