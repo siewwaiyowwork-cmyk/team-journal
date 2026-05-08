@@ -115,11 +115,11 @@
 .ticker-item .t-name{color:var(--accent);font-weight:600}
 .ticker-item .t-done{color:var(--green);font-weight:600}
         .streak-grid{display:grid;grid-template-columns:repeat(15,1fr);gap:3px;padding:10px 0}
-        .streak-cell{aspect-ratio:1;border-radius:3px;background:var(--bg);transition:.2s}
-        .streak-cell.done{background:var(--green)}
-        .streak-cell.ip{background:rgba(0,229,255,.5)}
-        .streak-cell.leave{background:rgba(255,23,68,.3)}
-        .streak-cell.intense{background:var(--yellow)}
+        .streak-cell{aspect-ratio:1;border-radius:3px;background-color:var(--bg);position:relative;transition:.2s}
+        .streak-cell:hover{transform:scale(1.3);z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+        .streak-cell.done{background-color:var(--green)}
+        .streak-cell.leave{background-color:rgba(255,23,68,.3)}
+        .streak-cell.intense{background-color:var(--yellow)}
 .header-emoji{font-size:1.2em;margin-right:6px;display:inline-block;animation:emoji-bounce 2s ease-in-out infinite}
 @keyframes emoji-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 .xp-section{margin-top:6px}
@@ -138,10 +138,10 @@
         .collab-item .c-mod{color:var(--text-dim)}
         .cal-grid{display:grid;grid-template-columns:repeat(21,1fr);gap:2px;padding:10px 0}
         .cal-cell{aspect-ratio:1;border-radius:2px;background:var(--bg);font-size:.5em;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
+        .cal-cell.weekend{background:rgba(40,100,180,.55);color:rgba(180,210,255,.85)}
+        .cal-cell.ph{background:rgba(230,150,40,.45);color:rgba(255,220,120,.9)}
         .cal-cell.has-update{background:var(--green);color:#000}
         .cal-cell.leave{background:rgba(255,23,68,.3)}
-        .cal-cell.weekend{background:rgba(30,60,90,.5);color:rgba(200,220,255,.6)}
-        .cal-cell.ph{background:rgba(255,145,0,.35);color:rgba(255,200,100,.8)}
         .cal-cell.today{border:1px solid var(--accent)}
         @keyframes celebIn{0%{opacity:0;transform:scale(.8)}100%{opacity:1;transform:scale(1)}}
         @keyframes celebOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.9)}}
@@ -1376,7 +1376,9 @@ function renderVelocityChart(data){
                 const dayName = ['S','M','T','W','T','F','S'][day];
                 const up = updates.filter(u=>u.date===cdStr);
                 let cls = 'cal-cell';
-                let title = cdStr;
+                const dateParts = cdStr.split('-');
+                const niceDate = new Date(cdStr).toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
+                let title = niceDate;
                 if(up.some(u=>u.status==='leave')){cls+=' leave';title+=' (Leave)';}
                 else if(up.length>0){cls+=' has-update';title+=' · '+up.length+' updates';}
                 if(day===0||day===6){cls+=' weekend';title+=' (Weekend)';}
@@ -1394,7 +1396,8 @@ function renderVelocityChart(data){
             gridDates.forEach(d => {
                 const data = gridData[d];
                 let cls = 'streak-cell';
-                let title = d;
+                const niceDate = new Date(d).toLocaleDateString('en-US', {weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'});
+                let title = niceDate;
                 if(data.hasLeave){
                     cls += ' leave'; title += ' (Leave)';
                 } else if(data.count > 0){
