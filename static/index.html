@@ -1094,7 +1094,8 @@ function renderVelocityChart(data){
         if (specificity >= 90) badgesHtml += '<span class="ach-badge quality" title="🎯 Quality Control: 90%+ specificity! Crystal clear updates!">\uD83C\uDFAF Quality Control</span>';
         if (Object.keys(moduleCounts).length >= 3) badgesHtml += '<span class="ach-badge allrounder" title="🌟 All-Rounder: Worked across 3+ different modules. Versatile!">\uD83C\uDF1F All-Rounder</span>';
         if (weeklyCounts[5] > 0 || weeklyCounts[6] > 0) badgesHtml += '<span class="ach-badge nightowl" title="🌑 Night Owl: Working on Friday or weekend! Going the extra mile!">\uD83C\uDF19 Night Owl</span>';
-        if (blockedCount > 0 && updates.some(u => u.status === 'in_progress' || u.status === 'done')) badgesHtml += '<span class="ach-badge bugslayer" title="🗡️ Bug Slayer: Cleared blockers and moved forward!">\uD83D\uDD31 Bug Slayer</span>';
+        const bugDoneCount = updates.filter(u => u.status === 'done' && u.description && u.description.toLowerCase().includes('bug')).length;
+        if (bugDoneCount >= 20) badgesHtml += '<span class="ach-badge bugslayer" title="🗡️ Bug Slayer: Fixed ' + bugDoneCount + ' bugs marked as Done!">\uD83D\uDD31 Bug Slayer (' + bugDoneCount + ')</span>';
         if (updates.length === 1) badgesHtml += '<span class="ach-badge freshstart" title="🌱 Fresh Start: First update logged! Welcome aboard!">\uD83C\uDF31 Fresh Start</span>';
 
         if(badgesHtml){hasBadge=true;}
