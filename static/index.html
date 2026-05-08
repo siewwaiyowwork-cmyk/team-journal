@@ -1370,15 +1370,15 @@ function renderVelocityChart(data){
         if(calGrid){
             let calHtml = '';
             for(let i=20;i>=0;i--){
-                const cd = new Date(); cd.setDate(cd.getDate()-i);
-                const cdStr = cd.toISOString().split('T')[0];
+                var cd = new Date(); cd.setDate(cd.getDate()-i);
+                cd.setHours(12,0,0,0);
+                const cdStr = cd.getFullYear()+'-'+(cd.getMonth()+1).toString().padStart(2,'0')+'-'+cd.getDate().toString().padStart(2,'0');
                 const day = cd.getDay();
                 const dayName = ['S','M','T','W','T','F','S'][day];
                 const up = updates.filter(u=>u.date===cdStr);
                 let cls = 'cal-cell';
-                const dateParts = cdStr.split('-');
-                const niceDate = new Date(cdStr).toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
-                let title = niceDate;
+                const titleDate = cd.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+                let title = titleDate;
                 if(up.some(u=>u.status==='leave')){cls+=' leave';title+=' (Leave)';}
                 else if(up.length>0){cls+=' has-update';title+=' · '+up.length+' updates';}
                 if(day===0){cls+=' weekend';title+=' (Sunday)';}
