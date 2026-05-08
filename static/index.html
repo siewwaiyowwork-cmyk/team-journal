@@ -1237,7 +1237,6 @@ function renderVelocityChart(data){
                 <div class="chart-box"><div class="chart-title">Top Modules ${rangeLabel}</div><div class="chart-wrapper"><canvas id="c-mod-${safeId}"></canvas></div></div>
                 <div class="chart-box"><div class="chart-title">Weekly Rhythm ${rangeLabel} <span class="info-icon" data-tooltip="Shows how many updates you submitted on each weekday. Higher bars = more activity on that day. Only non-leave entries are counted. Mon-Fri pattern helps identify your most productive days.">ℹ</span></div><div class="chart-wrapper"><canvas id="c-week-${safeId}"></canvas></div></div>
                 <div class="chart-box"><div class="chart-title">90-Day Streak <span class="info-icon" data-tooltip="Activity grid for the last 90 working days (weekends & public holidays excluded). Bright cells = days with updates (brighter = more entries). Orange = leave days. Blank = no activity. Keep logging daily to build and maintain your streak!">ℹ</span></div><div class="streak-grid" id="streak-${safeId}"></div></div>
-            <div class="chart-box"><div class="chart-title">Last 3 Weeks Calendar</div><div class="cal-grid" id="cal-${safeId}"></div></div>
             </div>
             <div class="detail-yeardone"><h3 class="section-title">Legendary Achievements<span class="badge" style="margin-left:12px">0</span></h3><div class="task-loading">Loading legendary achievements...</div><div class="task-content" style="display:none"></div></div>
             <div class="detail-tasklist"><h3 class="section-title">Recent Tasks</h3><div class="task-loading">Loading recent tasks...</div><div class="task-content" style="display:none"></div></div>
@@ -1369,30 +1368,7 @@ function renderVelocityChart(data){
             }
         },50);
         
-        // Render calendar (last 21 days)
-        const calGrid = document.getElementById(`cal-${safeId}`);
-        if(calGrid){
-            let calHtml = '';
-            for(let i=20;i>=0;i--){
-                var cd = new Date(); cd.setDate(cd.getDate()-i);
-                cd.setHours(12,0,0,0);
-                const cdStr = cd.getFullYear()+'-'+(cd.getMonth()+1).toString().padStart(2,'0')+'-'+cd.getDate().toString().padStart(2,'0');
-                const day = cd.getDay();
-                const dayName = ['S','M','T','W','T','F','S'][day];
-                const up = updates.filter(u=>u.date===cdStr);
-                let cls = 'cal-cell';
-                const titleDate = cd.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-                let title = titleDate;
-                if(up.some(u=>u.status==='leave')){cls+=' leave';title+=' (Leave)';}
-                else if(up.length>0){cls+=' has-update';title+=' · '+up.length+' updates';}
-                if(day===0){cls+=' weekend';title+=' (Sunday)';}
-                else if(day===6){cls+=' weekend';title+=' (Saturday)';}
-                else if(isPH(cdStr)){cls+=' ph';title+=' (Public Holiday: '+KL_PH[cdStr]+')';}
-                if(i===0){cls+=' today';}
-                calHtml +=`<div class="${cls}" title="${title}">${dayName}</div>`;
-            }
-            calGrid.innerHTML = calHtml;
-        }
+        // Render calendar (last 21 days) — REMOVED, use 90-Day Streak instead
         
         // Render streak grid
         const streakGrid = document.getElementById(`streak-${safeId}`);
