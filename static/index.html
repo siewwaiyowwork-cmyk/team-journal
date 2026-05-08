@@ -281,6 +281,9 @@
         .panel-close{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:1.2em;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center}.panel-close:hover{border-color:var(--accent);color:var(--accent)}
         .field-group{margin-bottom:18px}.field-label{font-size:.8em;font-weight:600;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;display:block}.field-label span{color:var(--red);margin-left:3px}
         .name-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px}
+        .name-chip-wrap{position:relative;display:inline-block}
+        .name-chip-del{position:absolute;top:-6px;right:-6px;width:14px;height:14px;border-radius:50%;background:var(--red);color:#fff;font-size:9px;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:5;line-height:1;padding:0}
+        .name-chip-wrap:hover .name-chip-del{display:flex}
         .name-chip,.mod-chip{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-family:'Syne',sans-serif;font-size:.8em;font-weight:600;padding:8px 10px;cursor:pointer;transition:.15s;text-align:center}.mod-chip{border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.75em}
         .name-chip:hover,.mod-chip:hover{border-color:var(--accent);color:var(--accent)}.name-chip.sel,.mod-chip.sel{border-color:var(--accent);background:rgba(0,229,255,.1);color:var(--accent)}
         .mod-wrap{display:flex;flex-wrap:wrap;gap:6px}
@@ -411,6 +414,10 @@
             <div class="field-group">
                 <span class="field-label">Member <span>*</span></span>
                 <div class="name-grid" id="pNameGrid"></div>
+                <div style="display:flex;gap:8px;margin-top:10px">
+                    <input class="panel-input" id="pNewMember" placeholder="New member name..." style="flex:1;margin-top:0" onkeydown="if(event.key==='Enter')addMember()">
+                    <button class="btn-submit" onclick="addMember()" style="padding:8px 16px;font-size:.8em;margin:0">+ Add</button>
+                </div>
             </div>
             <div class="field-group" id="modGroup">
                 <span class="field-label">Module <span>*</span></span>
@@ -866,7 +873,7 @@ function renderVelocityChart(data){
         var detailName = window.currentDetailName;
         
         if(!document.getElementById('pNameGrid').children.length){
-            MEMBERS.forEach(n=>{var b=document.createElement('button');b.className='name-chip';b.textContent=n;b.onclick=function(){selName(b,n);};document.getElementById('pNameGrid').appendChild(b);});
+            refreshMemberChips();
             MODS.forEach(m=>{var t=document.createElement('div');t.className='mod-chip';t.textContent=m;t.onclick=function(){selMod(t,m);};document.getElementById('pModGrid').appendChild(t);});
         }
         var defaultDate=new Date();
@@ -953,6 +960,50 @@ function renderVelocityChart(data){
             document.getElementById('pSubmitBtn').textContent='Submit Update ->';
         }
     }
+    async function addMember(){
+        var input=document.getElementById('pNewMember');
+        var name=input.value.trim();
+        if(!name){showToast('Please enter a member name','err');return;}
+        try{
+            var res=await fetch(API_URL+'/api/members',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})});
+            var data=await res.json();
+            if(data.ok){
+                showToast('Member '+name+' added');
+                MEMBERS.push(name);MEMBERS.sort();
+                input.value='';
+                refreshMemberChips();
+            } else {
+                showToast(data.detail||'Failed to add member','err');
+            }
+        }catch(e){showToast('Add member failed','err');}
+    }
+    async function removeMember(name){
+        if(!confirm('Delete member "'+name+'" and ALL their records permanently?'))return;
+        try{
+            var res=await fetch(API_URL+'/api/members/'+encodeURIComponent(name),{method:'DELETE'});
+            var data=await res.json();
+            if(data.ok){
+                showToast('Member '+name+' removed');
+                var idx=MEMBERS.indexOf(name);if(idx>-1)MEMBERS.splice(idx,1);
+                if(pName===name)pName='';
+                refreshMemberChips();
+                validate();
+            } else {
+                showToast(data.detail||'Failed to remove member','err');
+            }
+        }catch(e){showToast('Remove member failed','err');}
+    }
+    function refreshMemberChips(){
+        var grid=document.getElementById('pNameGrid');
+        grid.innerHTML='';
+        MEMBERS.forEach(n=>{
+            var wrap=document.createElement('div'); wrap.className='name-chip-wrap';
+            var b=document.createElement('button'); b.className='name-chip'; b.textContent=n; b.onclick=function(){selName(b,n);};
+            var del=document.createElement('button'); del.className='name-chip-del'; del.innerHTML='\u00D7'; del.title='Remove '+n+' and delete all records'; del.onclick=function(e){e.stopPropagation(); removeMember(n);};
+            wrap.appendChild(b); wrap.appendChild(del); grid.appendChild(wrap);
+        });
+    }
+
     async function doSubmit(){
         var btn=document.getElementById('pSubmitBtn');btn.disabled=true;
         var desc=document.getElementById('pDesc').value.trim();

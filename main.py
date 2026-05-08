@@ -123,6 +123,38 @@ def get_members():
     conn.close()
     return {"members": [dict(r) for r in rows]}
 
+@app.post("/api/members")
+def add_member(data: dict = Body(...)):
+    name = data.get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO members (name, active) VALUES (?, 1) ON CONFLICT(name) DO UPDATE SET active = 1",
+            (name,)
+        )
+        conn.commit()
+        conn.close()
+        return {"ok": True, "name": name}
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/members/{name}")
+def remove_member(name: str):
+    conn = get_db()
+    try:
+        conn.execute("UPDATE members SET active = 0 WHERE name = ?", (name,))
+        conn.execute("DELETE FROM updates WHERE name = ?", (name,))
+        conn.execute("DELETE FROM leave_records WHERE name = ?", (name,))
+        conn.commit()
+        conn.close()
+        return {"ok": True, "message": f"Member {name} removed and records cleared"}
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/summary")
 def get_summary(
     from_date: Optional[str] = None,
