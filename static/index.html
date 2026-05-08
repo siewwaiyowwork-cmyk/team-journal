@@ -126,7 +126,7 @@
 .xp-bar{height:4px;background:var(--bg);border-radius:2px;overflow:hidden;margin-top:4px}
 .xp-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:2px;transition:width .5s}
 .xp-label{display:flex;justify-content:space-between;font-size:.6em;color:var(--text-dim);margin-top:2px}
-.level-badge{font-size:.6em;padding:1px 7px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--green));color:#0a0a0f;font-weight:700;margin-left:4px;vertical-align:middle}
+        .level-badge{font-size:.6em;padding:2px 8px;border-radius:8px;font-weight:700;margin-left:4px;vertical-align:middle;text-shadow:0 1px 2px rgba(0,0,0,.2)}
         .fire-particles{position:absolute;top:0;right:0;width:30px;height:100%;pointer-events:none;overflow:hidden}
         .fire-particle{position:absolute;width:4px;height:4px;background:var(--orange);border-radius:50%;animation:fire-rise 1.5s ease-out infinite}
         @keyframes fire-rise{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-25px) scale(0)}}
@@ -629,7 +629,7 @@ function renderVelocityChart(data){
 
     async function initDashboard(){
         try{
-            const [summaryRes, heatmapRes, leaveRes, goalsRes, pulseRes, spotlightRes, activityRes, challengeRes, velocityRes] = await Promise.all([
+            const [summaryRes, heatmapRes, leaveRes, goalsRes, pulseRes, spotlightRes, activityRes, challengeRes, velocityRes, yearlyDoneRes] = await Promise.all([
                 fetch(`${API_URL}/api/summary`),
                 fetch(`${API_URL}/api/heatmap`),
                 fetch(`${API_URL}/api/leave`),
@@ -638,7 +638,8 @@ function renderVelocityChart(data){
                 fetch(`${API_URL}/api/spotlight`),
                 fetch(`${API_URL}/api/activity`),
                 fetch(`${API_URL}/api/challenge`),
-                fetch(`${API_URL}/api/velocity`)
+                fetch(`${API_URL}/api/velocity`),
+                fetch(`${API_URL}/api/yearly-done`)
             ]);
             const summary = await summaryRes.json();
             const heatmap = await heatmapRes.json();
@@ -649,6 +650,11 @@ function renderVelocityChart(data){
             const activity = await activityRes.json();
             const challenge = await challengeRes.json();
             const velocity = await velocityRes.json();
+            const yearlyDone = await yearlyDoneRes.json();
+            window.yearlyDoneMap = {};
+            if (yearlyDone && yearlyDone.result) {
+                yearlyDone.result.forEach(function(r) { window.yearlyDoneMap[r.name] = r.done || 0; });
+            }
             leaveData = processLeaveData(leaveJson.leave || []);
             renderDashboard(summary);
             renderInsights(summary.members, heatmap);
@@ -784,11 +790,14 @@ function renderVelocityChart(data){
         const grid = document.getElementById('overviewGrid');
         var fireCards=[];
         grid.innerHTML = members.map((m,i)=>{
-            const levelInfo=getLevel(m.total||0);
+            const levelInfo=getLevel(window.yearlyDoneMap[m.name]||0);
             const level=levelInfo.level;
             const levelTitle=levelInfo.title;
-            const xp=levelInfo.xp;
-            const levelHtml='<span class="level-badge">LV'+level+' '+levelTitle+'</span>';
+            const levelEmoji=levelInfo.emoji;
+            const levelColor=levelInfo.color;
+            const levelBg=levelInfo.bg;
+            const progress=levelInfo.progress;
+            const levelHtml='<span class="level-badge" style="background:'+levelBg+';color:'+(level>=16?'#fff':'#0a0a0f')+'">'+levelEmoji+' LV'+level+' '+levelTitle+'</span>';
             const rank = i+1;
             const rankClass = rank===1?'g1':rank===2?'g2':rank===3?'g3':'';
             const lastUpdateDate = m.recent && m.recent.length > 0 ? m.recent[0].date : null;
@@ -821,7 +830,7 @@ function renderVelocityChart(data){
                     <div class="ov-body" id="card-${m.name.replace(/[^a-zA-Z]/g,'')}">
                         <div class="ov-row"><span class="lab">Updates</span><span class="val">${m.total} tasks</span></div>
                         <div class="xp-section">
-                            <div class="xp-bar"><div class="xp-fill" style="width:${xp}%"></div></div>
+                            <div class="xp-bar"><div class="xp-fill" style="width:${progress}%;background:${levelBg}"></div></div>
                             <div class="xp-label"><span>Level ${level}</span><span>${levelTitle}</span></span></div>
                         </div>
                         <div class="ov-row"><span class="lab">Streak</span><span class="val" style="color:${hasRecent ? 'var(--green)' : 'var(--orange)'}">${hasRecent ? '🔥 Active' : '⚪ Away'}</span></div>
@@ -1185,12 +1194,18 @@ function renderVelocityChart(data){
         if (updates.length === 1) badgesHtml += '<span class="ach-badge freshstart" title="🌱 Fresh Start: First update logged! Welcome aboard!">\uD83C\uDF31 Fresh Start</span>';
 
         if(badgesHtml){hasBadge=true;}
+        const dLevelInfo=getLevel(window.yearlyDoneMap[name]||0);
+        const dLevel=dLevelInfo.level;
+        const dLevelTitle=dLevelInfo.title;
+        const dLevelEmoji=dLevelInfo.emoji;
+        const dLevelBg=dLevelInfo.bg;
+        const dLevelHtml='\u003cspan class="level-badge" style="background:'+dLevelBg+';color:'+(dLevel>=16?'#fff':'#0a0a0f')+'"\u003e'+dLevelEmoji+' LV'+dLevel+' '+dLevelTitle+'\u003c/span\u003e';
         const html = `
             <div class="detail-card">
                 <div class="detail-header-big">
                     <div class="detail-avatar">${avatar}</div>
                     <div class="detail-title">
-                        <h2>${name}</h2>
+                        <h2>${name} ${dLevelHtml}</h2>
                         <div class="detail-sub">Last 90 working days · ${updates.length} entries · ${doneCount} Done · ${streak}-day streak ${rank !== '--' ? '· Rank #' + rank : ''}</div>
                         <div class="detail-badges">${badgesHtml}</div>
                     </div>
@@ -1428,15 +1443,37 @@ function renderVelocityChart(data){
             el.innerHTML=combo.map(function(e,i){return'<span class="header-emoji" style="animation-delay:'+(i*.3)+'s">'+e+'</span>';}).join('');
         }
     }
-    function getLevel(total){
-        if(total >= 800) return {level:50,title:'Legend',xp:100,next:1000};
-        if(total >= 600) return {level:40,title:'Master',xp:Math.round((total-600)/200*100),next:800};
-        if(total >= 400) return {level:30,title:'Expert',xp:Math.round((total-400)/200*100),next:600};
-        if(total >= 250) return {level:20,title:'Veteran',xp:Math.round((total-250)/150*100),next:400};
-        if(total >= 150) return {level:10,title:'Regular',xp:Math.round((total-150)/100*100),next:250};
-        if(total >= 70) return {level:5,title:'Contributor',xp:Math.round((total-70)/80*100),next:150};
-        if(total >= 25) return {level:2,title:'Rookie',xp:Math.round((total-25)/45*100),next:70};
-        return {level:1,title:'Newbie',xp:Math.round(total/25*100),next:25};
+    function getLevel(doneCount){
+        const tiers=[
+            {lv:1,title:'Seedling',emoji:'🌱',desc:'First task completed!',min:1,color:'#4CAF50',bg:'linear-gradient(135deg,#4CAF50,#8BC34A)'},
+            {lv:2,title:'Sprout',emoji:'🌿',desc:'Getting the hang of it',min:3,color:'#66BB6A',bg:'linear-gradient(135deg,#66BB6A,#A5D6A7)'},
+            {lv:3,title:'Bud',emoji:'🌷',desc:'Growing steadily',min:5,color:'#81C784',bg:'linear-gradient(135deg,#81C784,#C8E6C9)'},
+            {lv:4,title:'Sapling',emoji:'🌳',desc:'Building momentum',min:8,color:'#26A69A',bg:'linear-gradient(135deg,#26A69A,#80CBC4)'},
+            {lv:5,title:'Gardener',emoji:'🪴',desc:'Tending the work garden',min:12,color:'#00BCD4',bg:'linear-gradient(135deg,#00BCD4,#80DEEA)'},
+            {lv:6,title:'Scout',emoji:'🔍',desc:'Exploring new grounds',min:18,color:'#29B6F6',bg:'linear-gradient(135deg,#29B6F6,#81D4FA)'},
+            {lv:7,title:'Ranger',emoji:'🏹',desc:'Patrolling the codebase',min:25,color:'#42A5F5',bg:'linear-gradient(135deg,#42A5F5,#90CAF9)'},
+            {lv:8,title:'Knight',emoji:'⚔️',desc:'Defending the realm',min:33,color:'#5C6BC0',bg:'linear-gradient(135deg,#5C6BC0,#9FA8DA)'},
+            {lv:9,title:'Captain',emoji:'🛡️',desc:'Leading the charge',min:42,color:'#7E57C2',bg:'linear-gradient(135deg,#7E57C2,#B39DDB)'},
+            {lv:10,title:'Champion',emoji:'🏆',desc:'Half-century milestone!',min:52,color:'#AB47BC',bg:'linear-gradient(135deg,#AB47BC,#CE93D8)'},
+            {lv:11,title:'Mage',emoji:'🔮',desc:'Mastering the craft',min:63,color:'#EC407A',bg:'linear-gradient(135deg,#EC407A,#F48FB1)'},
+            {lv:12,title:'Wizard',emoji:'🧙‍♂️',desc:'Casting powerful spells',min:75,color:'#EF5350',bg:'linear-gradient(135deg,#EF5350,#EF9A9A)'},
+            {lv:13,title:'Paladin',emoji:'⚜️',desc:'Holy efficiency',min:88,color:'#FF7043',bg:'linear-gradient(135deg,#FF7043,#FFAB91)'},
+            {lv:14,title:'Templar',emoji:'✨',desc:'Elite warrior status',min:102,color:'#FF9800',bg:'linear-gradient(135deg,#FF9800,#FFCC80)'},
+            {lv:15,title:'Warlord',emoji:'👑',desc:'Commanding the battlefield',min:117,color:'#FFB300',bg:'linear-gradient(135deg,#FFB300,#FFE082)'},
+            {lv:16,title:'Demigod',emoji:'🔥',desc:'Nearly unstoppable',min:133,color:'#FDD835',bg:'linear-gradient(135deg,#FDD835,#FFF59D)'},
+            {lv:17,title:'Elder',emoji:'🐉',desc:'Ancient wisdom',min:150,color:'#C0CA33',bg:'linear-gradient(135deg,#C0CA33,#E6EE9C)'},
+            {lv:18,title:'Titan',emoji:'⚡',desc:'Crushing every obstacle',min:168,color:'#9CCC65',bg:'linear-gradient(135deg,#9CCC65,#C5E1A5)'},
+            {lv:19,title:'Celestial',emoji:'🌟',desc:'Among the stars',min:187,color:'#26C6DA',bg:'linear-gradient(135deg,#26C6DA,#80DEEA)'},
+            {lv:20,title:'Immortal',emoji:'👑',desc:'Beyond mortality',min:208,color:'#FFD700',bg:'linear-gradient(135deg,#FFD700,#FFA000)'}
+        ];
+        // Find highest tier where doneCount >= min
+        let tier=tiers[0];
+        for(var i=tiers.length-1;i>=0;i--){
+            if(doneCount>=tiers[i].min){tier=tiers[i];break;}
+        }
+        var nextMin=tier.lv<20?tiers[tier.lv].min:tier.min+50;
+        var progress=tier.lv<20?Math.round((doneCount-tier.min)/(nextMin-tier.min)*100):100;
+        return{level:tier.lv,title:tier.title,emoji:tier.emoji,desc:tier.desc,color:tier.color,bg:tier.bg,progress:progress,next:nextMin};
     }
     function addFireParticles(el){
         if(!el) return;

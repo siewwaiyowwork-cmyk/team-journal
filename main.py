@@ -662,6 +662,34 @@ def get_challenge():
     }
 
 
+@app.get("/api/yearly-done")
+def get_yearly_done():
+    current_year = datetime.now().year
+    from_date = f"{current_year}-01-01"
+    to_date = datetime.now().strftime('%Y-%m-%d')
+    
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT name,
+            SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done
+        FROM updates
+        WHERE date >= ? AND date <= ?
+        GROUP BY name
+    ''', (from_date, to_date)).fetchall()
+    
+    all_members = conn.execute("SELECT name FROM members").fetchall()
+    conn.close()
+    
+    result_map = {r['name']: r['done'] or 0 for r in rows}
+    
+    return {
+        "year": current_year,
+        "from_date": from_date,
+        "to_date": to_date,
+        "result": [{"name": r[0], "done": result_map.get(r[0], 0)} for r in all_members]
+    }
+
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 if __name__ == '__main__':
