@@ -951,6 +951,7 @@ function renderVelocityChart(data){
         document.getElementById('detail-view').classList.add('active');
         document.getElementById('detail-content').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading...</div>';
         window.scrollTo(0,0);
+        history.pushState({page:'detail',name:name},'',window.location.pathname + '#detail/' + encodeURIComponent(name));
         
         const url = new URL(window.location.origin + '/api/updates');
         url.searchParams.set('name', name);
@@ -970,6 +971,9 @@ function renderVelocityChart(data){
         document.getElementById('detail-view').classList.remove('active');
         document.getElementById('overview-section').classList.remove('hidden');
         window.scrollTo(0,0);
+        if(window.location.hash.startsWith('#detail/')){
+            history.pushState({page:'overview'},'',window.location.pathname);
+        }
     }
     
     function getBusinessDaysAgo(n) {
@@ -1351,6 +1355,21 @@ function renderVelocityChart(data){
     document.addEventListener('DOMContentLoaded',function(){
         initDashboard();
         document.addEventListener('keydown',function(e){if(e.key==='n'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName))openPanel();});
+        
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate',function(e){
+            if(e.state && e.state.page==='detail' && e.state.name){
+                showDetail(e.state.name);
+            } else {
+                showOverview();
+            }
+        });
+        
+        // Handle direct URL with hash (e.g. page reload on #detail/Ain)
+        if(window.location.hash.startsWith('#detail/')){
+            var name=decodeURIComponent(window.location.hash.slice(8));
+            if(name) showDetail(name);
+        }
     });
 
     function renderLeaveCharts() {
