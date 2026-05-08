@@ -140,6 +140,8 @@
         .cal-cell{aspect-ratio:1;border-radius:2px;background:var(--bg);font-size:.5em;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
         .cal-cell.has-update{background:var(--green);color:#000}
         .cal-cell.leave{background:rgba(255,23,68,.3)}
+        .cal-cell.weekend{background:rgba(30,60,90,.5);color:rgba(200,220,255,.6)}
+        .cal-cell.ph{background:rgba(255,145,0,.35);color:rgba(255,200,100,.8)}
         .cal-cell.today{border:1px solid var(--accent)}
         @keyframes celebIn{0%{opacity:0;transform:scale(.8)}100%{opacity:1;transform:scale(1)}}
         @keyframes celebOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.9)}}
@@ -1377,6 +1379,8 @@ function renderVelocityChart(data){
                 let title = cdStr;
                 if(up.some(u=>u.status==='leave')){cls+=' leave';title+=' (Leave)';}
                 else if(up.length>0){cls+=' has-update';title+=' · '+up.length+' updates';}
+                if(day===0||day===6){cls+=' weekend';title+=' (Weekend)';}
+                else if(isPH(cdStr)){cls+=' ph';title+=' (Public Holiday: '+KL_PH[cdStr]+')';}
                 if(i===0){cls+=' today';}
                 calHtml +=`<div class="${cls}" title="${title}">${dayName}</div>`;
             }
