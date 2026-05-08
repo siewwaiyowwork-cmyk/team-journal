@@ -1381,7 +1381,8 @@ function renderVelocityChart(data){
                 let title = niceDate;
                 if(up.some(u=>u.status==='leave')){cls+=' leave';title+=' (Leave)';}
                 else if(up.length>0){cls+=' has-update';title+=' · '+up.length+' updates';}
-                if(day===0||day===6){cls+=' weekend';title+=' (Weekend)';}
+                if(day===0){cls+=' weekend';title+=' (Sunday)';}
+                else if(day===6){cls+=' weekend';title+=' (Saturday)';}
                 else if(isPH(cdStr)){cls+=' ph';title+=' (Public Holiday: '+KL_PH[cdStr]+')';}
                 if(i===0){cls+=' today';}
                 calHtml +=`<div class="${cls}" title="${title}">${dayName}</div>`;
