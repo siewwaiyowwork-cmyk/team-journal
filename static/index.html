@@ -1111,6 +1111,24 @@ function renderVelocityChart(data){
             }
         });
 
+        // Personal Best Day
+        const dateCounts = {};
+        updates.forEach(u => { if(u.status !== 'leave') dateCounts[u.date] = (dateCounts[u.date]||0) + 1; });
+        const bestDay = Object.entries(dateCounts).sort((a,b)=>b[1]-a[1])[0] || ['--',0];
+        const bestDayLabel = bestDay[0] !== '--' ? `${bestDay[0]} · ${bestDay[1]} tasks` : '--';
+
+        // Consistency Score
+        const uniqueWorkDates = new Set(updates.filter(u=>u.status!=='leave').map(u=>u.date)).size;
+        const consistencyPct = totalWorkdays > 0 ? Math.round((uniqueWorkDates / totalWorkdays) * 1000) / 10 : 0;
+
+        // Module Champion
+        const bestModule = topModules.length > 0 ? topModules[0] : ['--',0];
+        const moduleChampHtml = bestModule[0] !== '--' ? `
+            <div class="metric-card" style="background:linear-gradient(135deg,rgba(255,215,0,.1),rgba(255,215,0,.05));border-color:var(--gold)">
+                <div class="metric-num" style="color:var(--gold)">👑 ${bestModule[0]}</div>
+                <div class="metric-label">Module Champ · ${bestModule[1]}</div>
+            </div>` : '';
+
         // Daily grid for last 90 working days (exclude weekends & public holidays)
         const today = new Date();
         const gridData = {};
@@ -1169,12 +1187,15 @@ function renderVelocityChart(data){
                 </div>
                 <div class="detail-body">
                     <div class="detail-metrics">
+                        ${moduleChampHtml}
                         <div class="metric-card"><div class="metric-num" style="color:var(--green)">${doneCount}</div><div class="metric-label">Done</div></div>
                         <div class="metric-card"><div class="metric-num" style="color:var(--accent)">${inProgressCount}</div><div class="metric-label">In Progress</div></div>
                         <div class="metric-card"><div class="metric-num" style="color:var(--orange)">${blockedCount}</div><div class="metric-label">Blocked</div></div>
                         <div class="metric-card"><div class="metric-num" style="color:${streak >= 7 ? 'var(--gold)' : 'var(--text)'}">${streak}</div><div class="metric-label">Streak</div></div>
                         <div class="metric-card"><div class="metric-num">${cappedDays}/${totalWorkdays}</div><div class="metric-label">Days Logged</div></div>
                         <div class="metric-card"><div class="metric-num">${attendancePct}%</div><div class="metric-label">Attendance</div></div>
+                        <div class="metric-card"><div class="metric-num" style="color:var(--yellow)">${consistencyPct}%</div><div class="metric-label">Consistency</div></div>
+                        <div class="metric-card"><div class="metric-num" style="color:var(--purple)">${bestDayLabel}</div><div class="metric-label">Best Day</div></div>
                         <div class="metric-card"><div class="metric-num">${leave.AL}</div><div class="metric-label">AL</div></div>
                         <div class="metric-card"><div class="metric-num">${leave.MC}</div><div class="metric-label">MC</div></div>
                     </div>
