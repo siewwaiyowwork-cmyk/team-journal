@@ -572,19 +572,24 @@ function renderVelocityChart(data){
     var weeks=data.weeks;
     var modules=data.modules||[];
     var chartData=data.data||{};
-    var colors=['var(--green)','var(--accent)','var(--orange)','var(--yellow)','#a855f7','#ec4899'];
+    var colors=['#FF6B6B','#4ECDC4','#FFE66D','#95E1D3','#F38181','#AA96DA'];
     var datasets=modules.map(function(mod,i){
         return{
             label:mod,
             data:chartData[mod]||weeks.map(function(){return 0;}),
-            backgroundColor:colors[i%colors.length],
+            backgroundColor:colors[i%colors.length]+'20',
             borderColor:colors[i%colors.length],
-            borderWidth:1,
+            borderWidth:2,
             fill:true,
-            tension:.4
+            tension:.4,
+            pointBackgroundColor:colors[i%colors.length],
+            pointBorderColor:'#fff',
+            pointBorderWidth:1,
+            pointRadius:4,
+            pointHoverRadius:6
         };
     });
-    el.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:20px 0"><div class="chart-title" style="margin-bottom:12px">📈 Module Velocity Chart</div><div style="height:250px;position:relative"><canvas id="velocityCanvas"></canvas></div></div>';
+    el.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:20px 0"><div class="chart-title" style="margin-bottom:12px">Module Velocity Chart <span class="info-icon" data-tooltip="Tracks how many tasks each team member marked as Done per module, grouped by calendar week (ISO week format). Data is retrieved from the updates table where status=done. Use this to spot which modules have momentum, identify slowdowns, and compare throughput across different work areas. Higher lines = more completed work that week.">ℹ</span></div><div style="height:250px;position:relative"><canvas id="velocityCanvas"></canvas></div></div>';
     el.style.display='block';
     setTimeout(function(){
         new Chart(document.getElementById('velocityCanvas'),{
@@ -592,8 +597,15 @@ function renderVelocityChart(data){
             data:{labels:weeks,datasets:datasets},
             options:{
                 responsive:true,maintainAspectRatio:false,
-                scales:{y:{beginAtZero:true,ticks:{color:'#aaa'},grid:{color:'#333'}},x:{ticks:{color:'#aaa'},grid:{color:'#333'}}},
-                plugins:{legend:{labels:{color:'#aaa'}}}
+                interaction:{mode:'index',intersect:false},
+                scales:{
+                    y:{beginAtZero:true,ticks:{color:'#aaa',font:{size:11}},grid:{color:'rgba(255,255,255,.1)'},title:{display:true,text:'Tasks Done',color:'#aaa',font:{size:11}}},
+                    x:{ticks:{color:'#aaa',font:{size:11}},grid:{color:'rgba(255,255,255,.05)'},title:{display:true,text:'Week',color:'#aaa',font:{size:11}}}
+                },
+                plugins:{
+                    legend:{labels:{color:'#aaa',font:{size:12},usePointStyle:true,pointStyle:'circle'}},
+                    tooltip:{backgroundColor:'rgba(18,18,26,.95)',titleColor:'#fff',bodyColor:'#aaa',borderColor:'rgba(255,255,255,.2)',borderWidth:1,cornerRadius:8,displayColors:true,padding:10}
+                }
             }
         });
     },100);
