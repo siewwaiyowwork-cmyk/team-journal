@@ -1120,14 +1120,18 @@ function renderVelocityChart(data){
         }
         const streak = computeStreak(updates);
 
-        // Top modules
-        const moduleCounts = {};
+        // Top modules with per-status counts for stacked bar
+        const moduleStatusCounts = {};
         updates.forEach(u => {
-            if (u.module && u.status !== 'leave') {
-                moduleCounts[u.module] = (moduleCounts[u.module] || 0) + 1;
-            }
+            if (!u.module || u.status === 'leave') return;
+            if (!moduleStatusCounts[u.module]) moduleStatusCounts[u.module] = { done: 0, in_progress: 0, blocked: 0 };
+            if (u.status === 'done') moduleStatusCounts[u.module].done++;
+            else if (u.status === 'in_progress') moduleStatusCounts[u.module].in_progress++;
+            else if (u.status === 'blocked') moduleStatusCounts[u.module].blocked++;
         });
-        const topModules = Object.entries(moduleCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
+        const topModules = Object.entries(moduleStatusCounts)
+            .sort((a, b) => (b[1].done + b[1].in_progress + b[1].blocked) - (a[1].done + a[1].in_progress + a[1].blocked))
+            .slice(0, 5);
 
         // Weekly rhythm
         const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -1138,12 +1142,6 @@ function renderVelocityChart(data){
                 weeklyCounts[d.getDay()]++;
             }
         });
-
-        // Personal Best Day
-        const dateCounts = {};
-        updates.forEach(u => { if(u.status !== 'leave') dateCounts[u.date] = (dateCounts[u.date]||0) + 1; });
-        const bestDay = Object.entries(dateCounts).sort((a,b)=>b[1]-a[1])[0] || ['--',0];
-        const bestDayLabel = bestDay[0] !== '--' ? `${bestDay[0]} · ${bestDay[1]} tasks` : '--';
 
         // Module Champion
         const bestModule = topModules.length > 0 ? topModules[0] : ['--',0];
@@ -1188,7 +1186,7 @@ function renderVelocityChart(data){
         if (attendancePct >= 90) badgesHtml += '<span class="ach-badge workaholic" title="💪 Workaholic: 90%+ attendance rate! Dedicated!">\uD83D\uDCAA Workaholic</span>';
         if (leaveCountCount === 0 && updates.length > 0) badgesHtml += '<span class="ach-badge perfectatt" title="📆 Perfect Attendance: Zero leave taken! Ironman!">\uD83D\uDCC6 Perfect Attendance</span>';
         if (specificity >= 90) badgesHtml += '<span class="ach-badge quality" title="🎯 Quality Control: 90%+ specificity! Crystal clear updates!">\uD83C\uDFAF Quality Control</span>';
-        if (Object.keys(moduleCounts).length >= 3) badgesHtml += '<span class="ach-badge allrounder" title="🌟 All-Rounder: Worked across 3+ different modules. Versatile!">\uD83C\uDF1F All-Rounder</span>';
+        if (Object.keys(moduleStatusCounts).length >= 3) badgesHtml += '<span class="ach-badge allrounder" title="🌟 All-Rounder: Worked across 3+ different modules. Versatile!">\uD83C\uDF1F All-Rounder</span>';
         const weekendHolidayDays = new Set(updates.filter(u => {
             const d = new Date(u.date);
             const day = d.getDay();
@@ -1226,7 +1224,6 @@ function renderVelocityChart(data){
                         <div class="metric-card"><div class="metric-num">${totalDays}/${totalWorkdays}</div><div class="metric-label">Days Logged</div></div>
                         <div class="metric-card"><div class="metric-num">${attendancePct}%</div><div class="metric-label">Attendance</div></div>
                         <div class="metric-card"><div class="metric-num" style="color:var(--yellow)">${consistencyPct}%</div><div class="metric-label">Consistency</div></div>
-                        <div class="metric-card"><div class="metric-num" style="color:var(--purple)">${bestDayLabel}</div><div class="metric-label">Best Day</div></div>
                         <div class="metric-card"><div class="metric-num">${leave.AL}</div><div class="metric-label">AL</div></div>
                         <div class="metric-card"><div class="metric-num">${leave.MC}</div><div class="metric-label">MC</div></div>
                     </div>
@@ -1347,13 +1344,44 @@ function renderVelocityChart(data){
                 });
             }
             
-            // Top Modules Horizontal Bar
+            // Top Modules Stacked Bar
             const modChart = document.getElementById(`c-mod-${safeId}`);
-            if(modChart && topModules.length>0){
+            if(modChart && topModules.length > 0){
+                var modLabels = topModules.map(function(m){ return m[0]; });
+                var modDone = topModules.map(function(m){ return m[1].done; });
+                var modInProgress = topModules.map(function(m){ return m[1].in_progress; });
+                var modBlocked = topModules.map(function(m){ return m[1].blocked; });
                 new Chart(modChart.getContext('2d'),{
                     type:'bar',
-                    data:{labels:topModules.map(m=>m[0]), datasets:[{data:topModules.map(m=>m[1]), backgroundColor:'rgba(0,229,255,.6)',borderRadius:4}]},
-                    options:{indexAxis:'y', responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'rgba(255,255,255,.1)'},ticks:{color:'#fff',font:{size:10}}},y:{grid:{display:false},ticks:{color:'#fff',font:{size:11}}}}}
+                    data:{
+                        labels:modLabels,
+                        datasets:[
+                            {label:'Done',data:modDone,backgroundColor:'rgba(0,230,118,.7)',borderRadius:2},
+                            {label:'In Progress',data:modInProgress,backgroundColor:'rgba(0,229,255,.7)',borderRadius:2},
+                            {label:'Blocked',data:modBlocked,backgroundColor:'rgba(255,23,68,.6)',borderRadius:2}
+                        ]
+                    },
+                    options:{
+                        indexAxis:'y',
+                        responsive:true,
+                        maintainAspectRatio:false,
+                        plugins:{
+                            legend:{display:true,position:'bottom',labels:{color:'#fff',font:{size:11},usePointStyle:true,pointStyle:'rectRounded'}}
+                        },
+                        scales:{
+                            x:{
+                                stacked:true,
+                                beginAtZero:true,
+                                grid:{color:'rgba(255,255,255,.1)'},
+                                ticks:{color:'#fff',font:{size:10}}
+                            },
+                            y:{
+                                stacked:true,
+                                grid:{display:false},
+                                ticks:{color:'#fff',font:{size:11}}
+                            }
+                        }
+                    }
                 });
             }
             
