@@ -337,6 +337,22 @@
         .task-empty-state{text-align:center;padding:20px;color:var(--text-dim);font-style:italic;font-size:.9em}
         .task-loading{text-align:center;padding:20px;color:var(--text-dim);font-size:.85em}
         .task-edit-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+        .missing-progress-card{background:linear-gradient(135deg,rgba(255,145,0,.12),rgba(255,23,68,.08));border:1px solid rgba(255,145,0,.3);border-radius:16px;padding:18px 22px;margin:20px 0;display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+        .missing-progress-icon{font-size:2em;flex-shrink:0}
+        .missing-progress-body{flex:1}
+        .missing-progress-title{color:var(--orange);font-weight:700;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+        .missing-progress-msg{font-size:.92em;color:var(--text);margin-bottom:8px}
+        .missing-progress-members{display:flex;gap:6px;flex-wrap:wrap}
+        .missing-chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:.75em;font-weight:600;color:var(--text);display:inline-flex;align-items:center;gap:4px}
+        .missing-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--red);display:inline-block}
+
+        .fun-facts-card{background:linear-gradient(135deg,rgba(0,229,255,.08),rgba(138,43,226,.08));border:1px solid rgba(0,229,255,.2);border-radius:16px;padding:18px 22px;margin:20px 0}
+        .fun-facts-title{color:var(--accent);font-weight:700;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+        .fun-facts-grid{display:flex;flex-direction:column;gap:8px}
+        .fun-fact-item{display:flex;align-items:flex-start;gap:8px;font-size:.84em;line-height:1.45;color:var(--text);padding:7px 10px;background:rgba(255,255,255,.03);border-radius:8px}
+        .fun-fact-emoji{font-size:1.1em;flex-shrink:0;margin-top:1px}
+        .fun-fact-text{flex:1}
     </style>
 </head>
 <body>
@@ -353,6 +369,8 @@
         </div>
 
         <div id="overview-section" class="overview-section">
+            <div id="missingProgressSection" style="display:none"></div>
+            <div id="funFactsSection" style="display:none"></div>
             <div id="team-insights">
                 <div class="section-title">Team Insights <span class="badge" id="insightsBadge">Loading...</span></div>
                 <div class="chart-box-full">
@@ -641,9 +659,52 @@ function launchConfetti(x,y){
             container.innerHTML = html;
         }
 
+    function renderMissingProgress(data){
+        var el = document.getElementById('missingProgressSection');
+        if(!el) return;
+        if(!data || !data.missing || !data.missing.length){
+            el.style.display = 'none';
+            return;
+        }
+        var chips = data.missing.map(function(name){
+            return '<span class="missing-chip"><span class="dot"></span>'+name+'</span>';
+        }).join('');
+        var msg = data.missing.length === 1
+            ? data.missing[0]+' has not submit yet'
+            : data.missing.length+' members still need to share their progress';
+        el.innerHTML = '<div class="missing-progress-card">'+
+            '<div class="missing-progress-icon">⏰</div>'+
+            '<div class="missing-progress-body">'+
+                '<div class="missing-progress-title">Still Missing</div>'+
+                '<div class="missing-progress-msg">'+msg+' for today ('+data.today+')</div>'+
+                '<div class="missing-progress-members">'+chips+'</div>'+
+            '</div>'+
+        '</div>';
+        el.style.display = 'block';
+    }
+
+    function renderFunFacts(data){
+        var el = document.getElementById('funFactsSection');
+        if(!el) return;
+        if(!data || !data.facts || !data.facts.length){
+            el.style.display = 'none';
+            return;
+        }
+        var items = data.facts.map(function(fact){
+            var emoji = fact.charAt(0);
+            var text = fact.slice(2).trim();
+            return '<div class="fun-fact-item"><span class="fun-fact-emoji">'+emoji+'</span><span class="fun-fact-text">'+text+'</span></div>';
+        }).join('');
+        el.innerHTML = '<div class="fun-facts-card">'+
+            '<div class="fun-facts-title">🎪 Fun Facts</div>'+
+            '<div class="fun-facts-grid">'+items+'</div>'+
+        '</div>';
+        el.style.display = 'block';
+    }
+
     async function initDashboard(){
         try{
-            const [summaryRes, heatmapRes, leaveRes, goalsRes, pulseRes, activityRes, challengeRes, velocityRes, yearlyDoneRes, moduleDoneRes] = await Promise.all([
+            const [summaryRes, heatmapRes, leaveRes, goalsRes, pulseRes, activityRes, challengeRes, velocityRes, yearlyDoneRes, moduleDoneRes, missingRes, funFactsRes] = await Promise.all([
                 fetch(`${API_URL}/api/summary`),
                 fetch(`${API_URL}/api/heatmap`),
                 fetch(`${API_URL}/api/leave`),
@@ -653,7 +714,9 @@ function launchConfetti(x,y){
                 fetch(`${API_URL}/api/challenge`),
                 fetch(`${API_URL}/api/velocity`),
                 fetch(`${API_URL}/api/yearly-done`),
-                fetch(`${API_URL}/api/module-done`)
+                fetch(`${API_URL}/api/module-done`),
+                fetch(`${API_URL}/api/missing-progress`),
+                fetch(`${API_URL}/api/fun-facts`)
             ]);
             const summary = await summaryRes.json();
             const heatmap = await heatmapRes.json();
@@ -665,6 +728,8 @@ function launchConfetti(x,y){
             const velocity = await velocityRes.json();
             const yearlyDone = await yearlyDoneRes.json();
             const moduleDone = await moduleDoneRes.json();
+            const missing = await missingRes.json();
+            const funFacts = await funFactsRes.json();
             window.yearlyDoneMap = {};
             if (yearlyDone && yearlyDone.result) {
                 yearlyDone.result.forEach(function(r) { window.yearlyDoneMap[r.name] = r.done || 0; });
@@ -681,6 +746,8 @@ function launchConfetti(x,y){
             renderActivityTicker(activity);
             renderChallenge(challenge);
             renderVelocityChart(velocity);
+            renderMissingProgress(missing);
+            renderFunFacts(funFacts);
             renderModuleDoneChart(moduleDone.modules || []);
         }catch(e){
             console.error('Dashboard init error:',e);
