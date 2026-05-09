@@ -528,7 +528,6 @@ def get_pulse():
     ''').fetchone()
     last_updated = dict(last_updated_row)['created_at'] if last_updated_row else None
 
-    # Streak calculation: members with >= 2 day streak
     streak_rows = conn.execute('''
         SELECT name, GROUP_CONCAT(DISTINCT date) as dates
         FROM updates
@@ -739,7 +738,6 @@ def get_challenge():
     today = datetime.now().strftime('%Y-%m-%d')
     week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
     
-    # Get all active members
     members = [row['name'] for row in conn.execute(
         "SELECT name FROM members WHERE active = 1 ORDER BY name"
     ).fetchall()]
@@ -773,7 +771,6 @@ def get_challenge():
             "days_updated": len(dates)
         })
     
-    # Add members with no updates
     for m in members:
         if not any(r['name'] == m for r in result):
             result.append({"name": m, "streak": 0, "days_updated": 0})
@@ -834,11 +831,9 @@ def get_fun_facts():
     today = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
 
-    # Gather raw data
     members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 ORDER BY name").fetchall()]
     total = len(members)
 
-    # Get member stats
     rows = conn.execute('''
         SELECT name, COUNT(*) as total,
                SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done,
@@ -854,7 +849,6 @@ def get_fun_facts():
         GROUP BY name
     ''').fetchall()
 
-    # Module mastery
     modules = conn.execute('''
         SELECT module, name, COUNT(*) as cnt,
                SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done
@@ -864,7 +858,6 @@ def get_fun_facts():
         ORDER BY cnt DESC
     ''').fetchall()
 
-    # Day of week patterns
     dow = conn.execute('''
         SELECT CASE strftime('%w', date)
             WHEN '0' THEN 'Sunday'
@@ -880,7 +873,6 @@ def get_fun_facts():
         ORDER BY cnt DESC
     ''').fetchall()
 
-    # Time patterns (hour buckets from description timestamps)
     hour_patterns = conn.execute('''
         SELECT strftime('%H', created_at) as hour, COUNT(*) as cnt
         FROM updates
@@ -889,7 +881,6 @@ def get_fun_facts():
         ORDER BY cnt DESC
     ''').fetchall()
 
-    # Longest descriptions
     long_desc = conn.execute('''
         SELECT name, description, LENGTH(description) as len
         FROM updates
@@ -897,7 +888,6 @@ def get_fun_facts():
         ORDER BY len DESC LIMIT 5
     ''').fetchall()
 
-    # Weekend warriors
     weekends = conn.execute('''
         SELECT name, COUNT(*) as cnt
         FROM updates
@@ -906,7 +896,6 @@ def get_fun_facts():
         ORDER BY cnt DESC LIMIT 3
     ''').fetchall()
 
-    # First to update today
     first_today = conn.execute('''
         SELECT name, MIN(created_at) as ts
         FROM updates WHERE date = ?
@@ -914,28 +903,24 @@ def get_fun_facts():
         ORDER BY ts LIMIT 1
     ''', (today,)).fetchone()
 
-    # Most blocked
     blocked_guy = conn.execute('''
         SELECT name, COUNT(*) as cnt
         FROM updates WHERE status='blocked'
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     ''').fetchone()
 
-    # Most vague
     vague_guy = conn.execute('''
         SELECT name, COUNT(*) as cnt
         FROM updates WHERE status='vague'
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     ''').fetchone()
 
-    # Module variety
     variety = conn.execute('''
         SELECT name, COUNT(DISTINCT module) as cnt
         FROM updates WHERE module != ''
         GROUP BY name ORDER BY cnt DESC LIMIT 3
     ''').fetchall()
 
-    # Streak data
     streaks = conn.execute('''
         SELECT name, COUNT(DISTINCT date) as days,
                MAX(date) as last
@@ -945,21 +930,18 @@ def get_fun_facts():
         ORDER BY days DESC
     ''').fetchall()
 
-    # Bug mentions
     bug_mentions = conn.execute('''
         SELECT name, COUNT(*) as cnt
         FROM updates WHERE description LIKE '%bug%'
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     ''').fetchone()
 
-    # Empty modules
     empty_mod = conn.execute('''
         SELECT name, COUNT(*) as cnt
         FROM updates WHERE module = '' OR module IS NULL
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     ''').fetchone()
 
-    # Done vs in_progress ratio
     ratios = conn.execute('''
         SELECT name,
             SUM(CASE WHEN status='done' THEN 1.0 ELSE 0 END) / NULLIF(SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END), 0) as ratio
@@ -971,11 +953,22 @@ def get_fun_facts():
 
     conn.close()
 
-    facts = []
-    if missing:
-        facts.append(f"⏰ Today: {', '.join(missing[:3])} has not submit yet" if len(missing) <= 3 else f"⏰ Today: {missing[0]} and {len(missing)-1} others has not submit yet")
+    used_names = set()
 
-    # Leader facts
+    def add_fact(emoji, title, reason, person=None):
+        if person and person in used_names:
+            return False
+        if person:
+            used_names.add(person)
+        facts.append({"emoji": emoji, "title": title, "reason": reason, "person": person})
+        return True
+
+    facts = []
+
+    if missing:
+        msg = f"{', '.join(missing[:3])} has not submit yet" if len(missing) <= 3 else f"{missing[0]} and {len(missing)-1} others has not submit yet"
+        add_fact("⏰", "Still Missing", msg + f" for today ({today})")
+
     if rows:
         row_dicts = [dict(r) for r in rows]
         total_max = max(row_dicts, key=lambda x: x['total'])
@@ -985,20 +978,18 @@ def get_fun_facts():
         leave_max = max(row_dicts, key=lambda x: x['leave'])
         vague_max = max(row_dicts, key=lambda x: x['vague'])
 
-        facts.append(f"👑 {total_max['name']} is the update machine with {total_max['total']} total entries")
-        facts.append(f"✅ {done_max['name']} dominates Done tasks with {done_max['done']} completions")
-        facts.append(f"🚀 {ip_max['name']} has {ip_max['ip']} tasks In Progress")
-        facts.append(f"🚧 {blocked_max['name']} is stuck {blocked_max['blocked']} times")
-        facts.append(f"🏖️ {leave_max['name']} has taken {leave_max['leave']} leave days")
-        facts.append(f"🤷 {vague_max['name']} has {vague_max['vague']} vague updates")
+        add_fact("👑", "Update Machine", f"{total_max['total']} total entries in the last 90 days", total_max['name'])
+        add_fact("✅", "Done Dominator", f"{done_max['done']} tasks completed (most on team)", done_max['name'])
+        add_fact("🚀", "Task Starter", f"{ip_max['ip']} tasks currently In Progress", ip_max['name'])
+        add_fact("🚧", "Stuck Specialist", f"Blocked {blocked_max['blocked']} times (needs help?)", blocked_max['name'])
+        add_fact("🏖️", "Leave Master", f"Taken {leave_max['leave']} leave days in last 90 days", leave_max['name'])
+        add_fact("🤷", "Vague King/Queen", f"{vague_max['vague']} vague updates (what are you even working on?)", vague_max['name'])
 
-    # Weekend warrior
     if weekends:
-        facts.append(f"🎯 {weekends[0][0]} works even on weekends ({weekends[0][1]} times)")
+        add_fact("🎯", "Weekend Warrior", f"Updated {weekends[0][1]} times on weekends (get a life!)", weekends[0][0])
     if len(weekends) > 1:
-        facts.append(f"🌞 {weekends[1][0]} also comes in on weekends ({weekends[1][1]} times)")
+        add_fact("🌞", "Also Weekend Worker", f"Updated {weekends[1][1]} times on weekends", weekends[1][0])
 
-    # Module mastery
     if modules:
         mod_map = {}
         for r in modules:
@@ -1010,115 +1001,106 @@ def get_fun_facts():
             mod_map[mod]['names'].append(name)
             mod_map[mod]['cnt'] += cnt
         top_mod = max(mod_map.items(), key=lambda x: x[1]['cnt'])
-        facts.append(f"🏗️ {top_mod[0]} is the most popular module with {top_mod[1]['cnt']} entries")
-        facts.append(f"🎨 {top_mod[1]['names'][0]} practically owns {top_mod[0]}")
+        # Module fact - team stat, no person
+        facts.append({"emoji": "🏗️", "title": "Module Champion", "reason": f"{top_mod[0]} has {top_mod[1]['cnt']} total entries (most popular module)", "person": None})
+        # Top contributor for that module
+        add_fact("🎨", "Module Owner", f"Most contributions to {top_mod[0]}", top_mod[1]['names'][0])
 
-    # Day of week patterns
     if dow:
-        facts.append(f"📅 Most productive day: {dow[0][0]} ({dow[0][1]} tasks)")
-        facts.append(f"😴 Least productive day: {dow[-1][0]} ({dow[-1][1]} tasks)")
+        facts.append({"emoji": "📅", "title": "Most Productive Day", "reason": f"{dow[0][0]} ({dow[0][1]} tasks submitted)", "person": None})
+        facts.append({"emoji": "😴", "title": "Least Productive Day", "reason": f"{dow[-1][0]} ({dow[-1][1]} tasks submitted)", "person": None})
 
-    # Time patterns
     if hour_patterns:
         peak = int(hour_patterns[0][0])
         hour_label = f"{peak % 12 or 12} {'AM' if peak < 12 else 'PM'}"
-        facts.append(f"⏰ Peak update time: {hour_label} ({hour_patterns[0][1]} entries)")
+        facts.append({"emoji": "⏰", "title": "Peak Update Time", "reason": f"{hour_label} ({hour_patterns[0][1]} entries) — when the team is most active", "person": None})
 
-    # Long descriptions
     if long_desc:
-        facts.append(f"📝 {long_desc[0][0]} wrote the longest description ({long_desc[0][2]} characters)")
-        facts.append(f"✍️ It started with: '{long_desc[0][1][:40]}...'")
+        add_fact("📝", "Detailed Writer", f"Longest description: {long_desc[0][2]} characters", long_desc[0][0])
 
-    # First today
     if first_today:
-        facts.append(f"🐔 {first_today[0]} was the first to update today")
+        add_fact("🐔", "Early Bird", f"First to submit an update today at {first_today[1][:16] if first_today[1] else 'N/A'}", first_today[0])
 
-    # Blocked specialist
-    if blocked_guy:
-        facts.append(f"⚠️ {blocked_guy[0]} has the most Blocked tasks ({blocked_guy[1]})")
+    if blocked_guy and blocked_guy[0] not in used_names:
+        add_fact("⚠️", "Blocked Champion", f"{blocked_guy[1]} tasks marked Blocked (most on team)", blocked_guy[0])
 
-    # Vague specialist
-    if vague_guy:
-        facts.append(f"🌫️ {vague_guy[0]} keeps it vague ({vague_guy[1]} times)")
+    if vague_guy and vague_guy[0] not in used_names:
+        add_fact("🌫️", "Mystery Worker", f"{vague_guy[1]} vague updates (hard to track progress)", vague_guy[0])
 
-    # Variety master
     if variety:
-        facts.append(f"🌈 {variety[0][0]} touches the most modules ({variety[0][1]} different ones)")
+        add_fact("🌈", "Jack of All Trades", f"Works on {variety[0][1]} different modules (most varied)", variety[0][0])
 
-    # Streak facts
     if streaks:
         streak_dicts = [dict(r) for r in streaks]
         top_streak = streak_dicts[0]
-        facts.append(f"🔥 {top_streak['name']} is on fire with {top_streak['days']} active days")
+        add_fact("🔥", "Streak Legend", f"{top_streak['days']} active days in last 30 days", top_streak['name'])
 
-    # Bug hunter
-    if bug_mentions:
-        facts.append(f"🐛 {bug_mentions[0]} mentioned bugs {bug_mentions[1]} times")
+    if bug_mentions and bug_mentions[0] not in used_names:
+        add_fact("🐛", "Bug Hunter", f"Mentioned bugs {bug_mentions[1]} times in descriptions", bug_mentions[0])
 
-    # Empty module
-    if empty_mod:
-        facts.append(f"❓ {empty_mod[0]} forgets to set module {empty_mod[1]} times")
+    if empty_mod and empty_mod[0] not in used_names:
+        add_fact("❓", "Module Forgetter", f"Left module blank {empty_mod[1]} times", empty_mod[0])
 
-    # Done ratio
     if ratios:
         ratio_map = {r[0]: r[1] for r in ratios}
         if ratio_map:
-            best_ratio = max(ratio_map.items(), key=lambda x: x[1] or 0)
-            if best_ratio[1] and best_ratio[1] >= 2:
-                facts.append(f"🏆 {best_ratio[0]} has a {best_ratio[1]:.1f} Done-to-In-Progress ratio (finisher)")
-            worst_ratio = min(ratio_map.items(), key=lambda x: x[1] or 999)
-            if worst_ratio[1] and worst_ratio[1] < 0.5:
-                facts.append(f"🛠️ {worst_ratio[0]} prefers starting over finishing (ratio: {worst_ratio[1]:.1f})")
+            best = max(ratio_map.items(), key=lambda x: x[1] or 0)
+            if best[1] and best[1] >= 2 and best[0] not in used_names:
+                add_fact("🏆", "Finisher", f"Done-to-In-Progress ratio: {best[1]:.1f} (closes more than starts)", best[0])
+            worst = min(ratio_map.items(), key=lambda x: x[1] or 999)
+            if worst[1] and worst[1] < 0.5 and worst[0] not in used_names:
+                add_fact("🛠️", "Task Starter", f"Done-to-In-Progress ratio: {worst[1]:.1f} (starts more than closes)", worst[0])
 
-    # Generated combo facts (mix of 2 stats)
     if rows and modules:
-        combos = [
-            f"📊 Team average: {sum(r['done'] for r in row_dicts) // max(len(row_dicts), 1)} Done tasks per member",
-            f"📈 Total updates across team: {sum(r['total'] for r in row_dicts)}",
-            f"💪 {done_max['name']} + {total_max['name']} = dream team",
-            f"🎪 {ip_max['name']} starts, {done_max['name']} finishes",
-            f"⚖️ {total_max['name']} is both prolific AND blocked ({blocked_max['total']} blocked)",
-            f"🏖️ {leave_max['name']} takes breaks, {total_max['name']} never stops",
-        ]
-        facts.extend(combos)
+        facts.append({"emoji": "📊", "title": "Team Average", "reason": f"{sum(r['done'] for r in row_dicts) // max(len(row_dicts), 1)} Done tasks per member in last 90 days", "person": None})
+        facts.append({"emoji": "📈", "title": "Team Total", "reason": f"{sum(r['total'] for r in row_dicts)} total updates across the team", "person": None})
+        # Dream team pairings
+        dream_pair = [total_max, done_max]
+        if dream_pair[0] != dream_pair[1]:
+            facts.append({"emoji": "💪", "title": "Dream Team", "reason": f"{dream_pair[0]['name']} (most updates) + {dream_pair[1]['name']} (most done) = unstoppable", "person": None})
+        facts.append({"emoji": "🎪", "title": "Tag Team", "reason": f"{ip_max['name']} starts tasks, {done_max['name']} finishes them", "person": None})
 
-    # Last update recency
-    if rows:
-        last_updates = {r['name']: r['last_update'] for r in row_dicts}
-        most_recent = max(last_updates.items(), key=lambda x: x[1] or '1900')
-        facts.append(f"⚡ {most_recent[0]} was most recently active ({most_recent[1]})")
-
-    # Activity spread
     if total > 1:
-        active_count = len(row_dicts)
-        facts.append(f"🎯 {active_count}/{total} members actively update regularly")
+        active_count = len(row_dicts) if rows else 0
+        facts.append({"emoji": "🎯", "title": "Activity Rate", "reason": f"{active_count}/{total} members actively update regularly", "person": None})
         if active_count < total:
-            facts.append(f"😴 {total - active_count} members are ghosting us lately")
+            facts.append({"emoji": "😴", "title": "Ghost Members", "reason": f"{total - active_count} members haven't updated in the last 90 days", "person": None})
 
-        if total > 1:
-            active_count = len(row_dicts)
-            facts.append(f"🎯 {active_count}/{total} members actively update regularly")
-            if active_count < total:
-                facts.append(f"😴 {total - active_count} members are ghosting us lately")
+    if rows:
+        last_updates = sorted(row_dicts, key=lambda x: x['last_update'] or '1900', reverse=True)
+        if last_updates[0]['name'] not in used_names:
+            add_fact("⚡", "Most Recent", f"Last update on {last_updates[0]['last_update']}", last_updates[0]['name'])
 
-        if row_dicts:
-            personality = [
-                f"🎲 {random.choice([r['name'] for r in row_dicts])} needs coffee before coding",
-                f"💡 {random.choice([r['name'] for r in row_dicts])} probably does best work after midnight",
-                f"🎧 {random.choice([r['name'] for r in row_dicts])} listens to music while coding",
-                f"🧘 {random.choice([r['name'] for r in row_dicts])} takes long lunch breaks",
-                f"🚀 {random.choice([r['name'] for r in row_dicts])} pushes to production on Friday nights",
-                f"📚 {random.choice([r['name'] for r in row_dicts])} reads documentation for fun",
-                f"☕ {random.choice([r['name'] for r in row_dicts])} consumed way too much caffeine",
-                f"😤 {random.choice([r['name'] for r in row_dicts])} rage-closed the IDE today",
-                f"🎮 {random.choice([r['name'] for r in row_dicts])} thinks about games while coding",
-                f"🧹 {random.choice([r['name'] for r in row_dicts])} writes TODOs but never checks them",
-            ]
-            facts.extend(personality[:5])
+    if row_dicts:
+        unused = [r for r in row_dicts if r['name'] not in used_names]
+        personality_templates = [
+            ("☕", "Caffeine Dependent", "cannot function without coffee before coding"),
+            ("🌙", "Night Owl", "does their best work after midnight"),
+            ("🎧", "Music Coder", "listens to music while coding"),
+            ("🍜", "Long Luncher", "takes long lunch breaks"),
+            ("🚀", "Friday Deployer", "pushes to production on Friday nights"),
+            ("📚", "Doc Reader", "reads documentation for fun"),
+            ("😤", "Rage Quitter", "rage-closed the IDE recently"),
+            ("🎮", "Daydreamer", "thinks about games while coding"),
+            ("🧹", "TODO Hoarder", "writes TODOs but never checks them"),
+            ("📱", "Phone Scroller", "checks phone between every task"),
+            ("🧠", "Rubber Duck", "explains code to inanimate objects"),
+            ("💾", "Ctrl+S Spammer", "saves every 30 seconds out of fear"),
+            ("🔍", "Debugger", "adds print statements before using debugger"),
+            ("🎨", "Reformatter", "spends hours aligning code perfectly"),
+            ("🌐", "Stack Overflow", "has Stack Overflow open in 12 tabs"),
+            ("🧪", "Tester", "writes tests after the bug is discovered"),
+            ("📝", "Notetaker", "has 47 notebooks of half-finished ideas"),
+            ("🗑️", "Refactorer", "rewrites working code just because"),
+        ]
+        random.shuffle(personality_templates)
+        for i, p in enumerate(personality_templates[:3]):
+            if i < len(unused):
+                add_fact(p[0], p[1], f"{unused[i]['name']} {p[2]}", unused[i]['name'])
 
-        random.shuffle(facts)
+    random.shuffle(facts)
 
-        return {"today": today, "facts": facts[:5]}
+    return {"today": today, "facts": facts[:5]}
 
 
 app.mount("/static", StaticFiles(directory="static"), name="static")

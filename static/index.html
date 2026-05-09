@@ -352,7 +352,10 @@
         .fun-facts-grid{display:flex;flex-direction:column;gap:8px}
         .fun-fact-item{display:flex;align-items:flex-start;gap:8px;font-size:.84em;line-height:1.45;color:var(--text);padding:7px 10px;background:rgba(255,255,255,.03);border-radius:8px}
         .fun-fact-emoji{font-size:1.1em;flex-shrink:0;margin-top:1px}
-        .fun-fact-text{flex:1}
+        .fun-fact-text{flex:1;display:flex;flex-direction:column;gap:2px}
+        .fun-fact-title{font-weight:600;color:var(--accent);font-size:.88em}
+        .fun-fact-reason{color:var(--text-dim);font-size:.82em;line-height:1.35}
+    </style>
     </style>
 </head>
 <body>
@@ -691,9 +694,18 @@ function launchConfetti(x,y){
             return;
         }
         var items = data.facts.map(function(fact){
-            var emoji = fact.charAt(0);
-            var text = fact.slice(2).trim();
-            return '<div class="fun-fact-item"><span class="fun-fact-emoji">'+emoji+'</span><span class="fun-fact-text">'+text+'</span></div>';
+            if(typeof fact === 'string'){
+                var emoji = fact.charAt(0);
+                var text = fact.slice(2).trim();
+                return '<div class="fun-fact-item"><span class="fun-fact-emoji">'+emoji+'</span><span class="fun-fact-text">'+text+'</span></div>';
+            }
+            return '<div class="fun-fact-item">'+
+                '<span class="fun-fact-emoji">'+fact.emoji+'</span>'+
+                '<span class="fun-fact-text">'+
+                    '<span class="fun-fact-title">'+fact.title+'</span>'+
+                    '<span class="fun-fact-reason">'+fact.reason+'</span>'+
+                '</span>'+
+            '</div>';
         }).join('');
         el.innerHTML = '<div class="fun-facts-card">'+
             '<div class="fun-facts-title">🎪 Fun Facts</div>'+
