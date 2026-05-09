@@ -79,15 +79,9 @@
 .ch-pct{color:var(--green);font-weight:700;font-size:.9em}
 .ch-grid{display:flex;gap:8px;flex-wrap:wrap}
 .ch-member{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:12px;font-size:.75em;background:var(--surface2);border:1px solid var(--border)}
-.ch-member.on-track{border-color:var(--green);background:rgba(0,230,118,.1)}
-.ch-member .ch-streak{color:var(--accent);font-weight:700}
-.streak-lb{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:20px 0}
-.streak-lb-title{font-size:1em;font-weight:700;margin-bottom:12px}
-.streak-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82em}
-.streak-row:last-child{border:none}
-.streak-pos{width:24px;text-align:center;font-weight:700;color:var(--text-dim)}
-.streak-pos.top{color:var(--gold)}
-.active-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-left:6px;box-shadow:0 0 6px var(--green);animation:pulse-dot 2s infinite}
+        .ch-member.on-track{border-color:var(--green);background:rgba(0,230,118,.1)}
+        .ch-member .ch-streak{color:var(--accent);font-weight:700}
+        .active-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-left:6px;box-shadow:0 0 6px var(--green);animation:pulse-dot 2s infinite}
 @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.2)}}
 .goal-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:20px 0}
 .goal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-weight:700}
@@ -383,11 +377,9 @@
             </section>
 
             <div class="chart-box-full">
-                <div class="chart-title">Team Leaderboard <span class="badge" style="font-size:.6em">Most Done Tasks</span> <span class="info-icon" data-tooltip="Ranked by tasks marked as Done. Top 3 get Gold, Silver, Bronze. Compete to get things done!">ℹ</span></div>
+                <div class="chart-title">Achievement Board <span class="badge" style="font-size:.6em">Most Done Wins</span> <span class="info-icon" data-tooltip="Ranked by tasks marked as Done. The bar shows how close you are to the top. Every task counts — keep pushing!">ℹ</span></div>
                 <div id="leaderboard-container"></div>
             </div>
-            
-            <div id="streakLeaderboard" style="display:none"></div>
             
             <div id="velocityChart" style="display:none"></div>
             
@@ -582,19 +574,7 @@ function launchConfetti(x,y){
     el.innerHTML='<div class="challenge-section"><div class="ch-header"><span class="ch-title">🏆 7-Day Challenge</span><span><span class="ch-pct">'+pct+'%</span> on track</span></div><div class="ch-track"><div class="ch-progress"><div class="ch-fill" style="width:'+fill+'%"></div></div><span style="font-size:.78em;color:var(--text-dim)">'+data.on_track+'/'+data.total+' members</span></div><div class="ch-grid">'+members+'</div></div>';
     el.style.display='block';
 }
-function renderStreakLeaderboard(data){
-    var el=document.getElementById('streakLeaderboard');
-    if(!el||!data||!data.members){if(el)el.style.display='none';return;}
-    var rows=data.members.map(function(m,i){
-        var pos=(i+1);
-        var posClass=pos<=3?'top':'';
-        var fire=m.streak>=3?'🔥':'⚡';
-        return'<div class="streak-row"><span class="streak-pos '+posClass+'">#'+pos+'</span><span style="flex:1">'+m.name+'</span><span style="color:var(--gold);font-weight:700">'+m.streak+'</span></div>';
-    }).join('');
-    el.innerHTML='<div class="streak-lb"><div class="streak-lb-title">🔥 Streak Leaderboard</div>'+rows+'</div>';
-    el.style.display='block';
-}
-function renderVelocityChart(data){
+    function renderVelocityChart(data){
     var el=document.getElementById('velocityChart');
     if(!el||!data||!data.weeks||!data.weeks.length){if(el)el.style.display='none';return;}
     var weeks=data.weeks;
@@ -676,7 +656,6 @@ function renderVelocityChart(data){
             renderSpotlight(spotlight);
             renderActivityTicker(activity);
             renderChallenge(challenge);
-            renderStreakLeaderboard(challenge);
             renderVelocityChart(velocity);
         }catch(e){
             console.error('Dashboard init error:',e);
@@ -696,21 +675,20 @@ function renderVelocityChart(data){
         let html = '<div class="leaderboard">';
         sorted.forEach((m, i) => {
             const rank = i + 1;
-            const grade = rank === 1 ? 'g1' : rank === 2 ? 'g2' : rank === 3 ? 'g3' : 'norm';
-            const medal = rank === 1 ? '👑 ' : rank === 2 ? '🥈 ' : rank === 3 ? '🥉 ' : '#';
             const done = m.done || 0;
             const inProg = m.in_progress || 0;
             const pct = done > 0 ? (done / maxDone * 100).toFixed(1) : 0;
+            const behind = maxDone - done;
+            const catchup = behind > 0 && behind <= 5 ? '<span style=\"color:var(--text-dim);font-size:.65em;margin-left:4px\">(' + behind + ' behind)</span>' : '';
             html += `
                 <div class="lb-row">
-                    <div class="lb-rank ${grade}">${medal}${rank}</div>
+                    <div class="lb-rank" style="color:var(--text-dim)">${rank}</div>
                     <div class="lb-avatar" style="background:${['var(--accent)','var(--green)','var(--orange)','var(--red)'][i % 4]}">${m.name.charAt(0)}</div>
-                    <div class="lb-name">${m.name}</div>
+                    <div class="lb-name">${m.name}${catchup}</div>
                     <div class="lb-bar-wrap">
-                        <div class="lb-bar ${grade}" style="width:${pct}%"></div>
+                        <div class="lb-bar norm" style="width:${pct}%"></div>
                     </div>
                     <div class="lb-count">${done} <span style="font-size:.65em;color:var(--text-dim)">(${inProg})</span></div>
-                    <div class="lb-badge ${grade}">${rank <= 3 ? ['GOLD','SILVER','BRONZE'][rank-1] : 'RANK ' + rank}</div>
                 </div>`;
         });
         html += '</div>';
