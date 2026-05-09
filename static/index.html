@@ -281,8 +281,8 @@
         .panel-close{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:1.2em;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center}.panel-close:hover{border-color:var(--accent);color:var(--accent)}
         .field-group{margin-bottom:18px}.field-label{font-size:.8em;font-weight:600;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;display:block}.field-label span{color:var(--red);margin-left:3px}
         .name-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px}
-        .name-chip-wrap{position:relative;display:inline-block}
-        .name-chip-del{position:absolute;top:-6px;right:-6px;width:14px;height:14px;border-radius:50%;background:var(--red);color:#fff;font-size:9px;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:5;line-height:1;padding:0}
+        .name-chip-wrap{position:relative;display:inline-flex;align-items:center;gap:6px}
+        .name-chip-del{width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:5;line-height:1;padding:0;flex-shrink:0;margin-left:2px}
         .name-chip-wrap:hover .name-chip-del{display:flex}
         .name-chip,.mod-chip{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-family:'Syne',sans-serif;font-size:.8em;font-weight:600;padding:8px 10px;cursor:pointer;transition:.15s;text-align:center}.mod-chip{border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.75em}
         .name-chip:hover,.mod-chip:hover{border-color:var(--accent);color:var(--accent)}.name-chip.sel,.mod-chip.sel{border-color:var(--accent);background:rgba(0,229,255,.1);color:var(--accent)}
@@ -978,7 +978,8 @@ function renderVelocityChart(data){
         }catch(e){showToast('Add member failed','err');}
     }
     async function removeMember(name){
-        if(!confirm('Delete member "'+name+'" and ALL their records permanently?'))return;
+        if(!confirm('Delete member "'+name+'" and ALL their records?'))return;
+        if(!confirm('\u26A0\uFE0F \u26A0\uFE0F \u26A0\uFE0F\n\nWARNING: This will PERMANENTLY DELETE\n\nMember: '+name+'\nAll updates\nAll leave records\n\nThis action CANNOT be undone!\n\nAre you absolutely sure?'))return;
         try{
             var res=await fetch(API_URL+'/api/members/'+encodeURIComponent(name),{method:'DELETE'});
             var data=await res.json();
