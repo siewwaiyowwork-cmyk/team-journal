@@ -94,13 +94,7 @@
 .pulse-item{display:flex;align-items:center;gap:6px}
 .pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--text-dim)}
 .pulse-dot.green{background:var(--green);box-shadow:0 0 6px var(--green)}
-.spotlight-card{background:linear-gradient(135deg,rgba(138,43,226,.12),rgba(255,215,0,.08));border:1px solid rgba(138,43,226,.3);border-radius:16px;padding:20px;display:flex;gap:16px;align-items:center;margin:20px 0}
-.spotlight-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#a855f7,#ffd700);display:flex;align-items:center;justify-content:center;font-size:1.8em;font-weight:800;color:#fff}
-.spotlight-title{font-size:.8em;text-transform:uppercase;letter-spacing:1px;color:#a855f7;font-weight:700}
-.spotlight-name{font-size:1.3em;font-weight:700}
-.spotlight-msg{font-size:.85em;color:var(--text-dim);margin-top:4px}
-.spotlight-stats{display:flex;gap:12px;margin-top:8px;font-size:.78em}
-.spotlight-stats span{background:var(--surface2);padding:3px 10px;border-radius:8px}
+        /* Member of the Week removed */
 .activity-ticker{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin:12px 0;display:flex;align-items:center;gap:12px;overflow:hidden}
 .ticker-title{font-size:.75em;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);font-weight:700;white-space:nowrap}
 .ticker-items{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none}
@@ -342,6 +336,7 @@
         .task-status-pill.leave{background:rgba(255,145,0,.15);color:var(--orange)}\n        .task-status-pill.vague{background:rgba(255,145,0,.15);color:var(--orange)}
         .task-empty-state{text-align:center;padding:20px;color:var(--text-dim);font-style:italic;font-size:.9em}
         .task-loading{text-align:center;padding:20px;color:var(--text-dim);font-size:.85em}
+        .task-edit-btn:hover{border-color:var(--accent);color:var(--accent)}
     </style>
 </head>
 <body>
@@ -358,12 +353,15 @@
         </div>
 
         <div id="overview-section" class="overview-section">
-            <div id="spotlightSection" style="display:none"></div>
             <div id="team-insights">
                 <div class="section-title">Team Insights <span class="badge" id="insightsBadge">Loading...</span></div>
                 <div class="chart-box-full">
                     <div class="chart-title">Module Contribution Heatmap <span class="badge" style="font-size:.6em">Members × Modules</span> <span class="info-icon" data-tooltip="Grid showing tasks per module per member. Rows = Modules, Columns = Team members. Color intensity = more tasks.">ℹ</span></div>
                     <div id="heatmap-container"></div>
+                </div>
+                <div class="chart-box-full" style="margin-top:16px">
+                    <div class="chart-title">Module Done Contributions <span class="badge" style="font-size:.6em">Done tasks per module</span> <span class="info-icon" data-tooltip="Shows total done tasks per module and top contributor for each module.">ℹ</span></div>
+                    <div id="module-done-container"></div>
                 </div>
             </div>
             
@@ -533,14 +531,8 @@ function renderPulse(data){
     if(!el||!data){if(el)el.innerHTML='';return;}
     el.innerHTML='<div class="pulse-bar"><span class="pulse-item"><span class="pulse-dot green"></span><span>'+(data.active_today||0)+' active today</span></span><span class="pulse-item">Fire: '+(data.on_streak||0)+' on streak</span><span class="pulse-item">Warn: '+(data.blockers_today||0)+' blockers</span><span class="pulse-item">Check: '+(data.done_this_week||0)+' done this week</span></div>';
 }
-function renderSpotlight(data){
-    var el=document.getElementById('spotlightSection');
-    if(!el||!data||!data.name){if(el)el.style.display='none';return;}
-    el.innerHTML='<div class="spotlight-card"><div class="spotlight-avatar">'+(data.avatar||data.name.charAt(0).toUpperCase())+'</div><div class="spotlight-body"><div class="spotlight-title">Member of the Week</div><div class="spotlight-name">'+data.name+'</div><div class="spotlight-msg">'+(data.message||'')+'</div><div class="spotlight-stats"><span>Done: '+(data.week_done||0)+'</span><span>IP: '+(data.week_ip||0)+'</span><span>Streak: '+(data.streak||0)+'</span><span>Score: '+(data.score||0)+'</span></div></div></div>';
-    el.style.display='block';
-}
-function renderActivityTicker(data){
-    var el=document.getElementById('activityTicker');
+        function renderActivityTicker(data){
+            var el=document.getElementById('activityTicker');
     if(!el||!data.activity||!data.activity.length){if(el)el.style.display='none';return;}
     var items=data.activity.slice(0,10).map(function(a){
         var doneClass=a.status==='done'?'t-done':'';
@@ -619,44 +611,77 @@ function launchConfetti(x,y){
     },100);
 }
 
+    function renderModuleDoneChart(data){
+            var container = document.getElementById('module-done-container');
+            if(!container) return;
+            if(!data || !data.length){
+                container.innerHTML = '<div class="task-empty-state">No module data yet</div>';
+                return;
+            }
+
+            var maxDone = Math.max.apply(null, data.map(function(d){ return d.done; }));
+            var html = '<div style="display:flex;flex-direction:column;gap:8px">';
+            data.forEach(function(m){
+                var pct = (m.done / maxDone * 100) || 0;
+                var crown = m.top_contributor ? '<span style="color:var(--yellow);margin-left:4px">👑</span>' : '';
+                html += '<div style="display:flex;align-items:center;gap:10px;font-size:.82em">';
+                html += '<div style="width:80px;font-weight:600;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+m.module+'</div>';
+                html += '<div style="flex:1;background:var(--surface);border-radius:6px;height:22px;overflow:hidden;position:relative">';
+                html += '<div style="position:absolute;left:0;top:0;height:100%;width:'+pct+'%;background:linear-gradient(90deg,rgba(0,230,118,.5),rgba(0,230,118,.8));border-radius:6px;transition:width .6s ease"></div>';
+                html += '<span style="position:relative;z-index:1;margin-left:8px;line-height:22px;font-size:.75em;font-weight:600">'+m.done+'</span>';
+                html += '</div>';
+                if(m.top_contributor){
+                    html += '<div style="font-size:.75em;color:var(--text-dim);white-space:nowrap">'+m.top_contributor+crown+' <span style="color:var(--green)">('+m.top_contributor_done+')</span></div>';
+                } else {
+                    html += '<div style="font-size:.75em;color:var(--text-dim)">-</div>';
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
     async function initDashboard(){
         try{
-            const [summaryRes, heatmapRes, leaveRes, goalsRes, pulseRes, spotlightRes, activityRes, challengeRes, velocityRes, yearlyDoneRes] = await Promise.all([
+            const [summaryRes, heatmapRes, leaveRes, goalsRes, pulseRes, activityRes, challengeRes, velocityRes, yearlyDoneRes, moduleDoneRes] = await Promise.all([
                 fetch(`${API_URL}/api/summary`),
                 fetch(`${API_URL}/api/heatmap`),
                 fetch(`${API_URL}/api/leave`),
                 fetch(`${API_URL}/api/goals`),
                 fetch(`${API_URL}/api/pulse`),
-                fetch(`${API_URL}/api/spotlight`),
                 fetch(`${API_URL}/api/activity`),
                 fetch(`${API_URL}/api/challenge`),
                 fetch(`${API_URL}/api/velocity`),
-                fetch(`${API_URL}/api/yearly-done`)
+                fetch(`${API_URL}/api/yearly-done`),
+                fetch(`${API_URL}/api/module-done`)
             ]);
             const summary = await summaryRes.json();
             const heatmap = await heatmapRes.json();
             const leaveJson = await leaveRes.json();
             const goals = await goalsRes.json();
             const pulse = await pulseRes.json();
-            const spotlight = await spotlightRes.json();
             const activity = await activityRes.json();
             const challenge = await challengeRes.json();
             const velocity = await velocityRes.json();
             const yearlyDone = await yearlyDoneRes.json();
+            const moduleDone = await moduleDoneRes.json();
             window.yearlyDoneMap = {};
             if (yearlyDone && yearlyDone.result) {
                 yearlyDone.result.forEach(function(r) { window.yearlyDoneMap[r.name] = r.done || 0; });
             }
             leaveData = processLeaveData(leaveJson.leave || []);
+            if (moduleDone && moduleDone.modules) {
+                renderModuleDoneChart(moduleDone.modules || []);
+            }
             renderDashboard(summary);
             renderInsights(summary.members, heatmap);
             renderLeaveCharts();
             renderGoals(goals);
             renderPulse(pulse);
-            renderSpotlight(spotlight);
             renderActivityTicker(activity);
             renderChallenge(challenge);
             renderVelocityChart(velocity);
+            renderModuleDoneChart(moduleDone.modules || []);
         }catch(e){
             console.error('Dashboard init error:',e);
             showToast('Failed to load dashboard','err');
@@ -1376,7 +1401,8 @@ function launchConfetti(x,y){
                     const statusPill = isYearDone
                         ? `<span class="task-status-pill done">✓</span>`
                         : `<span class="task-status-pill ${u.status}">${u.status.replace('_', ' ')}</span>`;
-                    htmlOut += `<div class="task-entry ${weekClass}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}</div>`;
+                    const editBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
+                    htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${editBtn}</div>`;
                 });
             });
             content.innerHTML = htmlOut;
@@ -1517,6 +1543,77 @@ function launchConfetti(x,y){
                 streakHtml += '<div class="' + cls + '" title="' + title + '">' + dayChar + '</div>';
             });
             streakGrid.innerHTML = streakHtml;
+        }
+    }
+
+    function showEditForm(updateId, btnEl){
+        var row = btnEl.parentElement;
+        if(row.querySelector('.edit-form')) return;
+        var descEl = row.querySelector('.task-desc');
+        var moduleEl = row.querySelector('.task-module-badge');
+        var statusEl = row.querySelector('.task-status-pill');
+        var currentDesc = descEl.textContent;
+        var currentModule = moduleEl ? moduleEl.textContent : '';
+        var currentStatus = statusEl.className.replace('task-status-pill ','');
+        
+        var formHtml = '<div class="edit-form" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-top:4px">'+
+            '<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap">'+
+                '<input type="text" class="edit-module" value="' + currentModule + '" placeholder="Module" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8em;width:100px">'+
+                '<select class="edit-status" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8em">'+
+                    '<option value="in_progress"' + (currentStatus==='in_progress'?' selected':'') + '>In Progress</option>'+
+                    '<option value="done"' + (currentStatus==='done'?' selected':'') + '>Done</option>'+
+                    '<option value="blocked"' + (currentStatus==='blocked'?' selected':'') + '>Blocked</option>'+
+                    '<option value="leave"' + (currentStatus==='leave'?' selected':'') + '>Leave</option>'+
+                '</select>'+
+            '</div>'+
+            '<textarea class="edit-desc" style="width:100%;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8em;box-sizing:border-box;margin-bottom:6px;resize:vertical" rows="2">' + currentDesc + '</textarea>'+
+            '<div style="display:flex;gap:8px;justify-content:flex-end">'+
+                '<button onclick="saveUpdateEdit(' + updateId + ', this.parentElement.parentElement)" style="padding:4px 12px;border-radius:6px;border:none;background:var(--green);color:#000;font-size:.78em;font-weight:700;cursor:pointer">Save</button>'+
+                '<button onclick="cancelUpdateEdit(this.parentElement.parentElement)" style="padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text-dim);font-size:.78em;cursor:pointer">Cancel</button>'+
+            '</div>'+
+        '</div>';
+        
+        var form = document.createElement('div');
+        form.innerHTML = formHtml;
+        row.appendChild(form.firstElementChild);
+        btnEl.style.display = 'none';
+    }
+    function cancelUpdateEdit(formEl){
+        var row = formEl.parentElement;
+        formEl.remove();
+        row.querySelector('.task-edit-btn').style.display = '';
+    }
+    async function saveUpdateEdit(updateId, formEl){
+        var row = formEl.parentElement;
+        var module = formEl.querySelector('.edit-module').value.trim();
+        var status = formEl.querySelector('.edit-status').value;
+        var description = formEl.querySelector('.edit-desc').value.trim();
+        
+        if(!description){
+            showToast('Description cannot be empty','err');
+            return;
+        }
+        
+        try{
+            var res = await fetch(API_URL + '/api/updates/' + updateId, {
+                method: 'PUT',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({fields:{module:module,status:status,description:description}})
+            });
+            var data = await res.json();
+            if(data.ok){
+                showToast('Update saved');
+                formEl.remove();
+                btnEl = row.querySelector('.task-edit-btn');
+                if(btnEl) btnEl.style.display = '';
+                // Refresh the detail view
+                var detailName = window.currentDetailName;
+                if(detailName) showDetail(detailName);
+            } else {
+                showToast(data.detail || 'Save failed','err');
+            }
+        }catch(e){
+            showToast('Save failed','err');
         }
     }
 

@@ -54,7 +54,6 @@ def on_startup():
 def migrate_lowercase_modules():
     conn = get_db()
     conn.execute("UPDATE updates SET module = lower(module) WHERE module != lower(module)")
-    conn.execute("UPDATE leave_records SET type = lower(type) WHERE type != lower(type)")
     conn.commit()
     conn.close()
 
@@ -88,6 +87,39 @@ def get_updates(
     rows = conn.execute(sql, params).fetchall()
     conn.close()
     return {"updates": [dict(r) for r in rows]}
+
+@app.put("/api/updates/{update_id}")
+def update_entry(update_id: int, payload: dict = Body(...)):
+    fields = payload.get('fields', {})
+    if not fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    allowed = {'module', 'description', 'status'}
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        raise HTTPException(status_code=400, detail="Invalid fields")
+    conn = get_db()
+    try:
+        conn.execute("BEGIN")
+        row = conn.execute("SELECT * FROM updates WHERE id = ?", (update_id,)).fetchone()
+        if not row:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Update not found")
+        old = dict(row)
+        set_clause = ', '.join(f"{k} = ?" for k in updates.keys())
+        conn.execute(f"UPDATE updates SET {set_clause} WHERE id = ?", (*updates.values(), update_id))
+        if 'status' in updates:
+            if old['status'] == 'leave' and updates['status'] != 'leave':
+                conn.execute("DELETE FROM leave_records WHERE date = ? AND name = ?", (old['date'], old['name']))
+            elif updates['status'] == 'leave' and old['status'] != 'leave':
+                leave_type = fields.get('leave_type', 'AL')
+                conn.execute("INSERT INTO leave_records (date, name, type, days) VALUES (?, ?, ?, 1)", (old['date'], old['name'], leave_type))
+        conn.execute("COMMIT")
+        conn.close()
+        return {"ok": True, "updated": update_id}
+    except Exception as e:
+        conn.execute("ROLLBACK")
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/submit")
 def submit(payload: dict):
@@ -233,6 +265,52 @@ def get_summary(
     return {
         "range": {"from": from_date, "to": to_date, "workdays": total_workdays},
         "members": members
+    }
+
+@app.get("/api/module-done")
+def get_module_done(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None
+):
+    if not from_date:
+        from_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+    if not to_date:
+        to_date = datetime.now().strftime('%Y-%m-%d')
+
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT module, COUNT(*) as done
+        FROM updates
+        WHERE date BETWEEN ? AND ? AND module != '' AND status = 'done'
+        GROUP BY module
+        ORDER BY done DESC
+    ''', (from_date, to_date)).fetchall()
+
+    top_contributors = {}
+    for module in [r[0] for r in rows]:
+        top = conn.execute('''
+            SELECT name, COUNT(*) as cnt
+            FROM updates
+            WHERE date BETWEEN ? AND ? AND module = ? AND status = 'done'
+            GROUP BY name
+            ORDER BY cnt DESC
+            LIMIT 1
+        ''', (from_date, to_date, module)).fetchone()
+        top_contributors[module] = dict(top) if top else {'name': None, 'cnt': 0}
+
+    conn.close()
+
+    return {
+        "range": {"from": from_date, "to": to_date},
+        "modules": [
+            {
+                "module": r[0],
+                "done": r[1],
+                "top_contributor": top_contributors[r[0]]['name'],
+                "top_contributor_done": top_contributors[r[0]]['cnt']
+            }
+            for r in rows
+        ]
     }
 
 @app.get("/api/heatmap")
