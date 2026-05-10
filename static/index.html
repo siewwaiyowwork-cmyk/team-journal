@@ -346,12 +346,12 @@
         .missing-progress-members{display:flex;gap:6px;flex-wrap:wrap}
         .missing-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:rgba(255,23,68,.15);color:var(--red);font-size:.78em;font-weight:600;border:1px solid rgba(255,23,68,.2)}
         .missing-chip.highlight{background:rgba(255,23,68,.25);border:1px solid rgba(255,23,68,.4);animation:pulse 2s infinite}
+        .missing-chip.chronic{background:rgba(255,145,0,.25);border:1px solid rgba(255,145,0,.5);color:var(--orange);animation:pulse 1.5s infinite}
         .missing-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--red);display:inline-block}
         .missing-chip.highlight .dot{background:#fff}
+        .missing-chip.chronic .dot{background:#fff}
         @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
         .sarcasm-msg{font-size:.8em;color:var(--red);font-style:italic;margin-top:8px;padding:6px 10px;background:rgba(255,23,68,.08);border-radius:8px;border-left:3px solid var(--red)}
-        .missing-chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:.75em;font-weight:600;color:var(--text);display:inline-flex;align-items:center;gap:4px}
-        .missing-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--red);display:inline-block}
 
         .fun-facts-card{background:linear-gradient(135deg,rgba(0,229,255,.08),rgba(138,43,226,.08));border:1px solid rgba(0,229,255,.2);border-radius:16px;padding:18px 22px;margin:20px 0}
         .fun-facts-title{color:var(--accent);font-weight:700;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
@@ -759,22 +759,37 @@ function launchConfetti(x,y){
             "Probably binge-watching something instead of updating",
             "Lost in the Bermuda Triangle of productivity"
         ];
+
+        var chronicMessages = [
+            "LEGENDARY ghost status - {days} days of silence",
+            "Has achieved mastery in the art of disappearing",
+            "We are starting a missing person investigation",
+            "Their last update is now considered ancient history",
+            "Might need to send a search party soon"
+        ];
         
         var hasHighlight = false;
         var chips = '';
         var sarcasmHtml = '';
         
         if(data.enhanced && data.enhanced.length){
-            data.enhanced.forEach(function(item){
+            var sorted = data.enhanced.slice().sort(function(a, b){ return b.days_since - a.days_since; });
+            sorted.forEach(function(item){
                 var isHighlight = item.days_since >= 3;
+                var isChronic = item.days_since >= 14;
                 if(isHighlight) hasHighlight = true;
-                var chipClass = isHighlight ? 'missing-chip highlight' : 'missing-chip';
-                chips += '<span class="'+chipClass+'"><span class="dot"></span>'+item.name+(isHighlight ? ' ('+item.days_since+'d)' : '')+'</span>';
+                var chipClass = isChronic ? 'missing-chip chronic' : (isHighlight ? 'missing-chip highlight' : 'missing-chip');
+                chips += '<span class="'+chipClass+'"><span class="dot"></span>'+item.name+(isChronic ? ' 🔥' : (isHighlight ? ' ('+item.days_since+'d)' : ''))+'</span>';
             });
             
-            var longMissing = data.enhanced.filter(function(item){ return item.days_since >= 3; });
+            var longMissing = sorted.filter(function(item){ return item.days_since >= 3; });
             if(longMissing.length > 0){
                 var sarcasmList = longMissing.map(function(item){
+                    var isChronic = item.days_since >= 14;
+                    if(isChronic){
+                        var msg = chronicMessages[Math.floor(Math.random() * chronicMessages.length)];
+                        return '<strong style="color:#ff9100">'+item.name+'</strong>: ' + msg.replace('{days}', item.days_since);
+                    }
                     var msg = sarcasticMessages[Math.floor(Math.random() * sarcasticMessages.length)];
                     return '<strong>'+item.name+'</strong>: ' + msg.replace('{days}', item.days_since);
                 }).join('<br>');

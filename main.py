@@ -2665,6 +2665,12 @@ def get_fun_facts():
         GROUP BY name ORDER BY days ASC LIMIT 1
     ''').fetchone()
 
+    low_activity_30d = conn.execute('''
+        SELECT name, COUNT(*) as cnt, COUNT(DISTINCT date) as days
+        FROM updates WHERE date >= date('now', '-30 days') AND status != 'leave'
+        GROUP BY name ORDER BY cnt ASC LIMIT 3
+    ''').fetchall()
+
     missing = [m for m in members if m not in [r[0] for r in conn.execute("SELECT DISTINCT name FROM updates WHERE date = ?", (today,)).fetchall()]]
 
     row_dicts = [dict(r) for r in rows]
@@ -2681,9 +2687,16 @@ def get_fun_facts():
         facts.append({"emoji": emoji, "title": title, "reason": reason, "person": person})
         return True
 
+    def add_fact_forced(emoji, title, reason, person=None):
+        if person and person in used_names:
+            used_names.discard(person)
+        if person:
+            used_names.add(person)
+        facts.append({"emoji": emoji, "title": title, "reason": reason, "person": person})
+        return True
+
     facts = []
 
-    # Missing today
     if missing:
         msg = f"{', '.join(missing[:3])} has not submit yet" if len(missing) <= 3 else f"{missing[0]} and {len(missing)-1} others has not submit yet"
         add_fact("⏰", "Still Missing", msg + f" for today ({today})")
@@ -2721,7 +2734,7 @@ def get_fun_facts():
     if comeback and comeback[1] and comeback[1] > 14:
         if comeback[0] not in used_names:
             days = int(comeback[1])
-            add_fact("🎯", "Comeback Kid", f"{comeback[0]} returned after a {days}-day gap between updates", comeback[0])
+            add_fact_forced("🎯", "Comeback Kid", f"{comeback[0]} returned after a {days}-day gap between updates", comeback[0])
 
     if link_sharer and link_sharer[1]:
         if link_sharer[0] not in used_names:
@@ -2861,7 +2874,7 @@ def get_fun_facts():
     if vacation_mode and vacation_mode[1] > 7:
         if vacation_mode[0] not in used_names:
             days = int(vacation_mode[1])
-            add_fact("🌴", "Vacation Mode", f"{vacation_mode[0]} took a {days}-day break recently", vacation_mode[0])
+            add_fact_forced("🌴", "Vacation Mode", f"{vacation_mode[0]} took a {days}-day break recently", vacation_mode[0])
 
     if momentum_builder and momentum_builder[1] >= 5:
         if momentum_builder[0] not in used_names:
@@ -3469,7 +3482,7 @@ def get_fun_facts():
     if longest_gap and longest_gap[1] > 7:
         if longest_gap[0] not in used_names:
             days = int(longest_gap[1])
-            add_fact("🦘", "Longest Gap", f"{longest_gap[0]} went {days} days without updates - explorer", longest_gap[0])
+            add_fact_forced("🦘", "Longest Gap", f"{longest_gap[0]} went {days} days without updates - explorer", longest_gap[0])
 
     if consistent_updater and consistent_updater[1] >= 20:
         if consistent_updater[0] not in used_names:
@@ -3477,7 +3490,12 @@ def get_fun_facts():
 
     if sporadic_updater and sporadic_updater[1] >= 1:
         if sporadic_updater[0] not in used_names:
-            add_fact("🌵", "Sporadic Updater", f"{sporadic_updater[0]} updated only {sporadic_updater[1]} days in last 30 - rare appearance", sporadic_updater[0])
+            add_fact_forced("🌵", "Sporadic Updater", f"{sporadic_updater[0]} updated only {sporadic_updater[1]} days in last 30 - rare appearance", sporadic_updater[0])
+
+    if low_activity_30d and len(low_activity_30d) > 0:
+        for r in low_activity_30d[:2]:
+            if r[0] not in used_names and r[1] <= 3:
+                add_fact_forced("🐢", "Low Activity", f"{r[0]} has only {r[1]} update(s) in 30 days - where are you", r[0])
 
     if question_explorer and question_explorer[1] >= 5:
         if question_explorer[0] not in used_names:
