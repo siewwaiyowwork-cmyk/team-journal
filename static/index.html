@@ -344,6 +344,12 @@
         .missing-progress-title{color:var(--orange);font-weight:700;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
         .missing-progress-msg{font-size:.92em;color:var(--text);margin-bottom:8px}
         .missing-progress-members{display:flex;gap:6px;flex-wrap:wrap}
+        .missing-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:rgba(255,23,68,.15);color:var(--red);font-size:.78em;font-weight:600;border:1px solid rgba(255,23,68,.2)}
+        .missing-chip.highlight{background:rgba(255,23,68,.25);border:1px solid rgba(255,23,68,.4);animation:pulse 2s infinite}
+        .missing-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--red);display:inline-block}
+        .missing-chip.highlight .dot{background:#fff}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+        .sarcasm-msg{font-size:.8em;color:var(--red);font-style:italic;margin-top:8px;padding:6px 10px;background:rgba(255,23,68,.08);border-radius:8px;border-left:3px solid var(--red)}
         .missing-chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:.75em;font-weight:600;color:var(--text);display:inline-flex;align-items:center;gap:4px}
         .missing-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--red);display:inline-block}
 
@@ -730,7 +736,6 @@ function launchConfetti(x,y){
     function renderMissingProgress(data){
         var el = document.getElementById('missingProgressSection');
         if(!el) return;
-        // Skip weekends and public holidays
         var today = new Date();
         if(isWeekend(today) || isPH(toYMD(today))){
             el.style.display = 'none';
@@ -740,18 +745,60 @@ function launchConfetti(x,y){
             el.style.display = 'none';
             return;
         }
-        var chips = data.missing.map(function(name){
-            return '<span class="missing-chip"><span class="dot"></span>'+name+'</span>';
-        }).join('');
+        
+        var sarcasticMessages = [
+            "Has been on a secret mission... or just forgot the password",
+            "Probably fighting dragons. We will wait.",
+            "Maybe their keyboard is on vacation too",
+            "Has entered the witness protection program",
+            "We assume they are researching time travel since they lost track of days",
+            "Might be trapped in a meeting that started {days} days ago",
+            "Their update is like a unicorn - mythical and rarely seen",
+            "Has been abducted by aliens. Send help... or just an update",
+            "Probably binge-watching something instead of updating",
+            "Lost in the Bermuda Triangle of productivity"
+        ];
+        
+        var hasHighlight = false;
+        var chips = '';
+        var sarcasmHtml = '';
+        
+        if(data.enhanced && data.enhanced.length){
+            data.enhanced.forEach(function(item){
+                var isHighlight = item.days_since >= 3;
+                if(isHighlight) hasHighlight = true;
+                var chipClass = isHighlight ? 'missing-chip highlight' : 'missing-chip';
+                chips += '<span class="'+chipClass+'"><span class="dot"></span>'+item.name+(isHighlight ? ' ('+item.days_since+'d)' : '')+'</span>';
+            });
+            
+            var longMissing = data.enhanced.filter(function(item){ return item.days_since >= 3; });
+            if(longMissing.length > 0){
+                var sarcasmList = longMissing.map(function(item){
+                    var msg = sarcasticMessages[Math.floor(Math.random() * sarcasticMessages.length)];
+                    return '<strong>'+item.name+'</strong>: ' + msg.replace('{days}', item.days_since);
+                }).join('<br>');
+                sarcasmHtml = '<div class="sarcasm-msg">'+sarcasmList+'</div>';
+            }
+        } else {
+            chips = data.missing.map(function(name){
+                return '<span class="missing-chip"><span class="dot"></span>'+name+'</span>';
+            }).join('');
+        }
+        
         var msg = data.missing.length === 1
             ? data.missing[0]+' has not submit yet'
             : data.missing.length+' members still need to share their progress';
+        
+        var icon = hasHighlight ? '🚨' : '⏰';
+        var title = hasHighlight ? 'URGENT: Ghost Detected' : 'Still Missing';
+        
         el.innerHTML = '<div class="missing-progress-card">'+
-            '<div class="missing-progress-icon">⏰</div>'+
+            '<div class="missing-progress-icon">'+icon+'</div>'+
             '<div class="missing-progress-body">'+
-                '<div class="missing-progress-title">Still Missing</div>'+
+                '<div class="missing-progress-title">'+title+'</div>'+
                 '<div class="missing-progress-msg">'+msg+' for today ('+data.today+')</div>'+
                 '<div class="missing-progress-members">'+chips+'</div>'+
+                sarcasmHtml+
             '</div>'+
         '</div>';
         el.style.display = 'block';

@@ -837,9 +837,26 @@ def get_missing_progress():
     conn = get_db()
     members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 ORDER BY name").fetchall()]
     updated = [r[0] for r in conn.execute("SELECT DISTINCT name FROM updates WHERE date = ?", (today,)).fetchall()]
+    
+    last_updates = {}
+    for m in members:
+        row = conn.execute("SELECT MAX(date) FROM updates WHERE name = ?", (m,)).fetchone()
+        last_updates[m] = row[0] if row and row[0] else None
+    
     conn.close()
     missing = [m for m in members if m not in updated]
-    return {"today": today, "missing": missing, "submitted": updated}
+    
+    enhanced = []
+    for m in missing:
+        last = last_updates.get(m)
+        days_since = 0
+        if last:
+            last_dt = datetime.strptime(last, '%Y-%m-%d')
+            today_dt = datetime.strptime(today, '%Y-%m-%d')
+            days_since = (today_dt - last_dt).days
+        enhanced.append({"name": m, "last_update": last, "days_since": days_since})
+    
+    return {"today": today, "missing": missing, "enhanced": enhanced, "submitted": updated}
 
 
 @app.get("/api/fun-facts")
