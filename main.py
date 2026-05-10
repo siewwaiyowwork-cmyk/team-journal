@@ -970,6 +970,8 @@ def get_fun_facts():
 
     missing = [m for m in members if m not in [r[0] for r in conn.execute("SELECT DISTINCT name FROM updates WHERE date = ?", (today,)).fetchall()]]
 
+    row_dicts = [dict(r) for r in rows]
+
     conn.close()
 
     used_names = set()
