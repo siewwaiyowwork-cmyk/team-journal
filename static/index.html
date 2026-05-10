@@ -1537,7 +1537,7 @@ function launchConfetti(x,y){
         const dLevelTitle=dLevelInfo.title;
         const dLevelEmoji=dLevelInfo.emoji;
         const dLevelBg=dLevelInfo.bg;
-        const dLevelHtml = dLevel > 0 ? '\u003cspan class="level-badge" style="background:'+dLevelBg+';color:'+(dLevel>=16?'#fff':'#0a0a0f')+'"\u003e'+dLevelEmoji+' LV'+dLevel+' '+dLevelTitle+'\u003c/span\u003e' : '';
+        const dLevelHtml = dLevel > 0 ? '\u003cspan class="level-badge" style="background:'+dLevelBg+';color:'+(dLevel>=80?'#fff':'#0a0a0f')+'"\u003e'+dLevelEmoji+' LV'+dLevel+' '+dLevelTitle+'\u003c/span\u003e' : '';
         const html = `
             <div class="detail-card">
                 <div class="detail-header-big">
