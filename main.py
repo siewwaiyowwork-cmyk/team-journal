@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Body
+from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Body, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,12 +27,15 @@ def init_db():
     db_dir = os.path.dirname(DB_PATH)
     if db_dir and not os.path.exists(db_dir):
         os.makedirs(db_dir, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
     if not os.path.exists(DB_PATH):
-        conn = sqlite3.connect(DB_PATH)
         with open('schema.sql', 'r') as f:
             conn.executescript(f.read())
         conn.commit()
-        conn.close()
+    else:
+        conn.execute("CREATE TABLE IF NOT EXISTS holidays (date TEXT UNIQUE, name TEXT)")
+        conn.commit()
+    conn.close()
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
