@@ -542,8 +542,20 @@
 
     <script>
     const API_URL = window.location.origin;
-    const MEMBERS = ['Ain','Amira','Hazim','Iggy','Jason','Naqu','Nic','Shek','Yaw Jin','Ying Foong','Yun Feng','Zhen Wei','Zi Leong'];
+    var MEMBERS = [];
     const MODS = ['san','myd','rpp','dnp','nebula','twanel','swiper','fi','osp','nats','ta','ci/cd','load test','bug fix','deploy','study','support'];
+
+    async function loadMembers(){
+        try{
+            const res = await fetch(`${API_URL}/api/members`);
+            const data = await res.json();
+            if(data.members){
+                MEMBERS = data.members.map(function(m){ return m.name; });
+            }
+        }catch(e){
+            console.error('Failed to load members',e);
+        }
+    }
 
 
     let pName='', pMod='', pSt='', pMode='single', pLeaveType='';
@@ -1002,6 +1014,7 @@ function launchConfetti(x,y){
 
 
     async function initDashboard(){
+        await loadMembers();
         await loadHolidays();
         try{
             const [summaryRes, heatmapRes, leaveRes, goalsRes, pulseRes, activityRes, challengeRes, velocityRes, yearlyDoneRes, moduleDoneRes, missingRes, funFactsRes] = await Promise.all([
@@ -1287,9 +1300,9 @@ function launchConfetti(x,y){
         document.body.style.overflow='hidden';
     }
     function closePanel(){document.getElementById('panelOverlay').classList.remove('open');document.body.style.overflow='';}
-    function selName(b,n){document.querySelectorAll('.name-chip').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');pName=n;validate();}
+    function selName(b,n){document.querySelectorAll('.name-chip').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');pName=n.toLowerCase().trim();validate();}
     function selMod(t,m){document.querySelectorAll('.mod-chip').forEach(x=>x.classList.remove('sel'));t.classList.add('sel');document.getElementById('pCustomMod').value='';pMod=m;validate();}
-    function onCustomMod(i){if(i.value.trim()){document.querySelectorAll('.mod-chip').forEach(x=>x.classList.remove('sel'));pMod=i.value.trim();validate();}}
+    function onCustomMod(i){if(i.value.trim()){document.querySelectorAll('.mod-chip').forEach(x=>x.classList.remove('sel'));pMod=i.value.trim().toLowerCase();validate();}}
     function selLeaveType(b){document.querySelectorAll('#leaveTypeWrap .mod-chip').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');document.getElementById('pCustomLeave').value='';pLeaveType=b.dataset.type;validate();}
     function onCustomLeave(i){if(i.value.trim()){document.querySelectorAll('#leaveTypeWrap .mod-chip').forEach(x=>x.classList.remove('sel'));pLeaveType=i.value.trim();validate();}}
     function selSt(b){document.querySelectorAll('.st-btn').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');pSt=b.dataset.val;if(pSt==='leave'){document.getElementById('leaveTypeGroup').style.display='block';document.getElementById('modGroup').style.display='none';document.getElementById('descGroup').style.display='none';pLeaveType=''}else{document.getElementById('leaveTypeGroup').style.display='none';document.getElementById('modGroup').style.display='block';document.getElementById('descGroup').style.display='block';document.getElementById('pCustomLeave').value='';document.querySelectorAll('#leaveTypeWrap .mod-chip').forEach(x=>x.classList.remove('sel'));pLeaveType='';}validate();}
@@ -1350,7 +1363,7 @@ function launchConfetti(x,y){
     }
     async function addMember(){
         var input=document.getElementById('pNewMember');
-        var name=input.value.trim();
+        var name=input.value.trim().toLowerCase();
         if(!name){showToast('Please enter a member name','err');return;}
         try{
             var res=await fetch(API_URL+'/api/members',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})});
@@ -1407,9 +1420,9 @@ function launchConfetti(x,y){
             var leaveDesc=leaveDescMap[pLeaveType] || (pLeaveType ? pLeaveType + ' Leave' : 'Leave');
             var entry = {
                 date: d,
-                name: pName,
-                module: pSt==='leave'?'':pMod,
-                description: pSt==='leave'?leaveDesc:desc,
+                name: pName.toLowerCase().trim(),
+                module: pSt==='leave'?'':pMod.toLowerCase().trim(),
+                description: pSt==='leave'?leaveDesc:desc.toLowerCase().trim(),
                 status: pSt
             };
             if(pSt==='leave'){

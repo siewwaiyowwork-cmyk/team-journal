@@ -81,6 +81,7 @@ def get_holidays():
 
 @app.post("/api/holidays")
 def add_holiday(date: str = Form(...), name: str = Form(...)):
+    name = name.lower()
     conn = get_db()
     try:
         conn.execute("INSERT INTO holidays (date, name) VALUES (?, ?)", (date, name))
@@ -107,12 +108,17 @@ def health():
 @app.on_event("startup")
 def on_startup():
     init_db()
-    migrate_lowercase_modules()
+    migrate_lowercase()
 
-def migrate_lowercase_modules():
+def migrate_lowercase():
     conn = get_db()
     conn.execute("UPDATE updates SET module = lower(module) WHERE module != lower(module)")
+    conn.execute("UPDATE updates SET name = lower(name) WHERE name != lower(name)")
+    conn.execute("UPDATE updates SET description = lower(description) WHERE description != lower(description)")
+    conn.execute("UPDATE members SET name = lower(name) WHERE name != lower(name)")
+    conn.execute("UPDATE holidays SET name = lower(name) WHERE name != lower(name)")
     conn.commit()
+    conn.close()
     conn.close()
 
 @app.get("/api/updates")
@@ -151,8 +157,11 @@ def update_entry(update_id: int, payload: dict = Body(...)):
     fields = payload.get('fields', {})
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
-    allowed = {'module', 'description', 'status'}
-    updates = {k: v for k, v in fields.items() if k in allowed}
+    allowed = {'module','description','status'}
+    updates = {}
+    for k,v in fields.items():
+        if k in allowed:
+            updates[k] = str(v).lower().strip() if k != 'status' else v
     if not updates:
         raise HTTPException(status_code=400, detail="Invalid fields")
     conn = get_db()
@@ -188,17 +197,15 @@ def submit(payload: dict):
         date = e.get('date', datetime.now().strftime('%Y-%m-%d'))
         status = e.get('status', 'in_progress')
         leave_type = e.get('leave_type', None)
+        name_lc = str(e.get('name','')).lower().strip()
+        module_lc = str(e.get('module','')).lower().strip()
+        desc_lc = str(e.get('description','')).lower().strip()
         
         cursor.execute('''
             INSERT INTO updates (date, name, module, description, status, leave_type)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (
-            date,
-            e.get('name'),
-            e.get('module', ''),
-            e.get('description'),
-            status,
-            leave_type
+            date, name_lc, module_lc, desc_lc, status, leave_type
         ))
         
         if status == 'leave':
@@ -206,8 +213,7 @@ def submit(payload: dict):
                 INSERT INTO leave_records (date, name, type, days)
                 VALUES (?, ?, ?, ?)
             ''', (
-                date,
-                e.get('name'),
+                date, name_lc,
                 leave_type or 'AL',
                 1.0
             ))
@@ -224,7 +230,7 @@ def get_members():
 
 @app.post("/api/members")
 def add_member(data: dict = Body(...)):
-    name = data.get("name", "").strip()
+    name = data.get("name", "").strip().lower()
     if not name:
         raise HTTPException(status_code=400, detail="Name is required")
     conn = get_db()
