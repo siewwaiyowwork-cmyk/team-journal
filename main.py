@@ -23,6 +23,29 @@ app.add_middleware(
 DB_PATH = os.environ.get('DB_PATH', 'scoreboard.db')
 BACKUP_SECRET = os.environ.get('BACKUP_SECRET', 'changeme')
 
+BUILTIN_HOLIDAYS = {
+    "2026-01-01": "New Year's Day","2026-02-01": "Thaipusam / Federal Territory Day",
+    "2026-02-02": "Thaipusam Holiday","2026-02-03": "Federal Territory Day Holiday",
+    "2026-02-17": "Chinese New Year","2026-02-18": "Chinese New Year Holiday",
+    "2026-03-07": "Nuzul Al-Quran","2026-03-20": "Hari Raya Aidilfitri Holiday",
+    "2026-03-21": "Hari Raya Aidilfitri","2026-03-22": "Hari Raya Aidilfitri Holiday",
+    "2026-03-23": "Hari Raya Aidilfitri Holiday","2026-05-01": "Labour Day",
+    "2026-05-27": "Hari Raya Haji","2026-05-31": "Wesak Day","2026-06-01": "Agong's Birthday",
+    "2026-06-02": "Wesak Day Holiday","2026-06-17": "Awal Muharram",
+    "2026-08-25": "Prophet Muhammad's Birthday","2026-08-31": "Merdeka Day",
+    "2026-09-16": "Malaysia Day","2026-11-08": "Deepavali","2026-11-09": "Deepavali Holiday",
+    "2026-12-25": "Christmas Day","2027-01-01": "New Year's Day","2027-01-22": "Thaipusam",
+    "2027-02-01": "Federal Territory Day","2027-02-06": "Chinese New Year",
+    "2027-02-07": "Chinese New Year Holiday","2027-02-08": "Chinese New Year Holiday",
+    "2027-02-24": "Nuzul Al-Quran","2027-03-10": "Hari Raya Aidilfitri",
+    "2027-03-11": "Hari Raya Aidilfitri Holiday","2027-03-12": "Hari Raya Aidilfitri Holiday",
+    "2027-05-01": "Labour Day","2027-05-17": "Hari Raya Haji","2027-05-20": "Wesak Day",
+    "2027-06-06": "Awal Muharram","2027-06-07": "Agong's Birthday / Awal Muharram Holiday",
+    "2027-08-15": "Prophet Muhammad's Birthday",
+    "2027-08-16": "Prophet Muhammad's Birthday Holiday","2027-08-31": "Merdeka Day",
+    "2027-09-16": "Malaysia Day","2027-10-28": "Deepavali","2027-12-25": "Christmas Day"
+}
+
 def init_db():
     db_dir = os.path.dirname(DB_PATH)
     if db_dir and not os.path.exists(db_dir):
@@ -35,6 +58,9 @@ def init_db():
     else:
         conn.execute("CREATE TABLE IF NOT EXISTS holidays (date TEXT UNIQUE, name TEXT)")
         conn.commit()
+    for d, n in BUILTIN_HOLIDAYS.items():
+        conn.execute("INSERT OR IGNORE INTO holidays (date, name) VALUES (?, ?)", (d, n))
+    conn.commit()
     conn.close()
 
 def get_db():
