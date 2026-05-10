@@ -1064,8 +1064,8 @@ function launchConfetti(x,y){
             if(m.activity && m.activity.length){
                 const activeCount = m.activity.filter(function(d){ return d.active; }).length;
                 const missingCount = m.activity.length - activeCount;
-                if(activeCount > 0) activityHtml += `<span class="bdg bdg-gr" title="${activeCount} updated">OK</span>`.repeat(Math.min(activeCount, 9));
-                if(missingCount > 0) activityHtml += `<span class="bdg bdg-rd" title="${missingCount} missing">MS</span>`.repeat(Math.min(missingCount, 3));
+                if(activeCount > 0) activityHtml += `<span class="bdg bdg-gr" title="${activeCount} updated">OK</span>`.repeat(activeCount);
+                if(missingCount > 0) activityHtml += `<span class="bdg bdg-rd" title="${missingCount} missing">MS</span>`.repeat(missingCount);
             }
             
             const hourly = m.hourly_personality;
