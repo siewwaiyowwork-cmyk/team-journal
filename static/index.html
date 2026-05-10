@@ -1536,6 +1536,143 @@ function launchConfetti(x,y){
         return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
     }
     
+    function generateBehaviorInsights(updates, name){
+        const insights = [];
+        if(!updates || updates.length === 0) return insights;
+        
+        // 1. Weekend/Holiday worker
+        const weekendHolidayUpdates = updates.filter(u => {
+            const d = new Date(u.date);
+            const day = d.getDay();
+            return day === 0 || day === 6 || isPH(u.date);
+        });
+        if(weekendHolidayUpdates.length >= 3){
+            insights.push({
+                emoji: '🌙',
+                title: 'Off-Hours Warrior',
+                desc: `${weekendHolidayUpdates.length} updates on weekends or public holidays. You do not let holidays stop you.`
+            });
+        }
+        
+        // 2. Module hopper vs specialist
+        const moduleCounts = {};
+        updates.forEach(u => {
+            if(u.module) moduleCounts[u.module] = (moduleCounts[u.module]||0)+1;
+        });
+        const modules = Object.keys(moduleCounts);
+        if(modules.length >= 4){
+            insights.push({
+                emoji: '🔄',
+                title: 'Module Juggler',
+                desc: `Active across ${modules.length} different modules. You context-switch like a pro.`
+            });
+        } else if(modules.length === 1 && updates.length >= 10){
+            insights.push({
+                emoji: '🎯',
+                title: 'Deep Diver',
+                desc: `Over ${updates.length} updates focused solely on ${modules[0]}. Laser focus.`
+            });
+        }
+        
+        // 3. Consistency pattern
+        const workDates = [...new Set(updates.filter(u => u.status !== 'leave').map(u => u.date))].sort();
+        if(workDates.length >= 10){
+            const gaps = [];
+            for(let i=1;i<workDates.length;i++){
+                const prev = new Date(workDates[i-1]);
+                const curr = new Date(workDates[i]);
+                const diff = (curr - prev)/(1000*60*60*24);
+                if(diff > 1) gaps.push(diff-1);
+            }
+            const avgGap = gaps.length > 0 ? (gaps.reduce((a,b)=>a+b,0)/gaps.length).toFixed(1) : 0;
+            if(avgGap <= 1.5 && workDates.length >= 15){
+                insights.push({
+                    emoji: '⚡',
+                    title: 'Daily Grinder',
+                    desc: `Average ${avgGap} days between updates. You show up almost every single day.`
+                });
+            }
+        }
+        
+        // 4. Done ratio
+        const doneCount = updates.filter(u => u.status === 'done').length;
+        const totalNonLeave = updates.filter(u => u.status !== 'leave').length;
+        if(totalNonLeave > 0){
+            const doneRatio = Math.round((doneCount/totalNonLeave)*100);
+            if(doneRatio >= 80){
+                insights.push({
+                    emoji: '✅',
+                    title: 'Closer Mentality',
+                    desc: `${doneRatio}% of your updates are Done. You finish what you start.`
+                });
+            } else if(doneRatio <= 30 && updates.length >= 10){
+                insights.push({
+                    emoji: '🚀',
+                    title: 'Starter Spirit',
+                    desc: `Only ${doneRatio}% Done — you are great at kicking off new work, keep pushing to the finish line!`
+                });
+            }
+        }
+        
+        // 5. Peak hour pattern
+        const hourCounts = {};
+        updates.forEach(u => {
+            if(u.created_at){
+                const h = new Date(u.created_at).getHours();
+                hourCounts[h] = (hourCounts[h]||0)+1;
+            }
+        });
+        const peakHour = Object.entries(hourCounts).sort((a,b)=>b[1]-a[1])[0];
+        if(peakHour){
+            const h = parseInt(peakHour[0]);
+            let label = '';
+            if(h < 9) label = 'Early Bird — most active before 9am';
+            else if(h >= 22) label = 'Night Owl — most active after 10pm';
+            else if(h >= 18) label = 'Late Worker — most active in the evening';
+            else label = `Peak at ${h}:00 — your most productive hour`;
+            if(peakHour[1] >= 5){
+                insights.push({
+                    emoji: '⏰',
+                    title: 'Clockwork',
+                    desc: label
+                });
+            }
+        }
+        
+        // 6. Leave pattern
+        const leaveCount = updates.filter(u => u.status === 'leave').length;
+        if(leaveCount === 0 && updates.length >= 20){
+            insights.push({
+                emoji: '💪',
+                title: 'Iron Will',
+                desc: 'Zero leave taken across all your updates. Dedication level: maximum.'
+            });
+        } else if(leaveCount >= 5){
+            insights.push({
+                emoji: '🏖️',
+                title: 'Work-Life Balance',
+                desc: `${leaveCount} leave entries. You know when to rest and recharge.`
+            });
+        }
+        
+        // 7. Description quality
+        const vagueCount = updates.filter(u => u.status === 'vague').length;
+        if(vagueCount === 0 && updates.length >= 10){
+            insights.push({
+                emoji: '📝',
+                title: 'Crystal Clear',
+                desc: 'Every single update has a clear, specific description. Communication pro.'
+            });
+        }
+        
+        // Shuffle and pick top 2
+        for(let i=insights.length-1;i>0;i--){
+            const j = Math.floor(Math.random()*(i+1));
+            [insights[i], insights[j]] = [insights[j], insights[i]];
+        }
+        return insights.slice(0,2);
+    }
+    
     function renderDetail(name, updates){
         const avatar = name.charAt(0).toUpperCase();
         const safeId = name.replace(/[^a-zA-Z]/g,'').toLowerCase();
@@ -1697,6 +1834,12 @@ function launchConfetti(x,y){
         if (updates.length === 1) badgesHtml += '<span class="ach-badge freshstart" title="🌱 Fresh Start: First update logged! Welcome aboard!">\uD83C\uDF31 Fresh Start</span>';
 
         if(badgesHtml){hasBadge=true;}
+        
+        // Behavior insights
+        const behaviorInsights = generateBehaviorInsights(updates, name);
+        const behavior1 = behaviorInsights[0] || {emoji:'🤔',title:'Mystery',desc:'Not enough data to determine behavior pattern.'};
+        const behavior2 = behaviorInsights[1] || {emoji:'📊',title:'Observer',desc:'Keep logging to unlock more insights.'};
+        
         const dLevelInfo=getLevel(window.yearlyDoneMap[name]||0);
         const dLevel=dLevelInfo.level;
         const dLevelTitle=dLevelInfo.title;
@@ -1728,6 +1871,22 @@ function launchConfetti(x,y){
                     </div>
                 </div>
             </div>
+            <div class="detail-behavior" style="padding:0 20px 16px">
+                <h3 class="section-title" style="font-size:1em;margin-bottom:10px">🔍 Behavior Insights</h3>
+                <div class="behavior-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="behavior-card" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+                        <div class="behavior-emoji" style="font-size:1.4em;margin-bottom:6px">${behavior1.emoji}</div>
+                        <div class="behavior-title" style="font-weight:700;font-size:.9em;margin-bottom:4px;color:var(--accent)">${behavior1.title}</div>
+                        <div class="behavior-desc" style="font-size:.82em;color:var(--text-dim);line-height:1.4">${behavior1.desc}</div>
+                    </div>
+                    <div class="behavior-card" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+                        <div class="behavior-emoji" style="font-size:1.4em;margin-bottom:6px">${behavior2.emoji}</div>
+                        <div class="behavior-title" style="font-weight:700;font-size:.9em;margin-bottom:4px;color:var(--accent)">${behavior2.title}</div>
+                        <div class="behavior-desc" style="font-size:.82em;color:var(--text-dim);line-height:1.4">${behavior2.desc}</div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="detail-charts">
                 <div class="chart-box"><div class="chart-title">Task Completion ${rangeLabel}</div><div class="chart-wrapper"><canvas id="c-comp-${safeId}"></canvas></div></div>
                 <div class="chart-box"><div class="chart-title">Top Modules ${rangeLabel}</div><div class="chart-wrapper"><canvas id="c-mod-${safeId}"></canvas></div></div>
