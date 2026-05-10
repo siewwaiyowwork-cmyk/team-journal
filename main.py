@@ -2577,6 +2577,94 @@ def get_fun_facts():
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     ''').fetchone()
 
+    most_leave_days = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    least_leave_days = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt ASC LIMIT 1
+    ''').fetchone()
+
+    al_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'leave' AND leave_type = 'AL' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    mc_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'leave' AND leave_type = 'MC' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    el_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'leave' AND leave_type = 'EL' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    consecutive_leave = conn.execute('''
+        SELECT name, COUNT(*) as streak
+        FROM (
+            SELECT name, date,
+                date(date, '-' || (ROW_NUMBER() OVER (PARTITION BY name ORDER BY date) - 1) || ' days') as grp
+            FROM updates WHERE status = 'leave'
+        )
+        GROUP BY name, grp
+        ORDER BY streak DESC LIMIT 1
+    ''').fetchone()
+
+    leave_friday = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'leave' AND strftime('%w', date) = '5' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    leave_monday = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'leave' AND strftime('%w', date) = '1' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    update_frequency = conn.execute('''
+        SELECT name, CAST(COUNT(*) as REAL) / COUNT(DISTINCT date) as freq
+        FROM updates WHERE date >= date('now', '-30 days') AND status != 'leave'
+        GROUP BY name ORDER BY freq DESC LIMIT 1
+    ''').fetchone()
+
+    least_frequent = conn.execute('''
+        SELECT name, CAST(COUNT(*) as REAL) / NULLIF(COUNT(DISTINCT date), 0) as freq
+        FROM updates WHERE date >= date('now', '-30 days') AND status != 'leave'
+        GROUP BY name ORDER BY freq ASC LIMIT 1
+    ''').fetchone()
+
+    longest_gap = conn.execute('''
+        SELECT name, MAX(julianday(date) - julianday(prev_date)) as gap
+        FROM (
+            SELECT name, date,
+                LAG(date) OVER (PARTITION BY name ORDER BY date) as prev_date
+            FROM updates WHERE status != 'leave'
+        )
+        WHERE prev_date IS NOT NULL
+        ORDER BY gap DESC LIMIT 1
+    ''').fetchone()
+
+    consistent_updater = conn.execute('''
+        SELECT name, COUNT(DISTINCT date) as days
+        FROM updates WHERE date >= date('now', '-30 days') AND status != 'leave'
+        GROUP BY name ORDER BY days DESC LIMIT 1
+    ''').fetchone()
+
+    sporadic_updater = conn.execute('''
+        SELECT name, COUNT(DISTINCT date) as days
+        FROM updates WHERE date >= date('now', '-30 days') AND status != 'leave'
+        GROUP BY name ORDER BY days ASC LIMIT 1
+    ''').fetchone()
+
     missing = [m for m in members if m not in [r[0] for r in conn.execute("SELECT DISTINCT name FROM updates WHERE date = ?", (today,)).fetchall()]]
 
     row_dicts = [dict(r) for r in rows]
@@ -3337,6 +3425,59 @@ def get_fun_facts():
     if capitals_user and capitals_user[1] >= 3:
         if capitals_user[0] not in used_names:
             add_fact("🔤", "ALL CAPS User", f"{capitals_user[0]} SHOUTS {capitals_user[1]} times - enthusiastic", capitals_user[0])
+
+    if most_leave_days and most_leave_days[1] >= 3:
+        if most_leave_days[0] not in used_names:
+            add_fact("🏖️", "Leave Champion", f"{most_leave_days[0]} took {most_leave_days[1]} leave days - recharging pro", most_leave_days[0])
+
+    if least_leave_days and least_leave_days[1]:
+        if least_leave_days[0] not in used_names:
+            add_fact("💪", "No Leave Needed", f"{least_leave_days[0]} took only {least_leave_days[1]} leave days - ironman", least_leave_days[0])
+
+    if al_user and al_user[1] >= 2:
+        if al_user[0] not in used_names:
+            add_fact("🌴", "AL Collector", f"{al_user[0]} has {al_user[1]} annual leaves - vacation planner", al_user[0])
+
+    if mc_user and mc_user[1] >= 2:
+        if mc_user[0] not in used_names:
+            add_fact("🤒", "MC Collector", f"{mc_user[0]} has {mc_user[1]} medical leaves - stay healthy", mc_user[0])
+
+    if el_user and el_user[1] >= 1:
+        if el_user[0] not in used_names:
+            add_fact("🎓", "EL User", f"{el_user[0]} takes emergency leave when needed", el_user[0])
+
+    if consecutive_leave and consecutive_leave[1] >= 3:
+        if consecutive_leave[0] not in used_names:
+            add_fact("🏖️", "Consecutive Leave", f"{consecutive_leave[0]} took {consecutive_leave[1]} consecutive leave days - long break", consecutive_leave[0])
+
+    if leave_friday and leave_friday[1] >= 2:
+        if leave_friday[0] not in used_names:
+            add_fact("🎉", "Friday Leave Lover", f"{leave_friday[0]} took {leave_friday[1]} Friday leaves - long weekends", leave_friday[0])
+
+    if leave_monday and leave_monday[1] >= 2:
+        if leave_monday[0] not in used_names:
+            add_fact("😴", "Monday Leave Lover", f"{leave_monday[0]} took {leave_monday[1]} Monday leaves - hates Mondays", leave_monday[0])
+
+    if update_frequency and update_frequency[1] >= 2:
+        if update_frequency[0] not in used_names:
+            add_fact("📈", "High Frequency", f"{update_frequency[0]} averages {update_frequency[1]:.1f} updates per workday - prolific", update_frequency[0])
+
+    if least_frequent and least_frequent[1]:
+        if least_frequent[0] not in used_names:
+            add_fact("🐢", "Low Frequency", f"{least_frequent[0]} averages {least_frequent[1]:.1f} updates per day - quality over quantity", least_frequent[0])
+
+    if longest_gap and longest_gap[1] > 7:
+        if longest_gap[0] not in used_names:
+            days = int(longest_gap[1])
+            add_fact("🦘", "Longest Gap", f"{longest_gap[0]} went {days} days without updates - explorer", longest_gap[0])
+
+    if consistent_updater and consistent_updater[1] >= 20:
+        if consistent_updater[0] not in used_names:
+            add_fact("📅", "Consistent Updater", f"{consistent_updater[0]} updated on {consistent_updater[1]} of last 30 days - reliable", consistent_updater[0])
+
+    if sporadic_updater and sporadic_updater[1] >= 1:
+        if sporadic_updater[0] not in used_names:
+            add_fact("🌵", "Sporadic Updater", f"{sporadic_updater[0]} updated only {sporadic_updater[1]} days in last 30 - rare appearance", sporadic_updater[0])
 
     if question_explorer and question_explorer[1] >= 5:
         if question_explorer[0] not in used_names:
