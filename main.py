@@ -292,45 +292,39 @@ def get_module_done(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None
 ):
+    current_year = datetime.now().year
     if not from_date:
-        from_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+        from_date = f"{current_year}-01-01"
     if not to_date:
         to_date = datetime.now().strftime('%Y-%m-%d')
 
     conn = get_db()
     rows = conn.execute('''
-        SELECT module, COUNT(*) as done
+        SELECT module, name, COUNT(*) as cnt
         FROM updates
         WHERE date BETWEEN ? AND ? AND module != '' AND status = 'done'
-        GROUP BY module
-        ORDER BY done DESC
+        GROUP BY module, name
+        ORDER BY module, cnt DESC
     ''', (from_date, to_date)).fetchall()
-
-    top_contributors = {}
-    for module in [r[0] for r in rows]:
-        top = conn.execute('''
-            SELECT name, COUNT(*) as cnt
-            FROM updates
-            WHERE date BETWEEN ? AND ? AND module = ? AND status = 'done'
-            GROUP BY name
-            ORDER BY cnt DESC
-            LIMIT 1
-        ''', (from_date, to_date, module)).fetchone()
-        top_contributors[module] = dict(top) if top else {'name': None, 'cnt': 0}
 
     conn.close()
 
+    modules = sorted(set(r[0] for r in rows))
+    members = sorted(set(r[1] for r in rows))
+
+    data = {}
+    for m in members:
+        data[m] = [0] * len(modules)
+
+    for r in rows:
+        mod_idx = modules.index(r[0])
+        data[r[1]][mod_idx] = r[2]
+
     return {
         "range": {"from": from_date, "to": to_date},
-        "modules": [
-            {
-                "module": r[0],
-                "done": r[1],
-                "top_contributor": top_contributors[r[0]]['name'],
-                "top_contributor_done": top_contributors[r[0]]['cnt']
-            }
-            for r in rows
-        ]
+        "modules": modules,
+        "members": members,
+        "data": data
     }
 
 @app.get("/api/heatmap")
