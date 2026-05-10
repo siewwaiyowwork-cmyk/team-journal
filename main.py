@@ -259,6 +259,34 @@ def get_summary(
         ''', (d['name'], from_date, to_date)).fetchone()
         d['badges'] = dict(badges) if badges else {'ok':0,'vg':0,'lv':0}
         
+        activity = conn.execute('''
+            WITH calendar_days AS (
+                SELECT date('now', '-' || n || ' days') as cal_date,
+                       strftime('%w', date('now', '-' || n || ' days')) as dow
+                FROM (
+                    SELECT 0 as n UNION SELECT 1 UNION SELECT 2
+                    UNION SELECT 3 UNION SELECT 4 UNION SELECT 5
+                    UNION SELECT 6 UNION SELECT 7 UNION SELECT 8
+                    UNION SELECT 9 UNION SELECT 10 UNION SELECT 11
+                    UNION SELECT 12 UNION SELECT 13 UNION SELECT 14
+                )
+            ),
+            working_days AS (
+                SELECT cal_date, ROW_NUMBER() OVER (ORDER BY cal_date DESC) as idx
+                FROM calendar_days
+                WHERE dow NOT IN ('0', '6')
+                ORDER BY cal_date DESC
+                LIMIT 10
+            )
+            SELECT wd.cal_date as date,
+                   CASE WHEN u.name IS NOT NULL THEN 1 ELSE 0 END as has_update
+            FROM working_days wd
+            LEFT JOIN updates u ON u.name = ? AND u.date = wd.cal_date AND u.status != 'leave'
+            GROUP BY wd.cal_date
+            ORDER BY wd.cal_date DESC
+        ''', (d['name'],)).fetchall()
+        d['activity'] = [{'date': r[0], 'active': bool(r[1])} for r in activity]
+        
         peak_hour = conn.execute('''
             SELECT strftime('%H', created_at) as hour, COUNT(*) as cnt
             FROM updates
