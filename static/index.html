@@ -1036,7 +1036,7 @@ function launchConfetti(x,y){
             const levelColor=levelInfo.color;
             const levelBg=levelInfo.bg;
             const progress=levelInfo.progress;
-            const levelHtml='<span class="level-badge" style="background:'+levelBg+';color:'+(level>=16?'#fff':'#0a0a0f')+'">'+levelEmoji+' LV'+level+' '+levelTitle+'</span>';
+            const levelHtml = level > 0 ? '<span class="level-badge" style="background:'+levelBg+';color:'+(level>=16?'#fff':'#0a0a0f')+'">'+levelEmoji+' LV'+level+' '+levelTitle+'</span>' : '';
             const rank = i+1;
             const rankClass = rank===1?'g1':rank===2?'g2':rank===3?'g3':'';
             const lastUpdateDate = m.recent && m.recent.length > 0 ? m.recent[0].date : null;
@@ -1892,6 +1892,7 @@ function launchConfetti(x,y){
         }
     }
     function getLevel(doneCount){
+        if(doneCount <= 0) return {level:0,title:'',emoji:'—',desc:'No tasks completed yet',color:'var(--text-dim)',bg:'var(--surface2)',progress:0,next:1};
         const tiers=[
             {lv:1,title:'Seedling',emoji:'🌱',desc:'First task completed!',min:1,color:'#4CAF50',bg:'linear-gradient(135deg,#4CAF50,#8BC34A)'},
             {lv:2,title:'Sprout',emoji:'🌿',desc:'Getting the hang of it',min:3,color:'#66BB6A',bg:'linear-gradient(135deg,#66BB6A,#A5D6A7)'},
