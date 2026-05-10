@@ -1040,10 +1040,14 @@ function launchConfetti(x,y){
             const rank = i+1;
             const rankClass = rank===1?'g1':rank===2?'g2':rank===3?'g3':'';
             const lastUpdateDate = m.recent && m.recent.length > 0 ? m.recent[0].date : null;
-            const daysSinceUpdate = lastUpdateDate ? (new Date() - new Date(lastUpdateDate)) / (1000 * 60 * 60 * 24) : Infinity;
-            const isCurrentlyActive = daysSinceUpdate <= 7;
-            const hasRecent = isCurrentlyActive;
-            if(hasRecent) fireCards.push(m.name);
+            const daysSinceUpdate = lastUpdateDate ? Math.floor((new Date() - new Date(lastUpdateDate)) / (1000 * 60 * 60 * 24)) : Infinity;
+            let statusText, statusColor, statusEmoji;
+            if(daysSinceUpdate <= 0){ statusText='GODLIKE'; statusColor='var(--green)'; statusEmoji='🔥'; }
+            else if(daysSinceUpdate <= 2){ statusText='ACTIVE'; statusColor='var(--yellow)'; statusEmoji='⚡'; }
+            else if(daysSinceUpdate <= 5){ statusText='COMA'; statusColor='var(--orange)'; statusEmoji='🛌'; }
+            else if(daysSinceUpdate <= 10){ statusText='GHOST'; statusColor='var(--text-dim)'; statusEmoji='👻'; }
+            else{ statusText='FOSSIL'; statusColor='var(--surface2)'; statusEmoji='🧟'; }
+            if(daysSinceUpdate <= 2) fireCards.push(m.name);
             
             const recentHtml = (m.recent||[]).slice(0,5).map(r=>{
                 const st = (r.status||'').toLowerCase();
@@ -1083,7 +1087,7 @@ function launchConfetti(x,y){
                             <div class="xp-bar"><div class="xp-fill" style="width:${progress}%;background:${levelBg}"></div></div>
                             <div class="xp-label"><span>Level ${level}</span><span>${levelTitle}</span></span></div>
                         </div>
-                        <div class="ov-row"><span class="lab">Streak</span><span class="val" style="color:${hasRecent ? 'var(--green)' : 'var(--orange)'}">${hasRecent ? '🔥 Active' : '⚪ Away'}</span></div>
+                        <div class="ov-row"><span class="lab">Status</span><span class="val" style="color:${statusColor}">${statusEmoji} ${statusText}</span></div>
                         <div class="badge-grid">${activityHtml}${hourlyBadge}</div>
                         <div class="recent-tasks"><div class="recent-tasks-title">Recent Tasks</div>${recentHtml}</div>
                         ${modHtml ? `<div class="ov-modules"><div class="ov-modules-title">Top modules</div>${modHtml}</div>` : ''}
