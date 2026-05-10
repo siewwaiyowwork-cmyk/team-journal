@@ -642,13 +642,17 @@ function launchConfetti(x,y){
 
             container.innerHTML = '<div class="chart-wrapper"><canvas id="module-done-canvas"></canvas></div>';
 
-            var colors = ['#00e676','#00e5ff','#ffd700','#ff9100','#ef4444','#a855f7','#ec4899','#6366f1'];
+            var colors = [
+                'rgba(0,230,118,.7)', 'rgba(0,229,255,.7)', 'rgba(255,145,0,.7)', 'rgba(255,23,68,.7)',
+                'rgba(168,85,247,.7)', 'rgba(236,72,153,.7)', 'rgba(99,102,241,.7)', 'rgba(255,215,0,.7)'
+            ];
             var datasets = data.members.map(function(member, i){
+                var color = colors[i % colors.length];
                 return {
                     label: member,
                     data: data.data[member] || data.modules.map(function(){return 0;}),
-                    backgroundColor: colors[i % colors.length] + '70',
-                    borderColor: colors[i % colors.length],
+                    backgroundColor: color,
+                    borderColor: color.replace('.7)', '.9)'),
                     borderWidth: 1,
                     borderRadius: 4
                 };

@@ -309,7 +309,10 @@ def get_module_done(
 
     conn.close()
 
-    modules = sorted(set(r[0] for r in rows))
+    module_totals = {}
+    for r in rows:
+        module_totals[r[0]] = module_totals.get(r[0], 0) + r[2]
+    modules = sorted(module_totals.keys(), key=lambda m: module_totals[m], reverse=True)
     members = sorted(set(r[1] for r in rows))
 
     data = {}
