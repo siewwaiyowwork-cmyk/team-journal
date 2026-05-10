@@ -1213,8 +1213,8 @@ function launchConfetti(x,y){
             let activityHtml = '';
             if(m.activity && m.activity.length){
                 m.activity.forEach(function(day){
-                    if(day.status === 'missing') activityHtml += `<span class="bdg bdg-rd" title="missing">MS</span>`;
-                    else activityHtml += `<span class="bdg bdg-gr" title="updated">OK</span>`;
+                    if(day.status === 'missing') activityHtml += `<span class="bdg bdg-rd" title="${day.date} missing">MS</span>`;
+                    else activityHtml += `<span class="bdg bdg-gr" title="${day.date} updated">OK</span>`;
                 });
             }
             
