@@ -640,7 +640,7 @@ function launchConfetti(x,y){
                 return;
             }
 
-            // Sort modules by total done count descending (most complete on top)
+            // Sort modules by total done count ascending (least first) so most complete appears on top
             var moduleTotals = {};
             data.modules.forEach(function(mod, idx){
                 var total = 0;
@@ -650,7 +650,7 @@ function launchConfetti(x,y){
                 moduleTotals[mod] = total;
             });
             var sortedModules = data.modules.slice().sort(function(a, b){
-                return moduleTotals[b] - moduleTotals[a];
+                return moduleTotals[a] - moduleTotals[b];
             });
 
             // Reorder data to match sorted modules
