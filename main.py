@@ -188,6 +188,27 @@ def update_entry(update_id: int, payload: dict = Body(...)):
         conn.close()
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/api/updates/{update_id}")
+def delete_update(update_id: int):
+    conn = get_db()
+    try:
+        conn.execute("BEGIN")
+        row = conn.execute("SELECT * FROM updates WHERE id = ?", (update_id,)).fetchone()
+        if not row:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Update not found")
+        old = dict(row)
+        if old['status'] == 'leave':
+            conn.execute("DELETE FROM leave_records WHERE date = ? AND name = ?", (old['date'], old['name']))
+        conn.execute("DELETE FROM updates WHERE id = ?", (update_id,))
+        conn.execute("COMMIT")
+        conn.close()
+        return {"ok": True, "deleted": update_id}
+    except Exception as e:
+        conn.execute("ROLLBACK")
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/submit")
 def submit(payload: dict):
     entries = payload.get('entries', [payload])

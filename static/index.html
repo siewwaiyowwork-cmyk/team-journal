@@ -1818,7 +1818,8 @@ function launchConfetti(x,y){
                         ? `<span class="task-status-pill done">✓</span>`
                         : `<span class="task-status-pill ${u.status}">${u.status.replace('_', ' ')}</span>`;
                     const editBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
-                    htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${editBtn}</div>`;
+                    const delBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
+                    htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${editBtn}${delBtn}</div>`;
                 });
             });
             content.innerHTML = htmlOut;
@@ -2030,6 +2031,23 @@ function launchConfetti(x,y){
             }
         }catch(e){
             showToast('Save failed','err');
+        }
+    }
+
+    async function deleteUpdate(updateId, btnEl){
+        if(!confirm('Delete this update? This cannot be undone.')) return;
+        try{
+            var res = await fetch(API_URL + '/api/updates/' + updateId, {method: 'DELETE'});
+            var data = await res.json();
+            if(data.ok){
+                showToast('Update deleted');
+                var row = btnEl.closest('.task-entry');
+                if(row) row.remove();
+            }else{
+                showToast(data.detail || 'Delete failed','err');
+            }
+        }catch(e){
+            showToast('Delete failed','err');
         }
     }
 
