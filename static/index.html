@@ -1078,10 +1078,11 @@ function launchConfetti(x,y){
             
             let activityHtml = '';
             if(m.activity && m.activity.length){
-                const activeCount = m.activity.filter(function(d){ return d.active; }).length;
-                const missingCount = m.activity.length - activeCount;
-                if(activeCount > 0) activityHtml += `<span class="bdg bdg-gr" title="${activeCount} updated">OK</span>`.repeat(activeCount);
-                if(missingCount > 0) activityHtml += `<span class="bdg bdg-rd" title="${missingCount} missing">MS</span>`.repeat(missingCount);
+                m.activity.forEach(function(day){
+                    if(day.status === 'leave') activityHtml += `<span class="bdg bdg-gy" title="leave">LV</span>`;
+                    else if(day.status === 'missing') activityHtml += `<span class="bdg bdg-rd" title="missing">MS</span>`;
+                    else activityHtml += `<span class="bdg bdg-gr" title="updated">OK</span>`;
+                });
             }
             
             const hourly = m.hourly_personality;

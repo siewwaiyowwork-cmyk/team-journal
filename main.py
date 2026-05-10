@@ -279,13 +279,13 @@ def get_summary(
                 LIMIT 10
             )
             SELECT wd.cal_date as date,
-                   CASE WHEN u.name IS NOT NULL THEN 1 ELSE 0 END as has_update
+                   COALESCE(u.status, 'missing') as status
             FROM working_days wd
-            LEFT JOIN updates u ON u.name = ? AND u.date = wd.cal_date AND u.status != 'leave'
+            LEFT JOIN updates u ON u.name = ? AND u.date = wd.cal_date
             GROUP BY wd.cal_date
             ORDER BY wd.cal_date DESC
         ''', (d['name'],)).fetchall()
-        d['activity'] = [{'date': r[0], 'active': bool(r[1])} for r in activity]
+        d['activity'] = [{'date': r[0], 'status': r[1]} for r in activity]
         
         peak_hour = conn.execute('''
             SELECT strftime('%H', created_at) as hour, COUNT(*) as cnt
