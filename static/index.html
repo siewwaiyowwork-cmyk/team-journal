@@ -427,9 +427,9 @@
                     <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
                         <input type="date" id="holidayDate" style="padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.9em" value="">
                         <input type="text" id="holidayName" placeholder="Holiday name e.g. Special Holiday" style="flex:1;min-width:150px;padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.9em" value="">
-                        <button onclick="addHoliday()" style="padding:8px 20px;border-radius:8px;background:var(--green);color:#0a0a0f;border:none;font-weight:700;font-size:.9em;cursor:pointer">➕ Add Holiday</button>
+                        <button onclick="addHoliday()" style="padding:8px 20px;border-radius:8px;background:var(--green);color:#0a0a0f;border:none;font-weight:700;font-size:.9em;cursor:pointer">Add Holiday</button>
                     </div>
-                    <div style="display:flex;flex-wrap:wrap;gap:8px" id="holidayList"><div class="task-loading">Loading holidays...</div></div>
+                    <div id="holidayCalendar"><div class="task-loading">Loading holidays...</div></div>
                 </div>
             </section>
         </div>
@@ -521,7 +521,27 @@
     const API_URL = window.location.origin;
     const MEMBERS = ['Ain','Amira','Hazim','Iggy','Jason','Naqu','Nic','Shek','Yaw Jin','Ying Foong','Yun Feng','Zhen Wei','Zi Leong'];
     const MODS = ['san','myd','rpp','dnp','nebula','twanel','swiper','fi','osp','nats','ta','ci/cd','load test','bug fix','deploy','study','support'];
-    const KL_PH = {"2025-10-31":"Deepavali","2025-11-05":"Federal Territory Day (replacement)","2025-12-25":"Christmas Day","2026-01-01":"New Year's Day","2026-01-29":"Chinese New Year (Day 1)","2026-01-30":"Chinese New Year (Day 2)","2026-02-17":"Thaipusam","2026-03-18":"Nuzul Al-Quran","2026-03-20":"Hari Raya Aidilfitri (Day 1)","2026-03-23":"Hari Raya Aidilfitri (replacement/additional)","2026-04-08":"Hari Raya Puasa replacement","2026-05-01":"Labour Day"};
+    const KL_PH = {
+      "2026-01-01":"New Year's Day","2026-02-01":"Thaipusam / Federal Territory Day",
+      "2026-02-02":"Thaipusam Holiday","2026-02-03":"Federal Territory Day Holiday",
+      "2026-02-17":"Chinese New Year","2026-02-18":"Chinese New Year Holiday",
+      "2026-03-07":"Nuzul Al-Quran","2026-03-20":"Hari Raya Aidilfitri Holiday",
+      "2026-03-21":"Hari Raya Aidilfitri","2026-03-22":"Hari Raya Aidilfitri Holiday",
+      "2026-03-23":"Hari Raya Aidilfitri Holiday","2026-05-01":"Labour Day",
+      "2026-05-27":"Hari Raya Haji","2026-05-31":"Wesak Day","2026-06-01":"Agong's Birthday",
+      "2026-06-02":"Wesak Day Holiday","2026-06-17":"Awal Muharram",
+      "2026-08-25":"Prophet Muhammad's Birthday","2026-08-31":"Merdeka Day",
+      "2026-09-16":"Malaysia Day","2026-11-08":"Deepavali","2026-11-09":"Deepavali Holiday",
+      "2026-12-25":"Christmas Day","2027-01-01":"New Year's Day","2027-01-22":"Thaipusam",
+      "2027-02-01":"Federal Territory Day","2027-02-06":"Chinese New Year",
+      "2027-02-07":"Chinese New Year Holiday","2027-02-08":"Chinese New Year Holiday",
+      "2027-02-24":"Nuzul Al-Quran","2027-03-10":"Hari Raya Aidilfitri",
+      "2027-03-11":"Hari Raya Aidilfitri Holiday","2027-03-12":"Hari Raya Aidilfitri Holiday",
+      "2027-05-01":"Labour Day","2027-05-17":"Hari Raya Haji","2027-05-20":"Wesak Day",
+      "2027-06-06":"Awal Muharram","2027-06-07":"Agong's Birthday / Awal Muharram Holiday","2027-08-15":"Prophet Muhammad's Birthday",
+      "2027-08-16":"Prophet Muhammad's Birthday Holiday","2027-08-31":"Merdeka Day",
+      "2027-09-16":"Malaysia Day","2027-10-28":"Deepavali","2027-12-25":"Christmas Day"
+    };
 
     let pName='', pMod='', pSt='', pMode='single', pLeaveType='';
     let leaveData = {};
@@ -890,22 +910,39 @@ function launchConfetti(x,y){
     }
 
     function renderHolidayList(){
-        var el = document.getElementById('holidayList');
+        var el = document.getElementById('holidayCalendar');
         if(!el) return;
-        var holidays = Object.keys(window.holidayMap).sort();
-        if(!holidays.length){
-            el.innerHTML = '<span style="color:var(--text-dim);font-size:.85em">No custom holidays defined yet</span>';
+        
+        // Merge system + custom holidays
+        var all = {};
+        Object.keys(KL_PH).forEach(function(d){ all[d] = {name: KL_PH[d], type: 'system'}; });
+        Object.keys(window.holidayMap).forEach(function(d){ all[d] = {name: window.holidayMap[d], type: 'custom'}; });
+        
+        var dates = Object.keys(all).sort();
+        if(!dates.length){
+            el.innerHTML = '<span style="color:var(--text-dim);font-size:.85em">No holidays loaded</span>';
             return;
         }
-        el.innerHTML = holidays.map(function(date){
-            var name = window.holidayMap[date];
+        
+        var html = '';
+        var currentYear = '';
+        dates.forEach(function(date){
+            var year = date.slice(0,4);
+            if(year !== currentYear){
+                html += '<div style="flex-basis:100%;margin:16px 0 8px;font-weight:700;font-size:1.05em;color:var(--accent-bright)">' + year + '</div>';
+                currentYear = year;
+            }
+            var h = all[date];
             var d = new Date(date + 'T12:00:00');
             var dayStr = d.toLocaleDateString('en-MY', {weekday:'short', month:'short', day:'numeric'});
-            return '<span class="range-day-chip ph" style="cursor:default">'+
-                '<span style="font-weight:600">'+dayStr+'</span> '+name+
-                ' <span onclick="deleteHoliday(\''+date+'\')" style="cursor:pointer;margin-left:4px;color:var(--red);font-weight:700">\xd7</span>'+
+            var badge = h.type === 'system' ? '<span style="background:rgba(59,130,246,0.2);color:#60a5fa;font-size:.7em;padding:2px 6px;border-radius:4px;margin-left:4px">Built-in</span>' : 
+                '<span style="background:rgba(16,185,129,0.2);color:#34d399;font-size:.7em;padding:2px 6px;border-radius:4px;margin-left:4px">Custom</span>' + 
+                ' <span onclick="deleteHoliday(\''+date+'\')" style="cursor:pointer;margin-left:4px;color:var(--red);font-weight:700" title="Remove custom holiday">\xd7</span>';
+            html += '<span class="range-day-chip ph" style="cursor:default">'+
+                '<span style="font-weight:600">'+dayStr+'</span> '+h.name+badge+
             '</span>';
-        }).join('');
+        });
+        el.innerHTML = html;
     }
 
     async function addHoliday(){
