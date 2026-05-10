@@ -43,6 +43,34 @@ def get_db():
 def root():
     return FileResponse('static/index.html', headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"})
 
+@app.get("/api/holidays")
+def get_holidays():
+    conn = get_db()
+    rows = conn.execute("SELECT date, name FROM holidays ORDER BY date").fetchall()
+    conn.close()
+    return {"holidays": [dict(r) for r in rows]}
+
+@app.post("/api/holidays")
+def add_holiday(date: str = Form(...), name: str = Form(...)):
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO holidays (date, name) VALUES (?, ?)", (date, name))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="Holiday already exists for this date")
+    finally:
+        conn.close()
+    return {"success": True, "date": date, "name": name}
+
+@app.delete("/api/holidays/{date}")
+def delete_holiday(date: str):
+    conn = get_db()
+    conn.execute("DELETE FROM holidays WHERE date = ?", (date,))
+    conn.commit()
+    deleted = conn.total_changes
+    conn.close()
+    return {"success": deleted > 0, "date": date}
+
 @app.get("/health")
 def health():
     return {"status": "ok"}

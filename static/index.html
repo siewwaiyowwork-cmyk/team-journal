@@ -420,6 +420,18 @@
                     <div class="leave-chart-wrap"><div class="chart-title">MC Only</div><div class="leave-area"><div class="leave-y-axis" id="leave-mc-y"></div><div class="leave-right"><div class="leave-chart" id="leave-mc"></div><div class="leave-xaxis" id="leave-mc-x"></div></div></div></div>
                 </div>
             </section>
+            
+            <section id="holiday-mgmt">
+                <div class="section-title">Holiday Calendar <span class="badge">Manage Public Holidays</span></div>
+                <div style="background:var(--surface);border-radius:16px;padding:20px;border:1px solid var(--border);margin-bottom:24px">
+                    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+                        <input type="date" id="holidayDate" style="padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.9em" value="">
+                        <input type="text" id="holidayName" placeholder="Holiday name e.g. Special Holiday" style="flex:1;min-width:150px;padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.9em" value="">
+                        <button onclick="addHoliday()" style="padding:8px 20px;border-radius:8px;background:var(--green);color:#0a0a0f;border:none;font-weight:700;font-size:.9em;cursor:pointer">➕ Add Holiday</button>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px" id="holidayList"><div class="task-loading">Loading holidays...</div></div>
+                </div>
+            </section>
         </div>
         <div id="detail-view" class="detail-view">
             <button class="back-btn" onclick="showOverview()">&larr; Back to Team</button>
@@ -857,7 +869,94 @@ function launchConfetti(x,y){
         el.style.display = 'block';
     }
 
+
+
+    // ── HOLIDAY MANAGEMENT ─────────────────────────────────
+    window.holidayMap = {};
+
+    async function loadHolidays(){
+        try{
+            const res = await fetch(`${API_URL}/api/holidays`);
+            const data = await res.json();
+            window.holidayMap = {};
+            if(data.holidays){
+                data.holidays.forEach(function(h){
+                    window.holidayMap[h.date] = h.name;
+                });
+            }
+            renderHolidayList();
+        }catch(e){
+            console.error('Failed to load holidays', e);
+        }
+    }
+
+    function renderHolidayList(){
+        var el = document.getElementById('holidayList');
+        if(!el) return;
+        var holidays = Object.keys(window.holidayMap).sort();
+        if(!holidays.length){
+            el.innerHTML = '<span style="color:var(--text-dim);font-size:.85em">No custom holidays defined yet</span>';
+            return;
+        }
+        el.innerHTML = holidays.map(function(date){
+            var name = window.holidayMap[date];
+            var d = new Date(date + 'T12:00:00');
+            var dayStr = d.toLocaleDateString('en-MY', {weekday:'short', month:'short', day:'numeric'});
+            return '<span class="range-day-chip ph" style="cursor:default">'+
+                '<span style="font-weight:600">'+dayStr+'</span> '+name+
+                ' <span onclick="deleteHoliday(\''+date+'\')" style="cursor:pointer;margin-left:4px;color:var(--red);font-weight:700">\xd7</span>'+
+            '</span>';
+        }).join('');
+    }
+
+    async function addHoliday(){
+        var date = document.getElementById('holidayDate').value;
+        var name = document.getElementById('holidayName').value.trim();
+        if(!date || !name){
+            showToast('Please enter both date and name', 'err');
+            return;
+        }
+        try{
+            var fd = new FormData();
+            fd.append('date', date);
+            fd.append('name', name);
+            var res = await fetch(`${API_URL}/api/holidays`, {method:'POST', body:fd});
+            var data = await res.json();
+            if(data.success){
+                showToast('Holiday added: '+name);
+                await loadHolidays();
+                document.getElementById('holidayName').value='';
+                location.reload();
+            }else{
+                showToast(data.detail || 'Failed to add holiday', 'err');
+            }
+        }catch(e){
+            showToast('Error adding holiday', 'err');
+        }
+    }
+
+    async function deleteHoliday(date){
+        if(!confirm('Delete holiday on '+date+'?')) return;
+        try{
+            var res = await fetch(`${API_URL}/api/holidays/`+encodeURIComponent(date), {method:'DELETE'});
+            var data = await res.json();
+            if(data.success){
+                showToast('Holiday deleted');
+                await loadHolidays();
+                location.reload();
+            }else{
+                showToast('Failed to delete holiday', 'err');
+            }
+        }catch(e){
+            showToast('Error deleting holiday', 'err');
+        }
+    }
+
+    function isPH(ymd){return !!KL_PH[ymd] || !!window.holidayMap[ymd];}
+
+
     async function initDashboard(){
+        await loadHolidays();
         try{
             const [summaryRes, heatmapRes, leaveRes, goalsRes, pulseRes, activityRes, challengeRes, velocityRes, yearlyDoneRes, moduleDoneRes, missingRes, funFactsRes] = await Promise.all([
                 fetch(`${API_URL}/api/summary`),
