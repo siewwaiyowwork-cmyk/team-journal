@@ -689,7 +689,7 @@ def get_pulse():
                 max_streak = max(max_streak, current_streak)
             else:
                 current_streak = 1
-        if max_streak >= 2:
+        if max_streak >= 3:
             on_streak += 1
 
     conn.close()
@@ -918,7 +918,7 @@ def get_challenge():
     
     result.sort(key=lambda x: (-x['streak'], x['name']))
     total = len(result)
-    on_track = sum(1 for r in result if r['streak'] >= 2)
+    on_track = sum(1 for r in result if r['streak'] >= 3)
     
     return {
         "total": total,

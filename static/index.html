@@ -637,11 +637,11 @@ function launchConfetti(x,y){
     var pct=Math.round(data.percentage||0);
     var fill=Math.min(100,Math.max(0,pct));
     var members=(data.members||[]).slice(0,13).map(function(m){
-        var cls=m.streak>=2?'on-track':'';
-        var fire=m.streak>=2?'🔥 ':'';
+        var cls=m.streak>=3?'on-track':'';
+        var fire=m.streak>=3?'🔥 ':'';
         return'<span class="ch-member '+cls+'">'+fire+m.name+' <span class="ch-streak">'+m.streak+'</span></span>';
     }).join('');
-    el.innerHTML='<div class="challenge-section"><div class="ch-header"><span class="ch-title">🏆 7-Day Challenge <span class="info-icon" data-tooltip="Tracks team members who maintained 2+ consecutive working days with updates in the last 7 days. Fire emoji 🔥 = on track. Updates on consecutive working days = streak.">ℹ</span></span><span><span class="ch-pct">'+pct+'%</span> on track</span></div><div class="ch-track"><div class="ch-progress"><div class="ch-fill" style="width:'+fill+'%"></div></div><span style="font-size:.78em;color:var(--text-dim)">'+data.on_track+'/'+data.total+' members</span></div><div class="ch-grid">'+members+'</div></div>';
+    el.innerHTML='<div class="challenge-section"><div class="ch-header"><span class="ch-title">🏆 7-Day Challenge <span class="info-icon" data-tooltip="Tracks team members who maintained 3+ consecutive working days with updates in the last 7 days. Fire emoji 🔥 = on track. Updates on consecutive working days = streak.">ℹ</span></span><span><span class="ch-pct">'+pct+'%</span> on track</span></div><div class="ch-track"><div class="ch-progress"><div class="ch-fill" style="width:'+fill+'%"></div></div><span style="font-size:.78em;color:var(--text-dim)">'+data.on_track+'/'+data.total+' members</span></div><div class="ch-grid">'+members+'</div></div>';
     el.style.display='block';
 }
     function renderVelocityChart(data){
