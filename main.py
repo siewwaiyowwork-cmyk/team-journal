@@ -195,6 +195,7 @@ def delete_update(update_id: int):
         conn.execute("BEGIN")
         row = conn.execute("SELECT * FROM updates WHERE id = ?", (update_id,)).fetchone()
         if not row:
+            conn.execute("ROLLBACK")
             conn.close()
             raise HTTPException(status_code=404, detail="Update not found")
         old = dict(row)
@@ -204,8 +205,13 @@ def delete_update(update_id: int):
         conn.execute("COMMIT")
         conn.close()
         return {"ok": True, "deleted": update_id}
+    except HTTPException:
+        raise
     except Exception as e:
-        conn.execute("ROLLBACK")
+        try:
+            conn.execute("ROLLBACK")
+        except Exception:
+            pass
         conn.close()
         raise HTTPException(status_code=500, detail=str(e))
 
