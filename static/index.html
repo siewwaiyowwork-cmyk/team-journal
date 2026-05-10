@@ -42,11 +42,7 @@
         .ov-row .lab{color:var(--text-dim)}.ov-row .val{font-weight:600}
         .badge-grid{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0}
         .bdg{font-size:.68em;padding:2px 5px;border-radius:4px;font-weight:600;font-family:'JetBrains Mono',monospace}
-        .bdg-gr{background:rgba(0,230,118,.2);color:var(--green)}.bdg-or{background:rgba(255,145,0,.2);color:var(--orange)}.bdg-gy{background:var(--surface2);color:var(--text-dim)}
-        .activity-strip{display:flex;gap:3px;margin:10px 0;align-items:center}
-        .activity-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-        .activity-dot.active{background:var(--green);box-shadow:0 0 6px rgba(0,230,118,.5)}
-        .activity-dot.missing{background:rgba(255,23,68,.3);border:2px solid var(--red);animation:pulse 2s infinite}
+        .bdg-gr{background:rgba(0,230,118,.2);color:var(--green)}.bdg-or{background:rgba(255,145,0,.2);color:var(--orange)}.bdg-gy{background:var(--surface2);color:var(--text-dim)}.bdg-rd{background:rgba(255,23,68,.2);color:var(--red);border:1px solid rgba(255,23,68,.3)}
         .activity-label{font-size:.65em;color:var(--text-dim);margin-left:6px;font-family:'JetBrains Mono',monospace}
         .recent-tasks{margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
         .recent-tasks-title{font-size:.78em;color:var(--text-dim);margin-bottom:8px;font-weight:600}
@@ -1066,11 +1062,10 @@ function launchConfetti(x,y){
             
             let activityHtml = '';
             if(m.activity && m.activity.length){
-                const dots = m.activity.map(function(day){
-                    return `<span class="activity-dot ${day.active ? 'active' : 'missing'}" title="${day.date}"></span>`;
-                }).join('');
                 const activeCount = m.activity.filter(function(d){ return d.active; }).length;
-                activityHtml = `<div class="activity-strip">${dots}<span class="activity-label">${activeCount}/10 days</span></div>`;
+                const missingCount = m.activity.length - activeCount;
+                if(activeCount > 0) activityHtml += `<span class="bdg bdg-gr" title="${activeCount} updated">OK</span>`.repeat(Math.min(activeCount, 9));
+                if(missingCount > 0) activityHtml += `<span class="bdg bdg-rd" title="${missingCount} missing">MS</span>`.repeat(Math.min(missingCount, 3));
             }
             
             const hourly = m.hourly_personality;
