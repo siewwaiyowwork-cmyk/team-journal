@@ -547,7 +547,6 @@
 
     function toYMD(d){return d.toISOString().split('T')[0];}
     function isWeekend(d){return d.getDay()===0||d.getDay()===6;}
-    function isPH(ymd){return !!KL_PH[ymd];}
     function isWorkday(d){return !isWeekend(d)&&!isPH(toYMD(d));}
     function getWorkdays(from,to){
         var days=[],cur=new Date(from);cur.setHours(12);
@@ -953,6 +952,7 @@ function launchConfetti(x,y){
     }
 
     function isPH(ymd){return !!KL_PH[ymd] || !!window.holidayMap[ymd];}
+    function getHolidayName(ymd){return KL_PH[ymd] || window.holidayMap[ymd];}
 
 
     async function initDashboard(){
@@ -1097,8 +1097,8 @@ function launchConfetti(x,y){
         
         // PH notice
         const today = new Date().toISOString().split('T')[0];
-        if(KL_PH[today]) {
-            document.getElementById('phNotice').innerHTML = '<strong>Public Holiday Today:</strong> ' + KL_PH[today];
+        if(getHolidayName(today)) {
+            document.getElementById('phNotice').innerHTML = '<strong>Public Holiday Today:</strong> ' + getHolidayName(today);
             document.getElementById('phNotice').style.display = 'flex';
         } else {
             document.getElementById('phNotice').style.display = 'none';
@@ -1264,7 +1264,7 @@ function launchConfetti(x,y){
         var all=getAllWeekdays(from,to);
         var wd=all.filter(d=>!d.ph);
         var skipped=all.length-wd.length;
-        var chips=all.map(d=>`<span class="range-day-chip ${d.ph?'ph':'wd'}" title="${d.ph?(KL_PH[d.ymd]||'Public Holiday'):'Working day'}">${d.ymd.slice(5)}</span>`).join('');
+        var chips=all.map(d=>`<span class="range-day-chip ${d.ph?'ph':'wd'}" title="${d.ph?(getHolidayName(d.ymd)||'Public Holiday'):'Working day'}">${d.ymd.slice(5)}</span>`).join('');
         preview.innerHTML=`<strong>${wd.length} working day${wd.length!==1?'s':''} will be submitted</strong>${skipped?` (${skipped} PH skipped)`:''}<br><div style="margin-top:6px">${chips}</div>`;
         preview.classList.add('visible');validate();
     }
