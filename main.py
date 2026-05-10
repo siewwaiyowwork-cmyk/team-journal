@@ -2665,10 +2665,22 @@ def get_fun_facts():
         GROUP BY name ORDER BY days ASC LIMIT 1
     ''').fetchone()
 
-    low_activity_30d = conn.execute('''
-        SELECT name, COUNT(*) as cnt, COUNT(DISTINCT date) as days
-        FROM updates WHERE date >= date('now', '-30 days') AND status != 'leave'
-        GROUP BY name ORDER BY cnt ASC LIMIT 3
+    low_activity_5d = conn.execute('''
+        WITH working_days AS (
+            SELECT DISTINCT date
+            FROM updates
+            WHERE strftime('%w', date) NOT IN ('0', '6')
+            ORDER BY date DESC
+            LIMIT 5
+        )
+        SELECT members.name, COUNT(updates.id) as cnt
+        FROM members
+        LEFT JOIN updates ON updates.name = members.name
+            AND updates.date IN (SELECT date FROM working_days)
+            AND updates.status != 'leave'
+        WHERE members.active = 1
+        GROUP BY members.name
+        ORDER BY cnt ASC
     ''').fetchall()
 
     missing = [m for m in members if m not in [r[0] for r in conn.execute("SELECT DISTINCT name FROM updates WHERE date = ?", (today,)).fetchall()]]
@@ -2692,7 +2704,7 @@ def get_fun_facts():
             used_names.discard(person)
         if person:
             used_names.add(person)
-        facts.append({"emoji": emoji, "title": title, "reason": reason, "person": person})
+        facts.append({"emoji": emoji, "title": title, "reason": reason, "person": person, "forced": True})
         return True
 
     facts = []
@@ -3492,10 +3504,10 @@ def get_fun_facts():
         if sporadic_updater[0] not in used_names:
             add_fact_forced("🌵", "Sporadic Updater", f"{sporadic_updater[0]} updated only {sporadic_updater[1]} days in last 30 - rare appearance", sporadic_updater[0])
 
-    if low_activity_30d and len(low_activity_30d) > 0:
-        for r in low_activity_30d[:2]:
-            if r[0] not in used_names and r[1] <= 3:
-                add_fact_forced("🐢", "Low Activity", f"{r[0]} has only {r[1]} update(s) in 30 days - where are you", r[0])
+    if low_activity_5d and len(low_activity_5d) > 0:
+        for r in low_activity_5d[:2]:
+            if r[0] not in used_names and r[1] < 3:
+                add_fact_forced("🐢", "Low Activity", f"{r[0]} has only {r[1]} update(s) in last 5 working days - where are you", r[0])
 
     if question_explorer and question_explorer[1] >= 5:
         if question_explorer[0] not in used_names:
@@ -3686,7 +3698,11 @@ def get_fun_facts():
             if i < len(unused):
                 add_fact(p[0], p[1], p[2].format(name=unused[i]['name']), unused[i]['name'])
 
-    random.shuffle(facts)
+    forced = [f for f in facts if f.get('forced')]
+    normal = [f for f in facts if not f.get('forced')]
+    random.shuffle(forced)
+    random.shuffle(normal)
+    facts = forced + normal
 
     return {"today": today, "facts": facts[:5]}
 
