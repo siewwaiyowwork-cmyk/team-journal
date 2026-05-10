@@ -361,6 +361,7 @@
         .fun-fact-text{flex:1;display:flex;flex-direction:column;gap:2px}
         .fun-fact-title{font-weight:600;color:var(--accent);font-size:.88em}
         .fun-fact-reason{color:var(--text-dim);font-size:.82em;line-height:1.35}
+        .fun-fact-name{color:var(--accent);font-weight:600;background:rgba(0,229,255,.15);padding:1px 4px;border-radius:4px}
     </style>
     </style>
 </head>
@@ -817,11 +818,16 @@ function launchConfetti(x,y){
                 var text = fact.slice(2).trim();
                 return '<div class="fun-fact-item"><span class="fun-fact-emoji">'+emoji+'</span><span class="fun-fact-text">'+text+'</span></div>';
             }
+            var reason = fact.reason;
+            if(fact.person){
+                var nameRegex = new RegExp(fact.person, 'g');
+                reason = reason.replace(nameRegex, '<span class="fun-fact-name">'+fact.person+'</span>');
+            }
             return '<div class="fun-fact-item">'+
                 '<span class="fun-fact-emoji">'+fact.emoji+'</span>'+
                 '<span class="fun-fact-text">'+
                     '<span class="fun-fact-title">'+fact.title+'</span>'+
-                    '<span class="fun-fact-reason">'+fact.reason+'</span>'+
+                    '<span class="fun-fact-reason">'+reason+'</span>'+
                 '</span>'+
             '</div>';
         }).join('');
