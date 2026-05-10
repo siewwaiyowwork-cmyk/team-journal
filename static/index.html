@@ -1090,8 +1090,8 @@ function launchConfetti(x,y){
         var pct=Math.min(w/15*100,100);
         document.getElementById('pWC').textContent=w+' words';
         var wb=document.getElementById('pWBar'),ws=document.getElementById('pWStatus');
-        if(w<8){wb.style.background='var(--orange)';ws.textContent='needs more';ws.style.color='var(--orange)';}
-        else if(w<12){wb.style.background='var(--yellow)';ws.textContent='ok';ws.style.color='var(--yellow)';}
+        if(w<4){wb.style.background='var(--orange)';ws.textContent='needs more';ws.style.color='var(--orange)';}
+        else if(w<8){wb.style.background='var(--yellow)';ws.textContent='ok';ws.style.color='var(--yellow)';}
         else{wb.style.background='var(--green)';ws.textContent='good';ws.style.color='var(--green)';}
         wb.style.width=pct+'%';
         validate();
