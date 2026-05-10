@@ -1046,7 +1046,7 @@ function launchConfetti(x,y){
             else if(daysSinceUpdate <= 2){ statusText='ACTIVE'; statusColor='var(--yellow)'; statusEmoji='⚡'; }
             else if(daysSinceUpdate <= 5){ statusText='COMA'; statusColor='var(--orange)'; statusEmoji='🛌'; }
             else if(daysSinceUpdate <= 10){ statusText='GHOST'; statusColor='var(--red)'; statusEmoji='👻'; }
-            else{ statusText='FOSSIL'; statusColor='var(--bronze)'; statusEmoji='🧟'; }
+            else{ statusText='FOSSIL'; statusColor='var(--bronze)'; statusEmoji='🦴'; }
             if(daysSinceUpdate <= 2) fireCards.push(m.name);
             
             const recentHtml = (m.recent||[]).slice(0,5).map(r=>{
