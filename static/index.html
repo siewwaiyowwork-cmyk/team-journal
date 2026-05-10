@@ -1029,7 +1029,9 @@ function launchConfetti(x,y){
         const grid = document.getElementById('overviewGrid');
         var fireCards=[];
         grid.innerHTML = members.map((m,i)=>{
-            const levelInfo=getLevel(window.yearlyDoneMap[m.name]||0);
+            // Count active days from 10-day strip (any entry = active)
+            const activeDaysCount = m.activity.filter(function(d){ return d.status !== 'missing'; }).length;
+            const levelInfo=getLevel(activeDaysCount);
             const level=levelInfo.level;
             const levelTitle=levelInfo.title;
             const levelEmoji=levelInfo.emoji;
@@ -1079,8 +1081,7 @@ function launchConfetti(x,y){
             let activityHtml = '';
             if(m.activity && m.activity.length){
                 m.activity.forEach(function(day){
-                    if(day.status === 'leave') activityHtml += `<span class="bdg bdg-gy" title="leave">LV</span>`;
-                    else if(day.status === 'missing') activityHtml += `<span class="bdg bdg-rd" title="missing">MS</span>`;
+                    if(day.status === 'missing') activityHtml += `<span class="bdg bdg-rd" title="missing">MS</span>`;
                     else activityHtml += `<span class="bdg bdg-gr" title="updated">OK</span>`;
                 });
             }
@@ -1533,12 +1534,14 @@ function launchConfetti(x,y){
         if (updates.length === 1) badgesHtml += '<span class="ach-badge freshstart" title="🌱 Fresh Start: First update logged! Welcome aboard!">\uD83C\uDF31 Fresh Start</span>';
 
         if(badgesHtml){hasBadge=true;}
-        const dLevelInfo=getLevel(window.yearlyDoneMap[name]||0);
+        const memberInfo = window.sortedMembers && window.sortedMembers.find(m => m.name === name);
+        const activeDaysCount = (memberInfo && memberInfo.activity) ? memberInfo.activity.filter(function(d){ return d.status !== 'missing'; }).length : 0;
+        const dLevelInfo=getLevel(activeDaysCount);
         const dLevel=dLevelInfo.level;
         const dLevelTitle=dLevelInfo.title;
         const dLevelEmoji=dLevelInfo.emoji;
         const dLevelBg=dLevelInfo.bg;
-        const dLevelHtml='\u003cspan class="level-badge" style="background:'+dLevelBg+';color:'+(dLevel>=16?'#fff':'#0a0a0f')+'"\u003e'+dLevelEmoji+' LV'+dLevel+' '+dLevelTitle+'\u003c/span\u003e';
+        const dLevelHtml = dLevel > 0 ? '\u003cspan class="level-badge" style="background:'+dLevelBg+';color:'+(dLevel>=16?'#fff':'#0a0a0f')+'"\u003e'+dLevelEmoji+' LV'+dLevel+' '+dLevelTitle+'\u003c/span\u003e' : '';
         const html = `
             <div class="detail-card">
                 <div class="detail-header-big">
@@ -1908,35 +1911,28 @@ function launchConfetti(x,y){
             el.innerHTML=combo.map(function(e,i){return'<span class="header-emoji" style="animation-delay:'+(i*.3)+'s">'+e+'</span>';}).join('');
         }
     }
-    function getLevel(doneCount){
-        if(doneCount <= 0) return {level:0,title:'',emoji:'—',desc:'No tasks completed yet',color:'var(--text-dim)',bg:'var(--surface2)',progress:0,next:1};
+    function getLevel(activeDaysCount){
+        if(activeDaysCount <= 0) return {level:0,title:'',emoji:'—',desc:'No activity yet',color:'var(--text-dim)',bg:'var(--surface2)',progress:0,next:1};
         const tiers=[
-            {lv:1,title:'Seedling',emoji:'🌱',desc:'First task completed!',min:1,color:'#4CAF50',bg:'linear-gradient(135deg,#4CAF50,#8BC34A)'},
-            {lv:2,title:'Sprout',emoji:'🌿',desc:'Getting the hang of it',min:3,color:'#66BB6A',bg:'linear-gradient(135deg,#66BB6A,#A5D6A7)'},
-            {lv:3,title:'Bud',emoji:'🌷',desc:'Growing steadily',min:5,color:'#81C784',bg:'linear-gradient(135deg,#81C784,#C8E6C9)'},
-            {lv:4,title:'Sapling',emoji:'🌳',desc:'Building momentum',min:8,color:'#26A69A',bg:'linear-gradient(135deg,#26A69A,#80CBC4)'},
-            {lv:5,title:'Gardener',emoji:'🪴',desc:'Tending the work garden',min:12,color:'#00BCD4',bg:'linear-gradient(135deg,#00BCD4,#80DEEA)'},
-            {lv:6,title:'Scout',emoji:'🔍',desc:'Exploring new grounds',min:18,color:'#29B6F6',bg:'linear-gradient(135deg,#29B6F6,#81D4FA)'},
-            {lv:7,title:'Ranger',emoji:'🏹',desc:'Patrolling the codebase',min:25,color:'#42A5F5',bg:'linear-gradient(135deg,#42A5F5,#90CAF9)'},
-            {lv:8,title:'Knight',emoji:'⚔️',desc:'Defending the realm',min:33,color:'#5C6BC0',bg:'linear-gradient(135deg,#5C6BC0,#9FA8DA)'},
-            {lv:9,title:'Captain',emoji:'🛡️',desc:'Leading the charge',min:42,color:'#7E57C2',bg:'linear-gradient(135deg,#7E57C2,#B39DDB)'},
-            {lv:10,title:'Champion',emoji:'🏆',desc:'Half-century milestone!',min:52,color:'#AB47BC',bg:'linear-gradient(135deg,#AB47BC,#CE93D8)'},
-            {lv:11,title:'Mage',emoji:'🔮',desc:'Mastering the craft',min:63,color:'#EC407A',bg:'linear-gradient(135deg,#EC407A,#F48FB1)'},
-            {lv:12,title:'Wizard',emoji:'🧙‍♂️',desc:'Casting powerful spells',min:75,color:'#EF5350',bg:'linear-gradient(135deg,#EF5350,#EF9A9A)'},
-            {lv:13,title:'Paladin',emoji:'⚜️',desc:'Holy efficiency',min:88,color:'#FF7043',bg:'linear-gradient(135deg,#FF7043,#FFAB91)'},
-            {lv:14,title:'Templar',emoji:'✨',desc:'Elite warrior status',min:102,color:'#FF9800',bg:'linear-gradient(135deg,#FF9800,#FFCC80)'},
-            {lv:15,title:'Warlord',emoji:'👑',desc:'Commanding the battlefield',min:117,color:'#FFB300',bg:'linear-gradient(135deg,#FFB300,#FFE082)'},
-            {lv:16,title:'Demigod',emoji:'🔥',desc:'Nearly unstoppable',min:133,color:'#FDD835',bg:'linear-gradient(135deg,#FDD835,#FFF59D)'},
-            {lv:17,title:'Elder',emoji:'🐉',desc:'Ancient wisdom',min:150,color:'#C0CA33',bg:'linear-gradient(135deg,#C0CA33,#E6EE9C)'},
-            {lv:18,title:'Titan',emoji:'⚡',desc:'Crushing every obstacle',min:168,color:'#9CCC65',bg:'linear-gradient(135deg,#9CCC65,#C5E1A5)'},
-            {lv:19,title:'Celestial',emoji:'🌟',desc:'Among the stars',min:187,color:'#26C6DA',bg:'linear-gradient(135deg,#26C6DA,#80DEEA)'},
-            {lv:20,title:'Immortal',emoji:'\uD83D\uDC51\uD83D\uDD25',desc:'Beyond mortality',min:208,color:'#FFD700',bg:'linear-gradient(135deg,#FFD700,#FFA000)'}
+            {lv:1,title:'Seedling',emoji:'🌱',desc:'First day!',min:1,color:'#4CAF50',bg:'linear-gradient(135deg,#4CAF50,#8BC34A)'},
+            {lv:2,title:'Sprout',emoji:'🌿',desc:'2 days',min:2,color:'#66BB6A',bg:'linear-gradient(135deg,#66BB6A,#A5D6A7)'},
+            {lv:3,title:'Bud',emoji:'🌷',desc:'3 days',min:3,color:'#81C784',bg:'linear-gradient(135deg,#81C784,#C8E6C9)'},
+            {lv:4,title:'Sapling',emoji:'🌳',desc:'4 days',min:4,color:'#26A69A',bg:'linear-gradient(135deg,#26A69A,#80CBC4)'},
+            {lv:5,title:'Gardener',emoji:'🪴',desc:'5 days',min:5,color:'#00BCD4',bg:'linear-gradient(135deg,#00BCD4,#80DEEA)'},
+            {lv:6,title:'Scout',emoji:'🔍',desc:'6 days',min:6,color:'#29B6F6',bg:'linear-gradient(135deg,#29B6F6,#81D4FA)'},
+            {lv:7,title:'Ranger',emoji:'🏹',desc:'7 days',min:7,color:'#42A5F5',bg:'linear-gradient(135deg,#42A5F5,#90CAF9)'},
+            {lv:8,title:'Knight',emoji:'⚔️',desc:'8 days',min:8,color:'#5C6BC0',bg:'linear-gradient(135deg,#5C6BC0,#9FA8DA)'},
+            {lv:9,title:'Captain',emoji:'🛡️',desc:'9 days',min:9,color:'#7E57C2',bg:'linear-gradient(135deg,#7E57C2,#B39DDB)'},
+            {lv:10,title:'Champion',emoji:'🏆',desc:'10 days - every single day!',min:10,color:'#AB47BC',bg:'linear-gradient(135deg,#AB47BC,#CE93D8)'}
         ];
-        // Find highest tier where doneCount >= min
         let tier=tiers[0];
         for(var i=tiers.length-1;i>=0;i--){
-            if(doneCount>=tiers[i].min){tier=tiers[i];break;}
+            if(activeDaysCount>=tiers[i].min){tier=tiers[i];break;}
         }
+        var nextMin=tier.lv<10?tiers[tier.lv].min:tier.min;
+        var progress=tier.lv<10?Math.round((activeDaysCount-tier.min)/(nextMin-tier.min)*100):100;
+        return{level:tier.lv,title:tier.title,emoji:tier.emoji,desc:tier.desc,color:tier.color,bg:tier.bg,progress:progress,next:nextMin};
+    }
         var nextMin=tier.lv<20?tiers[tier.lv].min:tier.min+50;
         var progress=tier.lv<20?Math.round((doneCount-tier.min)/(nextMin-tier.min)*100):100;
         return{level:tier.lv,title:tier.title,emoji:tier.emoji,desc:tier.desc,color:tier.color,bg:tier.bg,progress:progress,next:nextMin};

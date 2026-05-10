@@ -279,12 +279,7 @@ def get_summary(
                 LIMIT 10
             )
             SELECT wd.cal_date as date,
-                   CASE 
-                       WHEN COUNT(CASE WHEN u.status = 'leave' THEN 1 END) > 0 
-                            AND COUNT(CASE WHEN u.status != 'leave' THEN 1 END) = 0 THEN 'leave'
-                       WHEN COUNT(CASE WHEN u.status != 'leave' THEN 1 END) > 0 THEN 'ok'
-                       ELSE 'missing'
-                   END as status
+                   CASE WHEN COUNT(u.id) > 0 THEN 'ok' ELSE 'missing' END as status
             FROM working_days wd
             LEFT JOIN updates u ON u.name = ? AND u.date = wd.cal_date
             GROUP BY wd.cal_date
