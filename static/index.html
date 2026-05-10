@@ -1613,10 +1613,11 @@ function launchConfetti(x,y){
 
         // Module Champion
         const bestModule = topModules.length > 0 ? topModules[0] : ['--',0];
+        const champTotal = bestModule[0] !== '--' ? (bestModule[1].done + bestModule[1].in_progress + bestModule[1].blocked) : 0;
         const moduleChampHtml = bestModule[0] !== '--' ? `
             <div class="metric-card" style="background:linear-gradient(135deg,rgba(255,215,0,.1),rgba(255,215,0,.05));border-color:var(--gold)">
                 <div class="metric-num" style="color:var(--gold)">👑 ${bestModule[0]}</div>
-                <div class="metric-label">Module Champ · ${bestModule[1]}</div>
+                <div class="metric-label">Module Champ · ${champTotal}</div>
             </div>` : '';
 
         // Daily grid for last 90 calendar days (show all including weekends & holidays)
