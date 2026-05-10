@@ -1599,7 +1599,24 @@ function launchConfetti(x,y){
             .sort((a, b) => (b[1].done + b[1].in_progress + b[1].blocked) - (a[1].done + a[1].in_progress + a[1].blocked))
             .slice(0, 5);
 
-        // Weekly rhythm with per-status counts for stacked bar
+        // Perfect Week check - any ISO week with updates on Mon-Fri
+        const weekMap = {};
+        updates.filter(u => u.status !== 'leave').forEach(u => {
+            var d = new Date(u.date + 'T12:00:00');
+            var dow = d.getDay(); // 0=Sun,1=Mon,...,6=Sat
+            if(dow === 0 || dow === 6) return;
+            var wk = getISOWeek(u.date);
+            if(!weekMap[wk]) weekMap[wk] = new Set();
+            weekMap[wk].add(dow);
+        });
+        var hasPerfectWeek = Object.values(weekMap).some(function(days){ return days.size >= 5; });
+
+        // Quality Control badge - TA (Test Automation) done count
+        const taDoneCount = updates.filter(u =>
+            u.status === 'done' &&
+            (u.module === 'ta' || u.module === 'test' || u.module === 'automation' || u.module === 'test automation' ||
+             (u.description && /test automation|test automation|\bta\b|automated test|test script|test case|testing|QA/i.test(u.description)))
+        ).length;
         const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
         var weeklyStatusCounts = [{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0},{done:0,in_progress:0,blocked:0}];
         updates.forEach(u => {
@@ -1649,12 +1666,12 @@ function launchConfetti(x,y){
         var hasBadge=false;
         if (streak >= 7) badgesHtml += '<span class="ach-badge fire" title="🔥 Fire Starter: Maintained a streak of 7+ consecutive working days with updates. Keep logging daily!">\uD83D\uDD25 Fire Starter</span>';
         if (streak >= 20) badgesHtml += '<span class="ach-badge marathon" title="🏃 Marathon Runner: Impressive 20+ day streak! You are unstoppable!">\uD83C\uDFC3 Marathon Runner</span>';
-        if (weeklyStatusCounts.filter(d => d.done + d.in_progress + d.blocked > 0).length >= 5) badgesHtml += '<span class="ach-badge perfectweek" title="📅 Perfect Week: Active every single weekday!">\uD83D\uDCC5 Perfect Week</span>';
+        if (hasPerfectWeek) badgesHtml += '<span class="ach-badge perfectweek" title="📅 Perfect Week: All 5 working days updated in one ISO calendar week!">\uD83D\uDCC5 Perfect Week</span>';
         if (doneCount >= 10) badgesHtml += '<span class="ach-badge closer" title="✅ Task Closer: Completed 10+ tasks marked as Done. Get things finished!">\u2705 Task Closer</span>';
         if (updates.length >= 100) badgesHtml += '<span class="ach-badge centurion" title="💯 Centurion: 100+ total updates! Major contributor!">\uD83D\uDCAF Centurion</span>';
         if (attendancePct >= 90) badgesHtml += '<span class="ach-badge workaholic" title="💪 Workaholic: 90%+ attendance rate! Dedicated!">\uD83D\uDCAA Workaholic</span>';
         if (leaveCountCount === 0 && updates.length > 0) badgesHtml += '<span class="ach-badge perfectatt" title="📆 Perfect Attendance: Zero leave taken! Ironman!">\uD83D\uDCC6 Perfect Attendance</span>';
-        if (specificity >= 90) badgesHtml += '<span class="ach-badge quality" title="🎯 Quality Control: 90%+ specificity! Crystal clear updates!">\uD83C\uDFAF Quality Control</span>';
+        if (taDoneCount >= 10) badgesHtml += '<span class="ach-badge quality" title="🧪 Quality Control: 10+ done tasks for TA or test automation-related work!">\uD83C\uDFAF Quality Control</span>';
         if (Object.keys(moduleStatusCounts).length >= 3) badgesHtml += '<span class="ach-badge allrounder" title="🌟 All-Rounder: Worked across 3+ different modules. Versatile!">\uD83C\uDF1F All-Rounder</span>';
         const weekendHolidayDays = new Set(updates.filter(u => {
             const d = new Date(u.date);
