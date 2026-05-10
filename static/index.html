@@ -2019,14 +2019,6 @@ function launchConfetti(x,y){
         var progress=tier.lv<100?Math.round((doneCount-tier.min)/(nextMin-tier.min)*100):100;
         return{level:tier.lv,title:tier.title,emoji:tier.emoji,desc:tier.desc,color:tier.color,bg:tier.bg,progress:progress,next:nextMin};
     }
-        var nextMin=tier.lv<50?tiers[tier.lv].min:tier.min+50;
-        var progress=tier.lv<50?Math.round((doneCount-tier.min)/(nextMin-tier.min)*100):100;
-        return{level:tier.lv,title:tier.title,emoji:tier.emoji,desc:tier.desc,color:tier.color,bg:tier.bg,progress:progress,next:nextMin};
-    }
-        var nextMin=tier.lv<50?tiers[tier.lv].min:tier.min+50;
-        var progress=tier.lv<50?Math.round((doneCount-tier.min)/(nextMin-tier.min)*100):100;
-        return{level:tier.lv,title:tier.title,emoji:tier.emoji,desc:tier.desc,color:tier.color,bg:tier.bg,progress:progress,next:nextMin};
-    }
     function addFireParticles(el){
         if(!el) return;
         var container=document.createElement('div');
