@@ -640,6 +640,28 @@ function launchConfetti(x,y){
                 return;
             }
 
+            // Sort modules by total done count descending (most complete on top)
+            var moduleTotals = {};
+            data.modules.forEach(function(mod, idx){
+                var total = 0;
+                data.members.forEach(function(member){
+                    total += (data.data[member] && data.data[member][idx]) || 0;
+                });
+                moduleTotals[mod] = total;
+            });
+            var sortedModules = data.modules.slice().sort(function(a, b){
+                return moduleTotals[b] - moduleTotals[a];
+            });
+
+            // Reorder data to match sorted modules
+            var sortedData = {};
+            data.members.forEach(function(member){
+                sortedData[member] = sortedModules.map(function(mod){
+                    var originalIdx = data.modules.indexOf(mod);
+                    return (data.data[member] && data.data[member][originalIdx]) || 0;
+                });
+            });
+
             container.innerHTML = '<div class="chart-wrapper"><canvas id="module-done-canvas"></canvas></div>';
 
             var colors = [
@@ -650,7 +672,7 @@ function launchConfetti(x,y){
                 var color = colors[i % colors.length];
                 return {
                     label: member,
-                    data: data.data[member] || data.modules.map(function(){return 0;}),
+                    data: sortedData[member],
                     backgroundColor: color,
                     borderColor: color.replace('.7)', '.9)'),
                     borderWidth: 1,
@@ -662,7 +684,7 @@ function launchConfetti(x,y){
                 new Chart(document.getElementById('module-done-canvas'), {
                     type: 'bar',
                     data: {
-                        labels: data.modules,
+                        labels: sortedModules,
                         datasets: datasets
                     },
                     options: {
