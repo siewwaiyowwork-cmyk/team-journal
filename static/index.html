@@ -131,6 +131,23 @@
         .collab-item{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);font-size:.78em}
         .collab-item .c-name{color:var(--accent);font-weight:600}
         .collab-item .c-mod{color:var(--text-dim)}
+.holiday-toggle{display:flex;align-items:center;gap:8px;padding:14px 16px;border:1px solid var(--border);border-radius:14px;background:var(--surface);cursor:pointer;transition:.2s;font-weight:700;font-size:1em}
+.holiday-toggle:hover{background:var(--surface2);border-color:var(--accent)}
+.holiday-toggle-icon{width:24px;height:24px;border-radius:6px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:800;transform-origin:center;transition:transform .25s}
+.holiday-toggle-icon.open{transform:rotate(45deg)}
+.holiday-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 20px;margin-top:12px}
+.holiday-inputs{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.holiday-inputs input{padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.9em;font-family:'Syne',sans-serif}
+.holiday-inputs input[type=date]{min-width:130px}
+.holiday-inputs input[type=text]{flex:1;min-width:140px}
+.holiday-inputs button{padding:8px 18px;border-radius:8px;background:var(--green);color:#0a0a0f;border:none;font-weight:700;font-size:.9em;cursor:pointer;transition:.2s}.holiday-inputs button:hover{background:#33eeff}
+.holiday-entry{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.85em}
+.holiday-entry:last-child{border-bottom:none}
+.holiday-dt{color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:.82em;min-width:50px}
+.holiday-month{color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:.72em;min-width:28px;text-transform:uppercase}
+.holiday-name{flex:1;color:var(--text)}
+.holiday-year{margin:16px 0 8px;font-weight:700;font-size:1.05em;color:var(--accent);display:flex;align-items:center;gap:8px}
+.holiday-year::after{content:'';flex:1;height:1px;background:var(--border);opacity:.5}
         .cal-grid{display:grid;grid-template-columns:repeat(21,1fr);gap:2px;padding:10px 0}
         .cal-cell{aspect-ratio:1;border-radius:2px;background:var(--bg);font-size:.5em;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
         .cal-cell.weekend{background:rgba(40,100,180,.55);color:rgba(180,210,255,.85)}
@@ -421,15 +438,21 @@
                 </div>
             </section>
             
-            <section id="holiday-mgmt">
-                <div class="section-title">Holiday Calendar <span class="badge">Manage Public Holidays</span></div>
-                <div style="background:var(--surface);border-radius:16px;padding:20px;border:1px solid var(--border);margin-bottom:24px">
-                    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-                        <input type="date" id="holidayDate" style="padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.9em" value="">
-                        <input type="text" id="holidayName" placeholder="Holiday name e.g. Special Holiday" style="flex:1;min-width:150px;padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.9em" value="">
-                        <button onclick="addHoliday()" style="padding:8px 20px;border-radius:8px;background:var(--green);color:#0a0a0f;border:none;font-weight:700;font-size:.9em;cursor:pointer">Add Holiday</button>
+            <section id="holiday-mgmt" style="margin-bottom:24px">
+                <div class="holiday-toggle" onclick="toggleHolidayCal()">
+                    <span class="holiday-toggle-icon" id="holidayToggleIcon">+</span>
+                    <span class="holiday-toggle-title">Holiday Calendar</span>
+                    <span class="badge" style="margin-left:10px" id="holidayBadge">0</span>
+                </div>
+                <div id="holidayPanel" style="display:none">
+                    <div class="holiday-card">
+                        <div class="holiday-inputs">
+                            <input type="date" id="holidayDate" placeholder="Date" value="">
+                            <input type="text" id="holidayName" placeholder="Holiday name" value="">
+                            <button onclick="addHoliday()">Add</button>
+                        </div>
+                        <div id="holidayCalendar"><div class="task-empty-state">No holidays defined yet</div></div>
                     </div>
-                    <div id="holidayCalendar"><div class="task-loading">Loading holidays...</div></div>
                 </div>
             </section>
         </div>
@@ -889,31 +912,44 @@ function launchConfetti(x,y){
         }
     }
 
+    function toggleHolidayCal(){
+        var p = document.getElementById('holidayPanel');
+        var icon = document.getElementById('holidayToggleIcon');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+        icon.classList.toggle('open', p.style.display !== 'none');
+    }
+
     function renderHolidayList(){
         var el = document.getElementById('holidayCalendar');
         if(!el) return;
         
         var holidays = Object.keys(window.holidayMap).sort();
         if(!holidays.length){
-            el.innerHTML = '<span style="color:var(--text-dim);font-size:.85em">No holidays defined yet</span>';
+            el.innerHTML = '<div class="task-empty-state">No holidays defined</div>';
+            document.getElementById('holidayBadge').textContent = '0';
             return;
         }
+        
+        document.getElementById('holidayBadge').textContent = holidays.length;
         
         var html = '';
         var currentYear = '';
         holidays.forEach(function(date){
             var year = date.slice(0,4);
             if(year !== currentYear){
-                html += '<div style="flex-basis:100%;margin:16px 0 8px;font-weight:700;font-size:1.05em;color:var(--accent-bright)">' + year + '</div>';
+                html += '<div class="holiday-year">' + year + '</div>';
                 currentYear = year;
             }
             var name = window.holidayMap[date];
             var d = new Date(date + 'T12:00:00');
-            var dayStr = d.toLocaleDateString('en-MY', {weekday:'short', month:'short', day:'numeric'});
-            html += '<span class="range-day-chip ph" style="cursor:default">'+
-                '<span style="font-weight:600">'+dayStr+'</span> '+name+
-                ' <span onclick="deleteHoliday(\''+date+'\')" style="cursor:pointer;margin-left:4px;color:var(--red);font-weight:700" title="Remove holiday">\xd7</span>'+
-            '</span>';
+            var wd = d.toLocaleDateString('en-MY', {weekday:'short'});
+            var md = d.toLocaleDateString('en-MY', {month:'short', day:'numeric'});
+            html += '<div class="holiday-entry">'+
+                '<span class="holiday-dt">' + wd + '</span>' +
+                '<span class="holiday-month">' + md + '</span>' +
+                '<span class="holiday-name">' + name + '</span>' +
+                '<span onclick="deleteHoliday(\''+date+'\')" style="cursor:pointer;color:var(--red);font-weight:700;font-size:1em;padding:2px 6px;border-radius:4px;" title="Remove">\xd7</span>'+
+            '</div>';
         });
         el.innerHTML = html;
     }
