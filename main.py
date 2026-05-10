@@ -946,6 +946,133 @@ def get_fun_facts():
         ORDER BY days DESC
     ''').fetchall()
 
+    streak_data = conn.execute('''
+        SELECT name, date, status
+        FROM updates
+        WHERE status != 'leave'
+        ORDER BY name, date DESC
+    ''').fetchall()
+
+    top_module = conn.execute('''
+        SELECT module, name, COUNT(*) as cnt,
+               SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done
+        FROM updates
+        WHERE module != '' AND date >= date('now', '-90 days')
+        GROUP BY module, name
+        ORDER BY module, cnt DESC
+    ''').fetchall()
+
+    module_diversity = conn.execute('''
+        SELECT name, COUNT(DISTINCT module) as cnt
+        FROM updates WHERE module != '' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 3
+    ''').fetchall()
+
+    peak_hour = conn.execute('''
+        SELECT strftime('%H', created_at) as hour, COUNT(*) as cnt
+        FROM updates WHERE date >= date('now', '-90 days')
+        GROUP BY strftime('%H', created_at)
+        ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    peak_day = conn.execute('''
+        SELECT CASE strftime('%w', date)
+            WHEN '0' THEN 'Sunday'
+            WHEN '1' THEN 'Monday'
+            WHEN '2' THEN 'Tuesday'
+            WHEN '3' THEN 'Wednesday'
+            WHEN '4' THEN 'Thursday'
+            WHEN '5' THEN 'Friday'
+            WHEN '6' THEN 'Saturday'
+        END as day, COUNT(*) as cnt
+        FROM updates WHERE status != 'leave' AND date >= date('now', '-90 days')
+        GROUP BY strftime('%w', date)
+        ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    fastest_done = conn.execute('''
+        SELECT a.name, julianday(b.date) - julianday(a.date) as days
+        FROM updates a
+        JOIN updates b ON a.name = b.name AND a.module = b.module
+        WHERE a.status = 'in_progress' AND b.status = 'done'
+        AND b.date >= a.date AND b.date >= date('now', '-90 days')
+        ORDER BY days ASC LIMIT 1
+    ''').fetchone()
+
+    comeback = conn.execute('''
+        SELECT name, MAX(julianday(date) - julianday(lag_date)) as gap
+        FROM (
+            SELECT name, date, LAG(date) OVER (PARTITION BY name ORDER BY date) as lag_date
+            FROM updates WHERE status != 'leave'
+        )
+        WHERE lag_date IS NOT NULL
+        ORDER BY gap DESC LIMIT 1
+    ''').fetchone()
+
+    link_sharer = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%http%'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    emoji_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description GLOB '*[^\x20-\x7E]*'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    meeting_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%meeting%'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    early_bird = conn.execute('''
+        SELECT name, AVG(CAST(strftime('%H', created_at) as REAL)) as avg_hour
+        FROM updates WHERE date >= date('now', '-90 days')
+        GROUP BY name ORDER BY avg_hour ASC LIMIT 1
+    ''').fetchone()
+
+    consistent_time = conn.execute('''
+        SELECT name, AVG((CAST(strftime('%H', created_at) as REAL) - 14) * (CAST(strftime('%H', created_at) as REAL) - 14)) as variance
+        FROM updates WHERE date >= date('now', '-90 days')
+        GROUP BY name HAVING COUNT(*) >= 5 ORDER BY variance ASC LIMIT 1
+    ''').fetchone()
+
+    specialist = conn.execute('''
+        SELECT name, module, COUNT(*) as cnt,
+               CAST(COUNT(*) as REAL) / (SELECT COUNT(*) FROM updates u2 WHERE u2.name = updates.name AND date >= date('now', '-90 days')) as pct
+        FROM updates
+        WHERE module != '' AND date >= date('now', '-90 days')
+        GROUP BY name, module
+        ORDER BY pct DESC LIMIT 1
+    ''').fetchone()
+
+    update_freq = conn.execute('''
+        SELECT name, CAST(COUNT(*) as REAL) / COUNT(DISTINCT date) as freq
+        FROM updates WHERE date >= date('now', '-90 days')
+        GROUP BY name ORDER BY freq DESC LIMIT 1
+    ''').fetchone()
+
+    leave_pattern = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    longest_desc = conn.execute('''
+        SELECT name, description, LENGTH(description) as len
+        FROM updates WHERE status != 'leave'
+        ORDER BY len DESC LIMIT 1
+    ''').fetchone()
+
+    productive_day = conn.execute('''
+        SELECT name, date, COUNT(*) as cnt
+        FROM updates WHERE status != 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name, date
+        ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
     bug_mentions = conn.execute('''
         SELECT name, COUNT(*) as cnt
         FROM updates WHERE description LIKE '%bug%'
@@ -988,7 +1115,78 @@ def get_fun_facts():
         msg = f"{', '.join(missing[:3])} has not submit yet" if len(missing) <= 3 else f"{missing[0]} and {len(missing)-1} others has not submit yet"
         add_fact("⏰", "Still Missing", msg + f" for today ({today})")
 
-    # Data-driven personality templates replacing random ones
+    if peak_hour and peak_hour[1]:
+        hour = int(peak_hour[0])
+        hour_str = f"{hour:02d}:00" if hour < 12 else f"{hour-12:02d}:00 PM" if hour >= 12 else f"{hour:02d}:00 AM"
+        if hour == 0: hour_str = "12:00 AM"
+        elif hour == 12: hour_str = "12:00 PM"
+        add_fact("🔥", "Peak Hour", f"The team is most productive at {hour_str} with {peak_hour[1]} updates")
+
+    if peak_day and peak_day[1]:
+        add_fact("📅", "Power Day", f"{peak_day[0]} is the team's most active day with {peak_day[1]} updates")
+
+    if top_module and len(top_module) > 0:
+        # Group by module and find top contributor per module
+        mod_map = {}
+        for r in top_module:
+            mod = r[0]
+            if mod not in mod_map or r[2] > mod_map[mod][2]:
+                mod_map[mod] = r
+        for mod, r in list(mod_map.items())[:2]:
+            if r[1] not in used_names:
+                add_fact("👑", f"{mod} Champion", f"{r[1]} leads {mod} with {r[3]} done tasks", r[1])
+
+    if module_diversity:
+        for r in module_diversity[:2]:
+            if r[0] not in used_names and r[1] >= 3:
+                add_fact("🧩", "Module Explorer", f"{r[0]} has worked across {r[1]} different modules", r[0])
+
+    if fastest_done and fastest_done[1] is not None and fastest_done[1] <= 1:
+        if fastest_done[0] not in used_names:
+            add_fact("⚡", "Same-Day Finisher", f"{fastest_done[0]} completed an in-progress task on the same day", fastest_done[0])
+
+    if comeback and comeback[1] and comeback[1] > 14:
+        if comeback[0] not in used_names:
+            days = int(comeback[1])
+            add_fact("🎯", "Comeback Kid", f"{comeback[0]} returned after a {days}-day gap between updates", comeback[0])
+
+    if link_sharer and link_sharer[1]:
+        if link_sharer[0] not in used_names:
+            add_fact("🔗", "Link Sharer", f"{link_sharer[0]} shares the most links and references", link_sharer[0])
+
+    if emoji_user and emoji_user[1]:
+        if emoji_user[0] not in used_names:
+            add_fact("😊", "Emoji Fan", f"{emoji_user[0]} spices up descriptions with emojis", emoji_user[0])
+
+    if meeting_user and meeting_user[1]:
+        if meeting_user[0] not in used_names:
+            add_fact("🤝", "Meeting Master", f"{meeting_user[0]} mentions meetings most in updates", meeting_user[0])
+
+    if longest_desc and longest_desc[1]:
+        if longest_desc[0] not in used_names:
+            words = longest_desc[1].split()
+            add_fact("📝", "Epic Writer", f"{longest_desc[0]} wrote the longest update ever with {len(words)} words", longest_desc[0])
+
+    if productive_day and productive_day[2] > 3:
+        if productive_day[0] not in used_names:
+            add_fact("💥", "Power Day", f"{productive_day[0]} logged {productive_day[2]} updates in a single day", productive_day[0])
+
+    if consistent_time and consistent_time[1] is not None:
+        if consistent_time[0] not in used_names:
+            add_fact("⏱️", "Clockwork", f"{consistent_time[0]} submits updates at a very consistent time daily", consistent_time[0])
+
+    if specialist and specialist[2] is not None and specialist[3] > 0.7:
+        if specialist[0] not in used_names:
+            pct = int(specialist[3] * 100)
+            add_fact("🎯", f"{specialist[1]} Specialist", f"{specialist[0]} spends {pct}% of time on {specialist[1]}", specialist[0])
+
+    if update_freq and update_freq[1] > 1.5:
+        if update_freq[0] not in used_names:
+            add_fact("📈", "Heavy Logger", f"{update_freq[0]} averages {update_freq[1]:.1f} updates per day", update_freq[0])
+
+    if leave_pattern and leave_pattern[1]:
+        if leave_pattern[0] not in used_names:
+            add_fact("🌴", "Leave Taker", f"{leave_pattern[0]} has the most leave entries", leave_pattern[0])
 
     if row_dicts:
         unused = [r for r in row_dicts if r['name'] not in used_names]
