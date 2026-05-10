@@ -254,8 +254,14 @@ def get_summary(
     ''', (from_date, to_date)).fetchall()
     
     total_workdays = conn.execute('''
-        SELECT COUNT(DISTINCT date) FROM updates 
-        WHERE date BETWEEN ? AND ? AND status != 'leave'
+        WITH RECURSIVE dates(d) AS (
+            SELECT ?
+            UNION ALL
+            SELECT date(d, '+1 day') FROM dates WHERE d < ?
+        )
+        SELECT COUNT(*) FROM dates
+        WHERE strftime('%w', d) NOT IN ('0','6')
+        AND d NOT IN (SELECT date FROM holidays)
     ''', (from_date, to_date)).fetchone()[0]
     
     members = []
@@ -306,6 +312,7 @@ def get_summary(
                 SELECT cal_date, ROW_NUMBER() OVER (ORDER BY cal_date DESC) as idx
                 FROM calendar_days
                 WHERE dow NOT IN ('0', '6')
+                AND cal_date NOT IN (SELECT date FROM holidays)
                 ORDER BY cal_date DESC
                 LIMIT 10
             )
