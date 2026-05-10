@@ -640,8 +640,7 @@ function launchConfetti(x,y){
                 return;
             }
 
-            var canvasId = 'module-done-canvas';
-            container.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:20px 0"><div style="height:300px;position:relative"><canvas id="'+canvasId+'"></canvas></div></div>';
+            container.innerHTML = '<div class="chart-wrapper"><canvas id="module-done-canvas"></canvas></div>';
 
             var colors = ['#00e676','#00e5ff','#ffd700','#ff9100','#ef4444','#a855f7','#ec4899','#6366f1'];
             var datasets = data.members.map(function(member, i){
@@ -656,7 +655,7 @@ function launchConfetti(x,y){
             });
 
             setTimeout(function(){
-                new Chart(document.getElementById(canvasId), {
+                new Chart(document.getElementById('module-done-canvas'), {
                     type: 'bar',
                     data: {
                         labels: data.modules,
@@ -787,7 +786,7 @@ function launchConfetti(x,y){
             }
             leaveData = processLeaveData(leaveJson.leave || []);
             if (moduleDone && moduleDone.modules) {
-                renderModuleDoneChart(moduleDone.modules || []);
+                renderModuleDoneChart(moduleDone);
             }
             renderDashboard(summary);
             renderInsights(summary.members, heatmap);
@@ -799,7 +798,9 @@ function launchConfetti(x,y){
             renderVelocityChart(velocity);
             renderMissingProgress(missing);
             renderFunFacts(funFacts);
-            renderModuleDoneChart(moduleDone.modules || []);
+            if (moduleDone && moduleDone.modules) {
+                renderModuleDoneChart(moduleDone);
+            }
         }catch(e){
             console.error('Dashboard init error:',e);
             showToast('Failed to load dashboard','err');
