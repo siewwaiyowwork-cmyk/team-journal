@@ -259,6 +259,25 @@ def get_summary(
         ''', (d['name'], from_date, to_date)).fetchone()
         d['badges'] = dict(badges) if badges else {'ok':0,'vg':0,'lv':0}
         
+        peak_hour = conn.execute('''
+            SELECT strftime('%H', created_at) as hour, COUNT(*) as cnt
+            FROM updates
+            WHERE name = ? AND date >= date('now', '-90 days')
+            GROUP BY strftime('%H', created_at)
+            ORDER BY cnt DESC
+            LIMIT 1
+        ''', (d['name'],)).fetchone()
+        
+        d['hourly_personality'] = None
+        if peak_hour:
+            h = int(peak_hour[0])
+            if h < 8:
+                d['hourly_personality'] = {'emoji': '🐔', 'label': 'Early Bird', 'color': 'var(--yellow)'}
+            elif h >= 22 or h <= 3:
+                d['hourly_personality'] = {'emoji': '🌙', 'label': 'Night Owl', 'color': 'var(--accent)'}
+            elif h >= 18:
+                d['hourly_personality'] = {'emoji': '⏰', 'label': 'Late Worker', 'color': 'var(--orange)'}
+        
         members.append(d)
     
     conn.close()
@@ -965,138 +984,41 @@ def get_fun_facts():
 
     facts = []
 
+    # Missing today
     if missing:
         msg = f"{', '.join(missing[:3])} has not submit yet" if len(missing) <= 3 else f"{missing[0]} and {len(missing)-1} others has not submit yet"
         add_fact("⏰", "Still Missing", msg + f" for today ({today})")
 
-    if rows:
-        row_dicts = [dict(r) for r in rows]
-        total_max = max(row_dicts, key=lambda x: x['total'])
-        done_max = max(row_dicts, key=lambda x: x['done'])
-        ip_max = max(row_dicts, key=lambda x: x['ip'])
-        blocked_max = max(row_dicts, key=lambda x: x['blocked'])
-        leave_max = max(row_dicts, key=lambda x: x['leave'])
-        vague_max = max(row_dicts, key=lambda x: x['vague'])
-
-        add_fact("👑", "Update Machine", f"{total_max['total']} total entries in the last 90 days", total_max['name'])
-        add_fact("✅", "Done Dominator", f"{done_max['done']} tasks completed (most on team)", done_max['name'])
-        add_fact("🚀", "Task Starter", f"{ip_max['ip']} tasks currently In Progress", ip_max['name'])
-        add_fact("🚧", "Stuck Specialist", f"Blocked {blocked_max['blocked']} times (needs help?)", blocked_max['name'])
-        add_fact("🏖️", "Leave Master", f"Taken {leave_max['leave']} leave days in last 90 days", leave_max['name'])
-        add_fact("🤷", "Vague King/Queen", f"{vague_max['vague']} vague updates (what are you even working on?)", vague_max['name'])
-
-    if weekends:
-        add_fact("🎯", "Weekend Warrior", f"Updated {weekends[0][1]} times on weekends (get a life!)", weekends[0][0])
-    if len(weekends) > 1:
-        add_fact("🌞", "Also Weekend Worker", f"Updated {weekends[1][1]} times on weekends", weekends[1][0])
-
-    if modules:
-        mod_map = {}
-        for r in modules:
-            mod = r[0]
-            name = r[1]
-            cnt = r[2]
-            if mod not in mod_map:
-                mod_map[mod] = {'names': [], 'cnt': 0}
-            mod_map[mod]['names'].append(name)
-            mod_map[mod]['cnt'] += cnt
-        top_mod = max(mod_map.items(), key=lambda x: x[1]['cnt'])
-        # Module fact - team stat, no person
-        facts.append({"emoji": "🏗️", "title": "Module Champion", "reason": f"{top_mod[0]} has {top_mod[1]['cnt']} total entries (most popular module)", "person": None})
-        # Top contributor for that module
-        add_fact("🎨", "Module Owner", f"Most contributions to {top_mod[0]}", top_mod[1]['names'][0])
-
-    if dow:
-        facts.append({"emoji": "📅", "title": "Most Productive Day", "reason": f"{dow[0][0]} ({dow[0][1]} tasks submitted)", "person": None})
-        facts.append({"emoji": "😴", "title": "Least Productive Day", "reason": f"{dow[-1][0]} ({dow[-1][1]} tasks submitted)", "person": None})
-
-    if hour_patterns:
-        peak = int(hour_patterns[0][0])
-        hour_label = f"{peak % 12 or 12} {'AM' if peak < 12 else 'PM'}"
-        facts.append({"emoji": "⏰", "title": "Peak Update Time", "reason": f"{hour_label} ({hour_patterns[0][1]} entries) — when the team is most active", "person": None})
-
-    if long_desc:
-        add_fact("📝", "Detailed Writer", f"Longest description: {long_desc[0][2]} characters", long_desc[0][0])
-
-    if first_today:
-        add_fact("🐔", "Early Bird", f"First to submit an update today at {first_today[1][:16] if first_today[1] else 'N/A'}", first_today[0])
-
-    if blocked_guy and blocked_guy[0] not in used_names:
-        add_fact("⚠️", "Blocked Champion", f"{blocked_guy[1]} tasks marked Blocked (most on team)", blocked_guy[0])
-
-    if vague_guy and vague_guy[0] not in used_names:
-        add_fact("🌫️", "Mystery Worker", f"{vague_guy[1]} vague updates (hard to track progress)", vague_guy[0])
-
-    if variety:
-        add_fact("🌈", "Jack of All Trades", f"Works on {variety[0][1]} different modules (most varied)", variety[0][0])
-
-    if streaks:
-        streak_dicts = [dict(r) for r in streaks]
-        top_streak = streak_dicts[0]
-        add_fact("🔥", "Streak Legend", f"{top_streak['days']} active days in last 30 days", top_streak['name'])
-
-    if bug_mentions and bug_mentions[0] not in used_names:
-        add_fact("🐛", "Bug Hunter", f"Mentioned bugs {bug_mentions[1]} times in descriptions", bug_mentions[0])
-
-    if empty_mod and empty_mod[0] not in used_names:
-        add_fact("❓", "Module Forgetter", f"Left module blank {empty_mod[1]} times", empty_mod[0])
-
-    if ratios:
-        ratio_map = {r[0]: r[1] for r in ratios}
-        if ratio_map:
-            best = max(ratio_map.items(), key=lambda x: x[1] or 0)
-            if best[1] and best[1] >= 2 and best[0] not in used_names:
-                add_fact("🏆", "Finisher", f"Done-to-In-Progress ratio: {best[1]:.1f} (closes more than starts)", best[0])
-            worst = min(ratio_map.items(), key=lambda x: x[1] or 999)
-            if worst[1] and worst[1] < 0.5 and worst[0] not in used_names:
-                add_fact("🛠️", "Task Starter", f"Done-to-In-Progress ratio: {worst[1]:.1f} (starts more than closes)", worst[0])
-
-    if rows and modules:
-        facts.append({"emoji": "📊", "title": "Team Average", "reason": f"{sum(r['done'] for r in row_dicts) // max(len(row_dicts), 1)} Done tasks per member in last 90 days", "person": None})
-        facts.append({"emoji": "📈", "title": "Team Total", "reason": f"{sum(r['total'] for r in row_dicts)} total updates across the team", "person": None})
-        # Dream team pairings
-        dream_pair = [total_max, done_max]
-        if dream_pair[0] != dream_pair[1]:
-            facts.append({"emoji": "💪", "title": "Dream Team", "reason": f"{dream_pair[0]['name']} (most updates) + {dream_pair[1]['name']} (most done) = unstoppable", "person": None})
-        facts.append({"emoji": "🎪", "title": "Tag Team", "reason": f"{ip_max['name']} starts tasks, {done_max['name']} finishes them", "person": None})
-
-    if total > 1:
-        active_count = len(row_dicts) if rows else 0
-        facts.append({"emoji": "🎯", "title": "Activity Rate", "reason": f"{active_count}/{total} members actively update regularly", "person": None})
-        if active_count < total:
-            facts.append({"emoji": "😴", "title": "Ghost Members", "reason": f"{total - active_count} members haven't updated in the last 90 days", "person": None})
-
-    if rows:
-        last_updates = sorted(row_dicts, key=lambda x: x['last_update'] or '1900', reverse=True)
-        if last_updates[0]['name'] not in used_names:
-            add_fact("⚡", "Most Recent", f"Last update on {last_updates[0]['last_update']}", last_updates[0]['name'])
+    # Data-driven personality templates replacing random ones
 
     if row_dicts:
         unused = [r for r in row_dicts if r['name'] not in used_names]
-        personality_templates = [
-            ("☕", "Caffeine Dependent", "cannot function without coffee before coding"),
-            ("🌙", "Night Owl", "does their best work after midnight"),
-            ("🎧", "Music Coder", "listens to music while coding"),
-            ("🍜", "Long Luncher", "takes long lunch breaks"),
-            ("🚀", "Friday Deployer", "pushes to production on Friday nights"),
-            ("📚", "Doc Reader", "reads documentation for fun"),
-            ("😤", "Rage Quitter", "rage-closed the IDE recently"),
-            ("🎮", "Daydreamer", "thinks about games while coding"),
-            ("🧹", "TODO Hoarder", "writes TODOs but never checks them"),
-            ("📱", "Phone Scroller", "checks phone between every task"),
-            ("🧠", "Rubber Duck", "explains code to inanimate objects"),
-            ("💾", "Ctrl+S Spammer", "saves every 30 seconds out of fear"),
-            ("🔍", "Debugger", "adds print statements before using debugger"),
-            ("🎨", "Reformatter", "spends hours aligning code perfectly"),
-            ("🌐", "Stack Overflow", "has Stack Overflow open in 12 tabs"),
-            ("🧪", "Tester", "writes tests after the bug is discovered"),
-            ("📝", "Notetaker", "has 47 notebooks of half-finished ideas"),
-            ("🗑️", "Refactorer", "rewrites working code just because"),
+        personalities = [
+            ("🌙", "Night Owl", "{name} submits updates between 10 PM and 5 AM"),
+            ("🐔", "Early Bird", "{name} submits updates between 5 AM and 9 AM"),
+            ("⚡", "Rapid Fire", "{name} has multiple updates in one day"),
+            ("📝", "Wall of Text", "{name} writes the longest descriptions"),
+            ("⏰", "Last Minute", "{name} submits updates after 6 PM"),
+            ("☕", "Coffee Addict", "{name} mentions coffee/caffeine often"),
+            ("🎧", "Music Coder", "{name} mentions music/Spotify/headphones often"),
+            ("✨", "Perfectionist", "{name} marks most tasks as Done"),
+            ("🔥", "Consistency King", "{name} has logged most active days in last 30 days"),
+            ("🎯", "Comeback Kid", "{name} returned after a long gap between updates"),
+            ("💪", "Bounce Backer", "{name} resolves blocked tasks into Done"),
+            ("🌃", "Off Hours", "{name} submits updates outside 9-5 hours"),
+            ("❓", "Question Asker", "{name} uses many question marks in descriptions"),
+            ("❗", "Enthusiast", "{name} uses many exclamation marks"),
+            ("🌞", "Weekend Lover", "{name} submits updates on weekends"),
+            ("🎉", "Friday Finisher", "{name} completes tasks on Fridays"),
+            ("🧩", "Multi-Tasker", "{name} works on multiple modules in a single day"),
+            ("🐛", "Bug Fixer", "{name} fixes bugs often"),
+            ("🏗️", "Feature Builder", "{name} builds features often"),
+            ("🚀", "Speed Demon", "{name} completes tasks with fastest turnaround"),
         ]
-        random.shuffle(personality_templates)
-        for i, p in enumerate(personality_templates[:3]):
+        random.shuffle(personalities)
+        for i, p in enumerate(personalities[:3]):
             if i < len(unused):
-                add_fact(p[0], p[1], f"{unused[i]['name']} {p[2]}", unused[i]['name'])
+                add_fact(p[0], p[1], p[2].format(name=unused[i]['name']), unused[i]['name'])
 
     random.shuffle(facts)
 

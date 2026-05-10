@@ -381,7 +381,7 @@
                     <div id="heatmap-container"></div>
                 </div>
                 <div class="chart-box-full" style="margin-top:16px">
-                    <div class="chart-title">Module Done Contributions <span class="badge" style="font-size:.6em">Done tasks per module</span> <span class="info-icon" data-tooltip="Shows total done tasks per module and top contributor for each module.">ℹ</span></div>
+                    <div class="chart-title">Module Done Contributions <span class="badge" style="font-size:.6em">Done tasks per module</span> <span class="info-icon" data-tooltip="Total Done tasks per module for this year. Shows top contributor for each module.">ℹ</span></div>
                     <div id="module-done-container"></div>
                 </div>
             </div>
@@ -915,6 +915,9 @@ function launchConfetti(x,y){
             if(badgeGrid.vg > 0) bdgHtml += `<span class="bdg bdg-or" title="${badgeGrid.vg} vague">VG</span>`.repeat(Math.min(badgeGrid.vg,3));
             if(badgeGrid.lv > 0) bdgHtml += `<span class="bdg bdg-gy" title="${badgeGrid.lv} leave">LV</span>`.repeat(Math.min(badgeGrid.lv,3));
             
+            const hourly = m.hourly_personality;
+            const hourlyBadge = hourly ? `<span class="bdg" style="background:${hourly.color}20;color:${hourly.color};border:1px solid ${hourly.color}">${hourly.emoji} ${hourly.label}</span>` : '';
+            
             return `
                 <div class="overview-card" onclick="showDetail('${m.name}')">
                     <div class="ov-header">
@@ -928,7 +931,7 @@ function launchConfetti(x,y){
                             <div class="xp-label"><span>Level ${level}</span><span>${levelTitle}</span></span></div>
                         </div>
                         <div class="ov-row"><span class="lab">Streak</span><span class="val" style="color:${hasRecent ? 'var(--green)' : 'var(--orange)'}">${hasRecent ? '🔥 Active' : '⚪ Away'}</span></div>
-                        <div class="badge-grid">${bdgHtml}</div>
+                        <div class="badge-grid">${bdgHtml}${hourlyBadge}</div>
                         <div class="recent-tasks"><div class="recent-tasks-title">Recent Tasks</div>${recentHtml}</div>
                         ${modHtml ? `<div class="ov-modules"><div class="ov-modules-title">Top modules</div>${modHtml}</div>` : ''}
                     </div>
