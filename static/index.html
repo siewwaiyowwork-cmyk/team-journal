@@ -1910,33 +1910,67 @@ function launchConfetti(x,y){
     function getLevel(doneCount){
         if(doneCount <= 0) return {level:0,title:'',emoji:'—',desc:'No tasks completed yet',color:'var(--text-dim)',bg:'var(--surface2)',progress:0,next:1};
         const tiers=[
-            {lv:1,title:'Seedling',emoji:'🌱',desc:'First task completed!',min:1,color:'#4CAF50',bg:'linear-gradient(135deg,#4CAF50,#8BC34A)'},
-            {lv:2,title:'Sprout',emoji:'🌿',desc:'Getting the hang of it',min:3,color:'#66BB6A',bg:'linear-gradient(135deg,#66BB6A,#A5D6A7)'},
-            {lv:3,title:'Bud',emoji:'🌷',desc:'Growing steadily',min:5,color:'#81C784',bg:'linear-gradient(135deg,#81C784,#C8E6C9)'},
-            {lv:4,title:'Sapling',emoji:'🌳',desc:'Building momentum',min:7,color:'#26A69A',bg:'linear-gradient(135deg,#26A69A,#80CBC4)'},
-            {lv:5,title:'Gardener',emoji:'🪴',desc:'Tending the work garden',min:9,color:'#00BCD4',bg:'linear-gradient(135deg,#00BCD4,#80DEEA)'},
-            {lv:6,title:'Scout',emoji:'🔍',desc:'Exploring new grounds',min:12,color:'#29B6F6',bg:'linear-gradient(135deg,#29B6F6,#81D4FA)'},
-            {lv:7,title:'Ranger',emoji:'🏹',desc:'Patrolling the codebase',min:15,color:'#42A5F5',bg:'linear-gradient(135deg,#42A5F5,#90CAF9)'},
-            {lv:8,title:'Knight',emoji:'⚔️',desc:'Defending the realm',min:18,color:'#5C6BC0',bg:'linear-gradient(135deg,#5C6BC0,#9FA8DA)'},
-            {lv:9,title:'Captain',emoji:'🛡️',desc:'Leading the charge',min:21,color:'#7E57C2',bg:'linear-gradient(135deg,#7E57C2,#B39DDB)'},
-            {lv:10,title:'Champion',emoji:'🏆',desc:'Quarter-century milestone!',min:24,color:'#AB47BC',bg:'linear-gradient(135deg,#AB47BC,#CE93D8)'},
-            {lv:11,title:'Mage',emoji:'🔮',desc:'Mastering the craft',min:27,color:'#EC407A',bg:'linear-gradient(135deg,#EC407A,#F48FB1)'},
-            {lv:12,title:'Wizard',emoji:'🧙‍♂️',desc:'Casting powerful spells',min:30,color:'#EF5350',bg:'linear-gradient(135deg,#EF5350,#EF9A9A)'},
-            {lv:13,title:'Paladin',emoji:'⚜️',desc:'Holy efficiency',min:33,color:'#FF7043',bg:'linear-gradient(135deg,#FF7043,#FFAB91)'},
-            {lv:14,title:'Templar',emoji:'✨',desc:'Elite warrior status',min:36,color:'#FF9800',bg:'linear-gradient(135deg,#FF9800,#FFCC80)'},
-            {lv:15,title:'Warlord',emoji:'👑',desc:'Commanding the battlefield',min:39,color:'#FFB300',bg:'linear-gradient(135deg,#FFB300,#FFE082)'},
-            {lv:16,title:'Demigod',emoji:'🔥',desc:'Nearly unstoppable',min:42,color:'#FDD835',bg:'linear-gradient(135deg,#FDD835,#FFF59D)'},
-            {lv:17,title:'Elder',emoji:'🐉',desc:'Ancient wisdom',min:45,color:'#C0CA33',bg:'linear-gradient(135deg,#C0CA33,#E6EE9C)'},
-            {lv:18,title:'Titan',emoji:'⚡',desc:'Crushing every obstacle',min:47,color:'#9CCC65',bg:'linear-gradient(135deg,#9CCC65,#C5E1A5)'},
-            {lv:19,title:'Celestial',emoji:'🌟',desc:'Among the stars',min:49,color:'#26C6DA',bg:'linear-gradient(135deg,#26C6DA,#80DEEA)'},
-            {lv:20,title:'Immortal',emoji:'👑🔥',desc:'Year complete - 50 done!',min:50,color:'#FFD700',bg:'linear-gradient(135deg,#FFD700,#FFA000)'}
+            {lv:1,title:'Seedling',emoji:'🌱',desc:'First task!',min:1,color:'#4CAF50',bg:'linear-gradient(135deg,#4CAF50,#8BC34A)'},
+            {lv:2,title:'Sprout',emoji:'🌿',desc:'2nd task',min:3,color:'#66BB6A',bg:'linear-gradient(135deg,#66BB6A,#A5D6A7)'},
+            {lv:3,title:'Bud',emoji:'🌷',desc:'3rd task',min:5,color:'#81C784',bg:'linear-gradient(135deg,#81C784,#C8E6C9)'},
+            {lv:4,title:'Sapling',emoji:'🌳',desc:'5th task',min:7,color:'#26A69A',bg:'linear-gradient(135deg,#26A69A,#80CBC4)'},
+            {lv:5,title:'Gardener',emoji:'🪴',desc:'7th task',min:9,color:'#00BCD4',bg:'linear-gradient(135deg,#00BCD4,#80DEEA)'},
+            {lv:6,title:'Scout',emoji:'🔍',desc:'9th task',min:11,color:'#29B6F6',bg:'linear-gradient(135deg,#29B6F6,#81D4FA)'},
+            {lv:7,title:'Ranger',emoji:'🏹',desc:'11th task',min:13,color:'#42A5F5',bg:'linear-gradient(135deg,#42A5F5,#90CAF9)'},
+            {lv:8,title:'Knight',emoji:'⚔️',desc:'13th task',min:15,color:'#5C6BC0',bg:'linear-gradient(135deg,#5C6BC0,#9FA8DA)'},
+            {lv:9,title:'Captain',emoji:'🛡️',desc:'15th task',min:17,color:'#7E57C2',bg:'linear-gradient(135deg,#7E57C2,#B39DDB)'},
+            {lv:10,title:'Champion',emoji:'🏆',desc:'17th task',min:19,color:'#AB47BC',bg:'linear-gradient(135deg,#AB47BC,#CE93D8)'},
+            {lv:11,title:'Mage',emoji:'🔮',desc:'20th task',min:21,color:'#EC407A',bg:'linear-gradient(135deg,#EC407A,#F48FB1)'},
+            {lv:12,title:'Wizard',emoji:'🧙‍♂️',desc:'23rd task',min:23,color:'#EF5350',bg:'linear-gradient(135deg,#EF5350,#EF9A9A)'},
+            {lv:13,title:'Paladin',emoji:'⚜️',desc:'25th task',min:25,color:'#FF7043',bg:'linear-gradient(135deg,#FF7043,#FFAB91)'},
+            {lv:14,title:'Templar',emoji:'✨',desc:'27th task',min:27,color:'#FF9800',bg:'linear-gradient(135deg,#FF9800,#FFCC80)'},
+            {lv:15,title:'Warlord',emoji:'👑',desc:'29th task',min:29,color:'#FFB300',bg:'linear-gradient(135deg,#FFB300,#FFE082)'},
+            {lv:16,title:'Demigod',emoji:'🔥',desc:'31st task',min:31,color:'#FDD835',bg:'linear-gradient(135deg,#FDD835,#FFF59D)'},
+            {lv:17,title:'Elder',emoji:'🐉',desc:'33rd task',min:33,color:'#C0CA33',bg:'linear-gradient(135deg,#C0CA33,#E6EE9C)'},
+            {lv:18,title:'Titan',emoji:'⚡',desc:'35th task',min:35,color:'#9CCC65',bg:'linear-gradient(135deg,#9CCC65,#C5E1A5)'},
+            {lv:19,title:'Celestial',emoji:'🌟',desc:'37th task',min:37,color:'#26C6DA',bg:'linear-gradient(135deg,#26C6DA,#80DEEA)'},
+            {lv:20,title:'Immortal',emoji:'👑🔥',desc:'39th task',min:39,color:'#FFD700',bg:'linear-gradient(135deg,#FFD700,#FFA000)'},
+            {lv:21,title:'Transcendent',emoji:'🚀',desc:'41st task',min:41,color:'#FF6D00',bg:'linear-gradient(135deg,#FF6D00,#FF9E80)'},
+            {lv:22,title:'Ascendant',emoji:'☄️',desc:'43rd task',min:43,color:'#FF3D00',bg:'linear-gradient(135deg,#FF3D00,#FF6E40)'},
+            {lv:23,title:'Paragon',emoji:'💎',desc:'45th task',min:45,color:'#DD2C00',bg:'linear-gradient(135deg,#DD2C00,#FF6E40)'},
+            {lv:24,title:'Archon',emoji:'🏛️',desc:'47th task',min:47,color:'#BF360C',bg:'linear-gradient(135deg,#BF360C,#FF6E40)'},
+            {lv:25,title:'Sovereign',emoji:'⚜️',desc:'49th task',min:49,color:'#FFAB00',bg:'linear-gradient(135deg,#FFAB00,#FFD180)'},
+            {lv:26,title:'Hyperion',emoji:'🌌',desc:'51st task',min:51,color:'#FFEA00',bg:'linear-gradient(135deg,#FFEA00,#FFFF8D)'},
+            {lv:27,title:'Aeternum',emoji:'♾️',desc:'53rd task',min:53,color:'#AEEA00',bg:'linear-gradient(135deg,#AEEA00,#CCFF90)'},
+            {lv:28,title:'Infinity',emoji:'🔮',desc:'55th task',min:55,color:'#64DD17',bg:'linear-gradient(135deg,#64DD17,#B2FF59)'},
+            {lv:29,title:'Omega',emoji:'🔱',desc:'57th task',min:57,color:'#00C853',bg:'linear-gradient(135deg,#00C853,#69F0AE)'},
+            {lv:30,title:'Primordial',emoji:'🌋',desc:'59th task',min:59,color:'#00BFA5',bg:'linear-gradient(135deg,#00BFA5,#64FFDA)'},
+            {lv:31,title:'Elysian',emoji:'🕊️',desc:'61st task',min:61,color:'#4CAF50',bg:'linear-gradient(135deg,#4CAF50,#8BC34A)'},
+            {lv:32,title:'Seraphic',emoji:'👼',desc:'63rd task',min:63,color:'#66BB6A',bg:'linear-gradient(135deg,#66BB6A,#A5D6A7)'},
+            {lv:33,title:'Empyrean',emoji:'🔥',desc:'65th task',min:65,color:'#81C784',bg:'linear-gradient(135deg,#81C784,#C8E6C9)'},
+            {lv:34,title:'Astral',emoji:'🌠',desc:'67th task',min:67,color:'#26A69A',bg:'linear-gradient(135deg,#26A69A,#80CBC4)'},
+            {lv:35,title:'Cosmic',emoji:'🪐',desc:'69th task',min:69,color:'#00BCD4',bg:'linear-gradient(135deg,#00BCD4,#80DEEA)'},
+            {lv:36,title:'Galactic',emoji:'🌌',desc:'71st task',min:71,color:'#29B6F6',bg:'linear-gradient(135deg,#29B6F6,#81D4FA)'},
+            {lv:37,title:'Universal',emoji:'🌐',desc:'73rd task',min:73,color:'#42A5F5',bg:'linear-gradient(135deg,#42A5F5,#90CAF9)'},
+            {lv:38,title:'Multiversal',emoji:'🔀',desc:'75th task',min:75,color:'#5C6BC0',bg:'linear-gradient(135deg,#5C6BC0,#9FA8DA)'},
+            {lv:39,title:'Omniversal',emoji:'🔁',desc:'77th task',min:77,color:'#7E57C2',bg:'linear-gradient(135deg,#7E57C2,#B39DDB)'},
+            {lv:40,title:'Absolute',emoji:'⚪',desc:'79th task',min:79,color:'#AB47BC',bg:'linear-gradient(135deg,#AB47BC,#CE93D8)'},
+            {lv:41,title:'Singularity',emoji:'⚫',desc:'81st task',min:81,color:'#EC407A',bg:'linear-gradient(135deg,#EC407A,#F48FB1)'},
+            {lv:42,title:'Apex',emoji:'🔺',desc:'83rd task',min:83,color:'#EF5350',bg:'linear-gradient(135deg,#EF5350,#EF9A9A)'},
+            {lv:43,title:'Zenith',emoji:'🏔️',desc:'85th task',min:85,color:'#FF7043',bg:'linear-gradient(135deg,#FF7043,#FFAB91)'},
+            {lv:44,title:'Pinnacle',emoji:'🌅',desc:'87th task',min:87,color:'#FF9800',bg:'linear-gradient(135deg,#FF9800,#FFCC80)'},
+            {lv:45,title:'Genesis',emoji:'⏳',desc:'89th task',min:89,color:'#FFB300',bg:'linear-gradient(135deg,#FFB300,#FFE082)'},
+            {lv:46,title:'Eternal',emoji:'♾️',desc:'91st task',min:91,color:'#FDD835',bg:'linear-gradient(135deg,#FDD835,#FFF59D)'},
+            {lv:47,title:'Infinite',emoji:'👑',desc:'93rd task',min:93,color:'#C0CA33',bg:'linear-gradient(135deg,#C0CA33,#E6EE9C)'},
+            {lv:48,title:'Supreme',emoji:'🌟',desc:'95th task',min:95,color:'#9CCC65',bg:'linear-gradient(135deg,#9CCC65,#C5E1A5)'},
+            {lv:49,title:'Origin',emoji:'🔥',desc:'97th task',min:97,color:'#26C6DA',bg:'linear-gradient(135deg,#26C6DA,#80DEEA)'},
+            {lv:50,title:'True God',emoji:'👑👑',desc:'100 done - Ultimate mastery!',min:100,color:'#FFD700',bg:'linear-gradient(135deg,#FFD700,#FFA000)'}
         ];
         let tier=tiers[0];
         for(var i=tiers.length-1;i>=0;i--){
             if(doneCount>=tiers[i].min){tier=tiers[i];break;}
         }
-        var nextMin=tier.lv<20?tiers[tier.lv].min:tier.min+50;
-        var progress=tier.lv<20?Math.round((doneCount-tier.min)/(nextMin-tier.min)*100):100;
+        var nextMin=tier.lv<50?tiers[tier.lv].min:tier.min+50;
+        var progress=tier.lv<50?Math.round((doneCount-tier.min)/(nextMin-tier.min)*100):100;
+        return{level:tier.lv,title:tier.title,emoji:tier.emoji,desc:tier.desc,color:tier.color,bg:tier.bg,progress:progress,next:nextMin};
+    }
+        var nextMin=tier.lv<50?tiers[tier.lv].min:tier.min+50;
+        var progress=tier.lv<50?Math.round((doneCount-tier.min)/(nextMin-tier.min)*100):100;
         return{level:tier.lv,title:tier.title,emoji:tier.emoji,desc:tier.desc,color:tier.color,bg:tier.bg,progress:progress,next:nextMin};
     }
     function addFireParticles(el){
