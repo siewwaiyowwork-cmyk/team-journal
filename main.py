@@ -2666,17 +2666,26 @@ def get_fun_facts():
     ''').fetchone()
 
     low_activity_5d = conn.execute('''
-        WITH working_days AS (
-            SELECT DISTINCT date
-            FROM updates
-            WHERE strftime('%w', date) NOT IN ('0', '6')
-            ORDER BY date DESC
+        WITH calendar_days AS (
+            SELECT date('now', '-' || n || ' days') as cal_date,
+                   strftime('%w', date('now', '-' || n || ' days')) as dow
+            FROM (
+                SELECT 0 as n UNION SELECT 1 UNION SELECT 2
+                UNION SELECT 3 UNION SELECT 4 UNION SELECT 5
+                UNION SELECT 6
+            )
+        ),
+        working_days AS (
+            SELECT cal_date
+            FROM calendar_days
+            WHERE dow NOT IN ('0', '6')
+            ORDER BY cal_date DESC
             LIMIT 5
         )
         SELECT members.name, COUNT(updates.id) as cnt
         FROM members
         LEFT JOIN updates ON updates.name = members.name
-            AND updates.date IN (SELECT date FROM working_days)
+            AND updates.date IN (SELECT cal_date FROM working_days)
             AND updates.status != 'leave'
         WHERE members.active = 1
         GROUP BY members.name
@@ -3506,7 +3515,7 @@ def get_fun_facts():
 
     if low_activity_5d and len(low_activity_5d) > 0:
         for r in low_activity_5d[:2]:
-            if r[0] not in used_names and r[1] < 3:
+            if r[1] < 3:
                 add_fact_forced("🐢", "Low Activity", f"{r[0]} has only {r[1]} update(s) in last 5 working days - where are you", r[0])
 
     if question_explorer and question_explorer[1] >= 5:
