@@ -730,6 +730,12 @@ function launchConfetti(x,y){
     function renderMissingProgress(data){
         var el = document.getElementById('missingProgressSection');
         if(!el) return;
+        // Skip weekends and public holidays
+        var today = new Date();
+        if(isWeekend(today) || isPH(toYMD(today))){
+            el.style.display = 'none';
+            return;
+        }
         if(!data || !data.missing || !data.missing.length){
             el.style.display = 'none';
             return;
