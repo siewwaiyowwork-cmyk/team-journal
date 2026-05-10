@@ -1109,6 +1109,1474 @@ def get_fun_facts():
         GROUP BY name
     ''').fetchall()
 
+    first_update_today = conn.execute('''
+        SELECT name, MIN(created_at) as ts
+        FROM updates WHERE date = ?
+        GROUP BY name
+        ORDER BY ts LIMIT 1
+    ''', (today,)).fetchone()
+
+    last_update_today = conn.execute('''
+        SELECT name, MAX(created_at) as ts
+        FROM updates WHERE date = ?
+        GROUP BY name
+        ORDER BY ts DESC LIMIT 1
+    ''', (today,)).fetchone()
+
+    morning_person = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '06' AND '09'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    lunch_skipper = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '12' AND '14'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    evening_person = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '18' AND '23'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    done_streak = conn.execute('''
+        SELECT name, COUNT(*) as streak
+        FROM (
+            SELECT name, date,
+                date(date, '-' || (ROW_NUMBER() OVER (PARTITION BY name ORDER BY date) - 1) || ' days') as grp
+            FROM updates WHERE status = 'done' AND date >= date('now', '-30 days')
+        )
+        GROUP BY name, grp
+        ORDER BY streak DESC LIMIT 1
+    ''').fetchone()
+
+    blocked_to_done = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM (
+            SELECT a.name, a.module, a.date as blocked_date, b.date as done_date
+            FROM updates a
+            JOIN updates b ON a.name = b.name AND a.module = b.module
+            WHERE a.status = 'blocked' AND b.status = 'done'
+            AND b.date >= a.date AND b.date >= date('now', '-90 days')
+        )
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    most_modules_single_day = conn.execute('''
+        SELECT name, date, COUNT(DISTINCT module) as cnt
+        FROM updates WHERE module != '' AND date >= date('now', '-90 days')
+        GROUP BY name, date
+        ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    longest_streak = conn.execute('''
+        SELECT name, COUNT(*) as streak
+        FROM (
+            SELECT name, date,
+                date(date, '-' || (ROW_NUMBER() OVER (PARTITION BY name ORDER BY date) - 1) || ' days') as grp
+            FROM updates WHERE status != 'leave' AND date >= date('now', '-60 days')
+        )
+        GROUP BY name, grp
+        ORDER BY streak DESC LIMIT 1
+    ''').fetchone()
+
+    weekend_warrior = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) IN ('0', '6')
+        AND status != 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    monday_blues = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '1' AND status = 'leave'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    friday_done = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '5' AND status = 'done'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    reopen_master = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'in_progress' AND module IN (
+            SELECT module FROM updates u2 WHERE u2.name = updates.name AND u2.status = 'done'
+        ) AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    description_trend = conn.execute('''
+        SELECT name, AVG(LENGTH(description)) as avg_len
+        FROM updates WHERE status != 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY avg_len DESC LIMIT 1
+    ''').fetchone()
+
+    update_count_today = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE date = ?
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''', (today,)).fetchone()
+
+    status_flipper = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM (
+            SELECT name, module, date, status,
+                LAG(status) OVER (PARTITION BY name, module ORDER BY date) as prev_status
+            FROM updates WHERE date >= date('now', '-90 days')
+        )
+        WHERE status != prev_status AND prev_status IS NOT NULL
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    solo_worker = conn.execute('''
+        SELECT name, COUNT(DISTINCT date) as days
+        FROM updates WHERE date >= date('now', '-30 days')
+        GROUP BY name ORDER BY days ASC LIMIT 1
+    ''').fetchone()
+
+    team_player = conn.execute('''
+        SELECT name, COUNT(DISTINCT date) as days
+        FROM updates WHERE date >= date('now', '-30 days')
+        GROUP BY name ORDER BY days DESC LIMIT 1
+    ''').fetchone()
+
+    negative_nancy = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%not working%' OR description LIKE '%broken%' OR description LIKE '%failed%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    positive_patty = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%working%' OR description LIKE '%success%' OR description LIKE '%completed%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    screenshot_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%screenshot%' OR description LIKE '%image%' OR description LIKE '%picture%'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    code_paster = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%```%' OR description LIKE '%code:%'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    edit_master = None
+
+    same_day_updates = conn.execute('''
+        SELECT name, COUNT(DISTINCT date) as days
+        FROM updates WHERE date >= date('now', '-30 days')
+        GROUP BY name HAVING COUNT(*) > COUNT(DISTINCT date) * 2
+        ORDER BY COUNT(*) DESC LIMIT 1
+    ''').fetchone()
+
+    module_loyalist = conn.execute('''
+        SELECT name, module, COUNT(*) as cnt
+        FROM updates WHERE module != '' AND date >= date('now', '-90 days')
+        GROUP BY name, module
+        ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    midnight_oil = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '22' AND '05'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    consistency_score = conn.execute('''
+        SELECT name,
+            (COUNT(DISTINCT date) * 100.0 / (julianday('now') - julianday(MIN(date)) + 1)) as score
+        FROM updates WHERE status != 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name
+        ORDER BY score DESC LIMIT 1
+    ''').fetchone()
+
+    task_juggler = conn.execute('''
+        SELECT name, AVG(cnt) as avg_tasks
+        FROM (
+            SELECT name, date, COUNT(*) as cnt
+            FROM updates WHERE status != 'leave' AND date >= date('now', '-30 days')
+            GROUP BY name, date
+        )
+        GROUP BY name ORDER BY avg_tasks DESC LIMIT 1
+    ''').fetchone()
+
+    vacation_mode = conn.execute('''
+        SELECT name, MAX(julianday(date) - julianday(prev_date)) as gap
+        FROM (
+            SELECT name, date,
+                LAG(date) OVER (PARTITION BY name ORDER BY date) as prev_date
+            FROM updates WHERE status != 'leave'
+        )
+        WHERE prev_date IS NOT NULL
+        ORDER BY gap DESC LIMIT 1
+    ''').fetchone()
+
+    momentum_builder = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates
+        WHERE date >= date('now', '-7 days') AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    quiet_achiever = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'done' AND date >= date('now', '-30 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    blocker_magnet = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'blocked' AND date >= date('now', '-30 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    fresh_start = conn.execute('''
+        SELECT name, MIN(date) as first_date
+        FROM updates
+        GROUP BY name
+        ORDER BY first_date DESC LIMIT 1
+    ''').fetchone()
+
+    veteran = conn.execute('''
+        SELECT name, MIN(date) as first_date
+        FROM updates
+        GROUP BY name
+        ORDER BY first_date ASC LIMIT 1
+    ''').fetchone()
+
+    late_night_coder = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '00' AND '04'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    documentation_hero = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%doc%' OR description LIKE '%document%' OR description LIKE '%readme%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    refactor_fanatic = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%refactor%' OR description LIKE '%cleanup%' OR description LIKE '%optimize%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    test_addict = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%test%' OR description LIKE '%testing%' OR description LIKE '%unit test%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    deploy_master = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%deploy%' OR description LIKE '%release%' OR description LIKE '%production%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    morning_streak = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '08' AND '10'
+        AND date >= date('now', '-30 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    afternoon_surge = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '14' AND '17'
+        AND date >= date('now', '-30 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    panic_mode = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%urgent%' OR description LIKE '%asap%' OR description LIKE '%emergency%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    collaborative = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%pair%' OR description LIKE '%collaborat%' OR description LIKE '%team%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    self_starter = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%started%' OR description LIKE '%initiat%' OR description LIKE '%created%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    detail_oriented = conn.execute('''
+        SELECT name, AVG(LENGTH(description)) as avg_len
+        FROM updates WHERE status != 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name HAVING COUNT(*) >= 5
+        ORDER BY avg_len DESC LIMIT 1
+    ''').fetchone()
+
+    quick_updater = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE LENGTH(description) < 50
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    discussion_starter = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%discuss%' OR description LIKE '%review%' OR description LIKE '%feedback%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    planning_guru = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%plan%' OR description LIKE '%roadmap%' OR description LIKE '%milestone%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    learning_mode = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%learn%' OR description LIKE '%study%' OR description LIKE '%research%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    hotfix_hero = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%hotfix%' OR description LIKE '%critical%' OR description LIKE '%fix%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    milestone_crusher = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%milestone%' OR description LIKE '%deliver%' OR description LIKE '%complete%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    weekend_coder = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) IN ('0', '6') AND status != 'leave'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    monday_starter = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '1' AND status != 'leave'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    tuesday_warrior = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '2' AND status != 'leave'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    wednesday_peak = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '3' AND status != 'leave'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    thursday_hustler = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '4' AND status != 'leave'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    sunday_coder = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '0' AND status != 'leave'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    productive_mornings = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '06' AND '12'
+        AND status = 'done' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    night_fixer = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '20' AND '23'
+        AND status = 'done' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    break_taker = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '12' AND '13'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    module_switcher = conn.execute('''
+        SELECT name, COUNT(DISTINCT module) as cnt
+        FROM updates WHERE module != '' AND date >= date('now', '-30 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    single_module_focus = conn.execute('''
+        SELECT name, COUNT(DISTINCT module) as cnt
+        FROM updates WHERE module != '' AND date >= date('now', '-30 days')
+        GROUP BY name ORDER BY cnt ASC LIMIT 1
+    ''').fetchone()
+
+    update_every_other_day = conn.execute('''
+        SELECT name, COUNT(DISTINCT date) as cnt
+        FROM updates WHERE date >= date('now', '-30 days')
+        GROUP BY name HAVING cnt >= 10
+        ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    leave_adjacent = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates a
+        WHERE a.status != 'leave' AND EXISTS (
+            SELECT 1 FROM updates b WHERE b.name = a.name AND b.status = 'leave'
+            AND b.date = date(a.date, '-1 day')
+        )
+        AND a.date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    post_leave_comeback = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates a
+        WHERE a.status = 'done' AND EXISTS (
+            SELECT 1 FROM updates b WHERE b.name = a.name AND b.status = 'leave'
+            AND b.date = date(a.date, '-1 day')
+        )
+        AND a.date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    first_week_done = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'done' AND date >= date('now', '-7 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    status_chameleon = conn.execute('''
+        SELECT name, COUNT(DISTINCT status) as cnt
+        FROM updates WHERE date >= date('now', '-30 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    always_in_progress = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'in_progress' AND date >= date('now', '-30 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    always_done = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE status = 'done' AND date >= date('now', '-30 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    description_bullet_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%-%' OR description LIKE '%•%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    capitals_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description GLOB '*[A-Z][A-Z][A-Z]*'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    question_explorer = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%?%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    exclamation_enthusiast = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%!%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    number_lover = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description GLOB '*[0-9]*'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    emoji_abuser = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description GLOB '*[^\x20-\x7E]*'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    url_master = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%http%' OR description LIKE '%www.%' OR description LIKE '%.com%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    file_attacher = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%file%' OR description LIKE '%attach%' OR description LIKE '%upload%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    command_line_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%npm%' OR description LIKE '%git%' OR description LIKE '%docker%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    design_thinker = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%design%' OR description LIKE '%UI%' OR description LIKE '%UX%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    backend_wizard = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%API%' OR description LIKE '%endpoint%' OR description LIKE '%database%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    frontend_ninja = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%component%' OR description LIKE '%CSS%' OR description LIKE '%React%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    security_minded = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%security%' OR description LIKE '%auth%' OR description LIKE '%encrypt%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    performance_optimizer = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%performance%' OR description LIKE '%speed%' OR description LIKE '%cache%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    database_tinkerer = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%database%' OR description LIKE '%schema%' OR description LIKE '%migration%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    api_builder = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%API%' OR description LIKE '%endpoint%' OR description LIKE '%REST%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    mobile_dev = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%mobile%' OR description LIKE '%app%' OR description LIKE '%iOS%' OR description LIKE '%Android%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    devops_engineer = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%CI/CD%' OR description LIKE '%pipeline%' OR description LIKE '%deploy%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    ai_enthusiast = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%AI%' OR description LIKE '%ML%' OR description LIKE '%model%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    data_analyst = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%data%' OR description LIKE '%analytics%' OR description LIKE '%report%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    cloud_architect = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%cloud%' OR description LIKE '%AWS%' OR description LIKE '%Azure%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    meeting_marathon = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%meeting%' OR description LIKE '%standup%' OR description LIKE '%sync%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    code_reviewer = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%review%' OR description LIKE '%PR%' OR description LIKE '%merge%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    standup_star = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%standup%' OR description LIKE '%daily%' OR description LIKE '%scrum%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    sprint_warrior = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%sprint%' OR description LIKE '%story%' OR description LIKE '%ticket%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    retrospective_fan = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%retro%' OR description LIKE '%retrospective%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    onboarding_helper = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%onboard%' OR description LIKE '%new member%' OR description LIKE '%orient%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    tech_explorer = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%experiment%' OR description LIKE '%prototype%' OR description LIKE '%spike%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    bug_hunter = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%bug%' OR description LIKE '%issue%' OR description LIKE '%defect%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    feature_flagger = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%feature flag%' OR description LIKE '%toggle%' OR description LIKE '%flag%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    legacy_maintainer = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%legacy%' OR description LIKE '%maintenance%' OR description LIKE '%support%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    integration_master = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%integration%' OR description LIKE '%third-party%' OR description LIKE '%webhook%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    logging_expert = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%log%' OR description LIKE '%monitor%' OR description LIKE '%alert%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    migration_hero = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%migrat%' OR description LIKE '%upgrade%' OR description LIKE '%version%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    config_manager = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%config%' OR description LIKE '%settings%' OR description LIKE '%environment%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    dependency_updater = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%depend%' OR description LIKE '%package%' OR description LIKE '%library%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    accessibility_advocate = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%access%' OR description LIKE '%a11y%' OR description LIKE '%WCAG%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    i18n_master = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%i18n%' OR description LIKE '%local%' OR description LIKE '%translat%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    error_handler = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%error%' OR description LIKE '%exception%' OR description LIKE '%crash%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    late_night_debugger = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '22' AND '04'
+        AND (description LIKE '%bug%' OR description LIKE '%fix%')
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    weekend_fixer = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) IN ('0', '6')
+        AND (description LIKE '%bug%' OR description LIKE '%fix%')
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    multi_task_day = conn.execute('''
+        SELECT name, date, COUNT(DISTINCT module) as cnt, COUNT(*) as total
+        FROM updates WHERE status != 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name, date HAVING cnt >= 3
+        ORDER BY total DESC LIMIT 1
+    ''').fetchone()
+
+    quick_turnaround = conn.execute('''
+        SELECT a.name, MIN(julianday(b.date) - julianday(a.date)) as days
+        FROM updates a
+        JOIN updates b ON a.name = b.name AND a.module = b.module
+        WHERE a.status = 'in_progress' AND b.status = 'done'
+        AND b.date >= a.date AND b.date >= date('now', '-90 days')
+        GROUP BY a.name ORDER BY days ASC LIMIT 1
+    ''').fetchone()
+
+    consistent_daily = conn.execute('''
+        SELECT name, COUNT(DISTINCT date) as days
+        FROM updates WHERE date >= date('now', '-14 days') AND status != 'leave'
+        GROUP BY name HAVING days >= 10
+        ORDER BY days DESC LIMIT 1
+    ''').fetchone()
+
+    gap_fillers = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM (
+            SELECT name, date,
+                julianday(date) - julianday(LAG(date) OVER (PARTITION BY name ORDER BY date)) as gap
+            FROM updates WHERE status != 'leave'
+        )
+        WHERE gap IS NOT NULL AND gap <= 2
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    big_jumper = conn.execute('''
+        SELECT name, MAX(gap) as max_gap
+        FROM (
+            SELECT name, date,
+                julianday(date) - julianday(LAG(date) OVER (PARTITION BY name ORDER BY date)) as gap
+            FROM updates WHERE status != 'leave'
+        )
+        WHERE gap IS NOT NULL
+        GROUP BY name ORDER BY max_gap DESC LIMIT 1
+    ''').fetchone()
+
+    phoenix_riser = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates a
+        WHERE a.status = 'done' AND date >= date('now', '-90 days')
+        AND EXISTS (
+            SELECT 1 FROM updates b WHERE b.name = a.name
+            AND b.status = 'blocked' AND b.date < a.date
+            AND julianday(a.date) - julianday(b.date) <= 7
+        )
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    steady_eddie = conn.execute('''
+        SELECT name, COUNT(DISTINCT date) as days, MAX(date) as last, MIN(date) as first
+        FROM updates WHERE status != 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name
+        ORDER BY (days * 100.0 / (julianday(last) - julianday(first) + 1)) DESC LIMIT 1
+    ''').fetchone()
+
+    module_maverick = conn.execute('''
+        SELECT name, COUNT(DISTINCT module) as cnt
+        FROM updates WHERE module != '' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    focused_specialist = conn.execute('''
+        SELECT name, module, COUNT(*) as cnt
+        FROM updates WHERE module != '' AND date >= date('now', '-90 days')
+        GROUP BY name, module
+        ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    rapid_releaser = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%release%' OR description LIKE '%shipped%' OR description LIKE '%live%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    zero_blocked = conn.execute('''
+        SELECT name, COUNT(*) as total
+        FROM updates WHERE date >= date('now', '-90 days')
+        GROUP BY name
+        HAVING SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) = 0
+        ORDER BY total DESC LIMIT 1
+    ''').fetchone()
+
+    unblocker = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates a
+        WHERE a.status = 'done' AND date >= date('now', '-90 days')
+        AND EXISTS (
+            SELECT 1 FROM updates b WHERE b.name = a.name AND b.module = a.module
+            AND b.status = 'blocked' AND b.date <= a.date
+        )
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    first_in_last_out = conn.execute('''
+        SELECT name,
+            MIN(strftime('%H', created_at)) as first_hour,
+            MAX(strftime('%H', created_at)) as last_hour
+        FROM updates WHERE date >= date('now', '-90 days')
+        GROUP BY name
+        HAVING first_hour <= '08' AND last_hour >= '19'
+        ORDER BY COUNT(*) DESC LIMIT 1
+    ''').fetchone()
+
+    mid_day_crunch = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '11' AND '14'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    afternoon_delight = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '14' AND '17'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    dusk_coder = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '17' AND '20'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    dawn_patrol = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '05' AND '08'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    lunch_break_skipper = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '12' AND '13'
+        AND status != 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    tea_time_coder = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '15' AND '16'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    happy_hour_hacker = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '17' AND '19'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    post_dinner_dev = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '20' AND '22'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    insomnia_coder = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%H', created_at) BETWEEN '00' AND '05'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    weekend_blocker = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) IN ('0', '6') AND status = 'blocked'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    weekend_done = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) IN ('0', '6') AND status = 'done'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    friday_push = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '5' AND status = 'done'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    monday_starter_pack = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '1' AND status = 'in_progress'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    tuesday_blues = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '2' AND status = 'blocked'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    wednesday_wonder = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '3' AND status = 'done'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    thursday_thinker = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE strftime('%w', date) = '4' AND status = 'in_progress'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    description_bullet_master = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE (description LIKE '%\n-%' OR description LIKE '%\n•%')
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    markdown_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%**%' OR description LIKE '%##%' OR description LIKE '%```%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    jira_mentioner = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%jira%' OR description LIKE '%ticket%' OR description LIKE '%issue key%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    slack_mentioner = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%slack%' OR description LIKE '%channel%' OR description LIKE '%thread%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    github_mentioner = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%github%' OR description LIKE '%commit%' OR description LIKE '%branch%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    zoom_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%zoom%' OR description LIKE '%call%' OR description LIKE '%video%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    email_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%email%' OR description LIKE '%mail%' OR description LIKE '%inbox%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    calendar_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%calendar%' OR description LIKE '%schedule%' OR description LIKE '%event%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    doc_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%doc%' OR description LIKE '%confluence%' OR description LIKE '%wiki%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    figma_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%figma%' OR description LIKE '%design file%' OR description LIKE '%mockup%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    notion_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%notion%' OR description LIKE '%page%' OR description LIKE '%database%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    linear_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%linear%' OR description LIKE '%cycle%' OR description LIKE '%project%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    todoist_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%todo%' OR description LIKE '%task list%' OR description LIKE '%checklist%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    postman_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%postman%' OR description LIKE '%API test%' OR description LIKE '%endpoint%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    vscode_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%vscode%' OR description LIKE '%editor%' OR description LIKE '%IDE%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    terminal_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%terminal%' OR description LIKE '%shell%' OR description LIKE '%bash%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    docker_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%docker%' OR description LIKE '%container%' OR description LIKE '%image%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    kubernetes_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%kubernetes%' OR description LIKE '%k8s%' OR description LIKE '%pod%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    terraform_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%terraform%' OR description LIKE '%infrastructure%' OR description LIKE '%IaC%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    ansible_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%ansible%' OR description LIKE '%playbook%' OR description LIKE '%config%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    jenkins_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%jenkins%' OR description LIKE '%build%' OR description LIKE '%CI%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    grafana_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%grafana%' OR description LIKE '%dashboard%' OR description LIKE '%metric%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    prometheus_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%prometheus%' OR description LIKE '%monitor%' OR description LIKE '%alert%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    sentry_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%sentry%' OR description LIKE '%error track%' OR description LIKE '%crash%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    datadog_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%datadog%' OR description LIKE '%observ%' OR description LIKE '%APM%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    stripe_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%stripe%' OR description LIKE '%payment%' OR description LIKE '%billing%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    auth0_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%auth0%' OR description LIKE '%auth%' OR description LIKE '%login%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    firebase_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%firebase%' OR description LIKE '%realtime%' OR description LIKE '%NoSQL%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    supabase_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%supabase%' OR description LIKE '%postgres%' OR description LIKE '%realtime%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    redis_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%redis%' OR description LIKE '%cache%' OR description LIKE '%key-value%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    elasticsearch_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%elastic%' OR description LIKE '%search%' OR description LIKE '%index%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    rabbitmq_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%rabbit%' OR description LIKE '%queue%' OR description LIKE '%message%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    kafka_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%kafka%' OR description LIKE '%stream%' OR description LIKE '%event%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    graphql_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%graphql%' OR description LIKE '%query%' OR description LIKE '%schema%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    rest_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%REST%' OR description LIKE '%HTTP%' OR description LIKE '%API%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    websocket_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%websocket%' OR description LIKE '%socket%' OR description LIKE '%realtime%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    grpc_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%grpc%' OR description LIKE '%protobuf%' OR description LIKE '%RPC%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    microservices_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%microservice%' OR description LIKE '%service%' OR description LIKE '%distributed%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    monolith_maintainer = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%monolith%' OR description LIKE '%legacy%' OR description LIKE '%refactor%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    event_driven_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%event%' OR description LIKE '%driven%' OR description LIKE '%async%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    serverless_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%serverless%' OR description LIKE '%lambda%' OR description LIKE '%function%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    edge_computing_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%edge%' OR description LIKE '%CDN%' OR description LIKE '%worker%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    wasm_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%wasm%' OR description LIKE '%webassembly%' OR description LIKE '%rust%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    typescript_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%typescript%' OR description LIKE '%type%' OR description LIKE '%interface%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    python_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%python%' OR description LIKE '%django%' OR description LIKE '%flask%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    go_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%golang%' OR description LIKE '%go mod%' OR description LIKE '%goroutine%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    rust_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%rust%' OR description LIKE '%cargo%' OR description LIKE '%borrow%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    java_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%java%' OR description LIKE '%spring%' OR description LIKE '%maven%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    dotnet_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%.net%' OR description LIKE '%csharp%' OR description LIKE '%ASP%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    php_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%php%' OR description LIKE '%laravel%' OR description LIKE '%composer%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    ruby_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%ruby%' OR description LIKE '%rails%' OR description LIKE '%gem%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    elixir_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%elixir%' OR description LIKE '%phoenix%' OR description LIKE '%OTP%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    haskell_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%haskell%' OR description LIKE '%monad%' OR description LIKE '%pure%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    scala_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%scala%' OR description LIKE '%spark%' OR description LIKE '%akka%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    kotlin_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%kotlin%' OR description LIKE '%android%' OR description LIKE '%coroutine%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    swift_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%swift%' OR description LIKE '%iOS%' OR description LIKE '%Xcode%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    dart_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%dart%' OR description LIKE '%flutter%' OR description LIKE '%widget%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    lua_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%lua%' OR description LIKE '%neovim%' OR description LIKE '%script%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    perl_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%perl%' OR description LIKE '%cpan%' OR description LIKE '%regex%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    r_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '% R %' OR description LIKE '%ggplot%' OR description LIKE '%shiny%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    matlab_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%matlab%' OR description LIKE '%matrix%' OR description LIKE '%simulink%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    julia_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%julia%' OR description LIKE '% JuMP %' OR description LIKE '%DataFrame%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    fortran_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%fortran%' OR description LIKE '%numerical%' OR description LIKE '%HPC%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    cobol_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%cobol%' OR description LIKE '%mainframe%' OR description LIKE '%legacy%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
+    assembly_user = conn.execute('''
+        SELECT name, COUNT(*) as cnt
+        FROM updates WHERE description LIKE '%assembly%' OR description LIKE '%asm%' OR description LIKE '%register%'
+        AND date >= date('now', '-90 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    ''').fetchone()
+
     missing = [m for m in members if m not in [r[0] for r in conn.execute("SELECT DISTINCT name FROM updates WHERE date = ?", (today,)).fetchall()]]
 
     row_dicts = [dict(r) for r in rows]
@@ -1204,6 +2672,831 @@ def get_fun_facts():
     if leave_pattern and leave_pattern[1]:
         if leave_pattern[0] not in used_names:
             add_fact("🌴", "Leave Taker", f"{leave_pattern[0]} has the most leave entries", leave_pattern[0])
+
+    if streaks and len(streaks) > 0:
+        top = streaks[0]
+        if top[0] not in used_names and top[1] >= 10:
+            add_fact("🔥", "Streak Master", f"{top[0]} has {top[1]} active days in the last 30 days", top[0])
+
+    if done_streak and done_streak[1] >= 5:
+        if done_streak[0] not in used_names:
+            add_fact("🎯", "Done Streak", f"{done_streak[0]} completed tasks {done_streak[1]} days in a row", done_streak[0])
+
+    if blocked_to_done and blocked_to_done[1]:
+        if blocked_to_done[0] not in used_names:
+            add_fact("💪", "Unblocker", f"{blocked_to_done[0]} resolved {blocked_to_done[1]} blocked tasks into done", blocked_to_done[0])
+
+    if most_modules_single_day and most_modules_single_day[2] >= 3:
+        if most_modules_single_day[0] not in used_names:
+            add_fact("🧩", "Multi-Module Day", f"{most_modules_single_day[0]} touched {most_modules_single_day[2]} modules in one day", most_modules_single_day[0])
+
+    if longest_streak and longest_streak[1] >= 10:
+        if longest_streak[0] not in used_names:
+            add_fact("📅", "Longest Streak", f"{longest_streak[0]} has the longest consecutive work streak of {longest_streak[1]} days", longest_streak[0])
+
+    if weekend_warrior and weekend_warrior[1] >= 3:
+        if weekend_warrior[0] not in used_names:
+            add_fact("🌞", "Weekend Warrior", f"{weekend_warrior[0]} worked {weekend_warrior[1]} weekends recently", weekend_warrior[0])
+
+    if monday_blues and monday_blues[1] >= 2:
+        if monday_blues[0] not in used_names:
+            add_fact("💤", "Monday Blues", f"{monday_blues[0]} took {monday_blues[1]} Monday leaves - definitely not a Monday person", monday_blues[0])
+
+    if friday_done and friday_done[1] >= 3:
+        if friday_done[0] not in used_names:
+            add_fact("🎉", "Friday Finisher", f"{friday_done[0]} completed {friday_done[1]} tasks on Fridays - loves that Friday push", friday_done[0])
+
+    if reopen_master and reopen_master[1]:
+        if reopen_master[0] not in used_names:
+            add_fact("🔄", "Reopener", f"{reopen_master[0]} has the most reopened tasks - thorough or perfectionist", reopen_master[0])
+
+    if description_trend and description_trend[1]:
+        if description_trend[0] not in used_names:
+            add_fact("📝", "Wordy", f"{description_trend[0]} averages {int(description_trend[1])} chars per description", description_trend[0])
+
+    if update_count_today and update_count_today[1] > 1:
+        if update_count_today[0] not in used_names:
+            add_fact("⚡", "Daily Logger", f"{update_count_today[0]} submitted {update_count_today[1]} updates today", update_count_today[0])
+
+    if status_flipper and status_flipper[1] >= 5:
+        if status_flipper[0] not in used_names:
+            add_fact("🔄", "Status Chameleon", f"{status_flipper[0]} changed status {status_flipper[1]} times - decisive or indecisive", status_flipper[0])
+
+    if solo_worker and solo_worker[1] >= 1:
+        if solo_worker[0] not in used_names:
+            add_fact("🎯", "Solo Worker", f"{solo_worker[0]} has the fewest active days - focused deep work", solo_worker[0])
+
+    if team_player and team_player[1] >= 15:
+        if team_player[0] not in used_names:
+            add_fact("🤝", "Team Player", f"{team_player[0]} has the most active days - always showing up", team_player[0])
+
+    if negative_nancy and negative_nancy[1]:
+        if negative_nancy[0] not in used_names:
+            add_fact("😤", "Realist", f"{negative_nancy[0]} reports the most issues - keeping it real", negative_nancy[0])
+
+    if positive_patty and positive_patty[1]:
+        if positive_patty[0] not in used_names:
+            add_fact("😊", "Optimist", f"{positive_patty[0]} shares the most successes - positivity generator", positive_patty[0])
+
+    if screenshot_user and screenshot_user[1]:
+        if screenshot_user[0] not in used_names:
+            add_fact("📸", "Screenshotter", f"{screenshot_user[0]} shares visual proof most often", screenshot_user[0])
+
+    if code_paster and code_paster[1]:
+        if code_paster[0] not in used_names:
+            add_fact("💻", "Code Paster", f"{code_paster[0]} pastes code snippets in updates - true developer", code_paster[0])
+
+    if edit_master and edit_master[1]:
+        if edit_master[0] not in used_names:
+            add_fact("✏️", "Edit Master", f"{edit_master[0]} edits updates {edit_master[1]} times - perfectionist", edit_master[0])
+
+    if same_day_updates and same_day_updates[1]:
+        if same_day_updates[0] not in used_names:
+            add_fact("⚡", "Rapid Logger", f"{same_day_updates[0]} logs multiple times per day frequently", same_day_updates[0])
+
+    if module_loyalist and module_loyalist[2] >= 10:
+        if module_loyalist[0] not in used_names:
+            add_fact("🎯", "Module Loyalist", f"{module_loyalist[0]} has {module_loyalist[2]} updates in one module", module_loyalist[0])
+
+    if midnight_oil and midnight_oil[1] >= 3:
+        if midnight_oil[0] not in used_names:
+            add_fact("🌙", "Midnight Oil", f"{midnight_oil[0]} burns midnight oil with {midnight_oil[1]} late night updates", midnight_oil[0])
+
+    if consistency_score and consistency_score[1] >= 80:
+        if consistency_score[0] not in used_names:
+            add_fact("📊", "Consistency Score", f"{consistency_score[0]} has {int(consistency_score[1])}% consistency - machine-like", consistency_score[0])
+
+    if task_juggler and task_juggler[1] >= 2:
+        if task_juggler[0] not in used_names:
+            add_fact("🤹", "Task Juggler", f"{task_juggler[0]} averages {task_juggler[1]:.1f} tasks per day", task_juggler[0])
+
+    if vacation_mode and vacation_mode[1] > 7:
+        if vacation_mode[0] not in used_names:
+            days = int(vacation_mode[1])
+            add_fact("🌴", "Vacation Mode", f"{vacation_mode[0]} took a {days}-day break recently", vacation_mode[0])
+
+    if momentum_builder and momentum_builder[1] >= 5:
+        if momentum_builder[0] not in used_names:
+            add_fact("🚀", "Momentum Builder", f"{momentum_builder[0]} leads this week with {momentum_builder[1]} updates", momentum_builder[0])
+
+    if quiet_achiever and quiet_achiever[1] >= 10:
+        if quiet_achiever[0] not in used_names:
+            add_fact("🤫", "Quiet Achiever", f"{quiet_achiever[0]} completed {quiet_achiever[1]} tasks silently", quiet_achiever[0])
+
+    if blocker_magnet and blocker_magnet[1] >= 3:
+        if blocker_magnet[0] not in used_names:
+            add_fact("🧲", "Blocker Magnet", f"{blocker_magnet[0]} hits {blocker_magnet[1]} blockers - tackling the hard stuff", blocker_magnet[0])
+
+    if fresh_start and fresh_start[1]:
+        if fresh_start[0] not in used_names:
+            add_fact("🌱", "Fresh Start", f"{fresh_start[0]} is the newest team member", fresh_start[0])
+
+    if veteran and veteran[1]:
+        if veteran[0] not in used_names:
+            add_fact("🏛️", "Veteran", f"{veteran[0]} has been updating since {veteran[1]} - OG status", veteran[0])
+
+    if late_night_coder and late_night_coder[1] >= 2:
+        if late_night_coder[0] not in used_names:
+            add_fact("🦉", "Night Coder", f"{late_night_coder[0]} codes at 2 AM {late_night_coder[1]} times - vampire mode", late_night_coder[0])
+
+    if documentation_hero and documentation_hero[1]:
+        if documentation_hero[0] not in used_names:
+            add_fact("📚", "Doc Hero", f"{documentation_hero[0]} writes docs {documentation_hero[1]} times - unsung hero", documentation_hero[0])
+
+    if refactor_fanatic and refactor_fanatic[1]:
+        if refactor_fanatic[0] not in used_names:
+            add_fact("🔧", "Refactor Fan", f"{refactor_fanatic[0]} refactors {refactor_fanatic[1]} times - cleaner code advocate", refactor_fanatic[0])
+
+    if test_addict and test_addict[1]:
+        if test_addict[0] not in used_names:
+            add_fact("🧪", "Test Addict", f"{test_addict[0]} mentions testing {test_addict[1]} times - quality guardian", test_addict[0])
+
+    if deploy_master and deploy_master[1]:
+        if deploy_master[0] not in used_names:
+            add_fact("🚀", "Deploy Master", f"{deploy_master[0]} deploys {deploy_master[1]} times - shipping machine", deploy_master[0])
+
+    if morning_streak and morning_streak[1] >= 5:
+        if morning_streak[0] not in used_names:
+            add_fact("🌅", "Morning Streak", f"{morning_streak[0]} has {morning_streak[1]} morning updates - early bird gets the worm", morning_streak[0])
+
+    if afternoon_surge and afternoon_surge[1] >= 5:
+        if afternoon_surge[0] not in used_names:
+            add_fact("☀️", "Afternoon Surge", f"{afternoon_surge[0]} peaks in afternoon with {afternoon_surge[1]} updates", afternoon_surge[0])
+
+    if panic_mode and panic_mode[1]:
+        if panic_mode[0] not in used_names:
+            add_fact("😰", "Panic Mode", f"{panic_mode[0]} has {panic_mode[1]} urgent updates - firefighter", panic_mode[0])
+
+    if collaborative and collaborative[1]:
+        if collaborative[0] not in used_names:
+            add_fact("🤝", "Collaborator", f"{collaborative[0]} mentions collaboration {collaborative[1]} times - team player", collaborative[0])
+
+    if self_starter and self_starter[1]:
+        if self_starter[0] not in used_names:
+            add_fact("🚀", "Self Starter", f"{self_starter[0]} initiates {self_starter[1]} tasks - proactive powerhouse", self_starter[0])
+
+    if detail_oriented and detail_oriented[1]:
+        if detail_oriented[0] not in used_names:
+            add_fact("🔍", "Detail Oriented", f"{detail_oriented[0]} writes detailed updates averaging {int(detail_oriented[1])} chars", detail_oriented[0])
+
+    if quick_updater and quick_updater[1] >= 5:
+        if quick_updater[0] not in used_names:
+            add_fact("⚡", "Quick Logger", f"{quick_updater[0]} keeps it brief with {quick_updater[1]} short updates", quick_updater[0])
+
+    if discussion_starter and discussion_starter[1]:
+        if discussion_starter[0] not in used_names:
+            add_fact("💬", "Discussion Starter", f"{discussion_starter[0]} starts discussions {discussion_starter[1]} times", discussion_starter[0])
+
+    if planning_guru and planning_guru[1]:
+        if planning_guru[0] not in used_names:
+            add_fact("📋", "Planning Guru", f"{planning_guru[0]} plans {planning_guru[1]} times - strategist", planning_guru[0])
+
+    if learning_mode and learning_mode[1]:
+        if learning_mode[0] not in used_names:
+            add_fact("📖", "Learning Mode", f"{learning_mode[0]} learns {learning_mode[1]} times - growth mindset", learning_mode[0])
+
+    if hotfix_hero and hotfix_hero[1]:
+        if hotfix_hero[0] not in used_names:
+            add_fact("🚑", "Hotfix Hero", f"{hotfix_hero[0]} delivers {hotfix_hero[1]} hotfixes - emergency responder", hotfix_hero[0])
+
+    if milestone_crusher and milestone_crusher[1]:
+        if milestone_crusher[0] not in used_names:
+            add_fact("🏆", "Milestone Crusher", f"{milestone_crusher[0]} crushes {milestone_crusher[1]} milestones - goal getter", milestone_crusher[0])
+
+    if weekend_coder and weekend_coder[1] >= 2:
+        if weekend_coder[0] not in used_names:
+            add_fact("💻", "Weekend Coder", f"{weekend_coder[0]} codes {weekend_coder[1]} weekends - work-life what", weekend_coder[0])
+
+    if monday_starter and monday_starter[1] >= 5:
+        if monday_starter[0] not in used_names:
+            add_fact("💪", "Monday Starter", f"{monday_starter[0]} starts weeks strong with {monday_starter[1]} Monday updates", monday_starter[0])
+
+    if tuesday_warrior and tuesday_warrior[1] >= 5:
+        if tuesday_warrior[0] not in used_names:
+            add_fact("⚔️", "Tuesday Warrior", f"{tuesday_warrior[0]} dominates Tuesdays with {tuesday_warrior[1]} updates", tuesday_warrior[0])
+
+    if wednesday_peak and wednesday_peak[1] >= 5:
+        if wednesday_peak[0] not in used_names:
+            add_fact("📈", "Wednesday Peak", f"{wednesday_peak[0]} peaks midweek with {wednesday_peak[1]} updates", wednesday_peak[0])
+
+    if thursday_hustler and thursday_hustler[1] >= 5:
+        if thursday_hustler[0] not in used_names:
+            add_fact("🏃", "Thursday Hustler", f"{thursday_hustler[0]} hustles Thursdays with {thursday_hustler[1]} updates", thursday_hustler[0])
+
+    if sunday_coder and sunday_coder[1] >= 2:
+        if sunday_coder[0] not in used_names:
+            add_fact("🙏", "Sunday Coder", f"{sunday_coder[0]} works {sunday_coder[1]} Sundays - coding is religion", sunday_coder[0])
+
+    if productive_mornings and productive_mornings[1] >= 5:
+        if productive_mornings[0] not in used_names:
+            add_fact("🌅", "Productive Mornings", f"{productive_mornings[0]} completes {productive_mornings[1]} tasks before noon", productive_mornings[0])
+
+    if night_fixer and night_fixer[1] >= 3:
+        if night_fixer[0] not in used_names:
+            add_fact("🌙", "Night Fixer", f"{night_fixer[0]} fixes {night_fixer[1]} bugs at night - batman mode", night_fixer[0])
+
+    if break_taker and break_taker[1] >= 3:
+        if break_taker[0] not in used_names:
+            add_fact("☕", "Break Taker", f"{break_taker[0]} updates during lunch {break_taker[1]} times - working lunch", break_taker[0])
+
+    if module_switcher and module_switcher[1] >= 4:
+        if module_switcher[0] not in used_names:
+            add_fact("🔄", "Module Switcher", f"{module_switcher[0]} switches between {module_switcher[1]} modules - versatile", module_switcher[0])
+
+    if single_module_focus and single_module_focus[1] == 1:
+        if single_module_focus[0] not in used_names:
+            add_fact("🎯", "Laser Focus", f"{single_module_focus[0]} stays on one module - deep work specialist", single_module_focus[0])
+
+    if update_every_other_day and update_every_other_day[1] >= 10:
+        if update_every_other_day[0] not in used_names:
+            add_fact("📅", "Regular", f"{update_every_other_day[0]} updates almost daily - clockwork", update_every_other_day[0])
+
+    if leave_adjacent and leave_adjacent[1] >= 2:
+        if leave_adjacent[0] not in used_names:
+            add_fact("🏃", "Leave Adjacent", f"{leave_adjacent[0]} works right after leave {leave_adjacent[1]} times - dedicated", leave_adjacent[0])
+
+    if post_leave_comeback and post_leave_comeback[1]:
+        if post_leave_comeback[0] not in used_names:
+            add_fact("🎯", "Post-Leave Comeback", f"{post_leave_comeback[0]} comes back strong after leave - resilience", post_leave_comeback[0])
+
+    if first_week_done and first_week_done[1] >= 5:
+        if first_week_done[0] not in used_names:
+            add_fact("🔥", "Weekly Crusher", f"{first_week_done[0]} crushed {first_week_done[1]} tasks this week - on fire", first_week_done[0])
+
+    if status_chameleon and status_chameleon[1] >= 4:
+        if status_chameleon[0] not in used_names:
+            add_fact("🦎", "Status Chameleon", f"{status_chameleon[0]} uses all {status_chameleon[1]} statuses - versatile", status_chameleon[0])
+
+    if always_in_progress and always_in_progress[1] >= 5:
+        if always_in_progress[0] not in used_names:
+            add_fact("🔄", "Always In Progress", f"{always_in_progress[0]} always has something cooking", always_in_progress[0])
+
+    if always_done and always_done[1] >= 10:
+        if always_done[0] not in used_names:
+            add_fact("✅", "Always Done", f"{always_done[0]} completes {always_done[1]} tasks - closer", always_done[0])
+
+    if description_bullet_user and description_bullet_user[1] >= 3:
+        if description_bullet_user[0] not in used_names:
+            add_fact("•", "Bullet Master", f"{description_bullet_user[0]} loves bullet points - organized mind", description_bullet_user[0])
+
+    if markdown_user and markdown_user[1]:
+        if markdown_user[0] not in used_names:
+            add_fact("📝", "Markdown Fan", f"{markdown_user[0]} uses markdown formatting - power user", markdown_user[0])
+
+    if jira_mentioner and jira_mentioner[1]:
+        if jira_mentioner[0] not in used_names:
+            add_fact("🎫", "Jira User", f"{jira_mentioner[0]} references Jira {jira_mentioner[1]} times - ticket tracker", jira_mentioner[0])
+
+    if slack_mentioner and slack_mentioner[1]:
+        if slack_mentioner[0] not in used_names:
+            add_fact("💬", "Slack User", f"{slack_mentioner[0]} mentions Slack {slack_mentioner[1]} times - communicator", slack_mentioner[0])
+
+    if github_mentioner and github_mentioner[1]:
+        if github_mentioner[0] not in used_names:
+            add_fact("🐙", "GitHub User", f"{github_mentioner[0]} references GitHub {github_mentioner[1]} times - version controller", github_mentioner[0])
+
+    if zoom_user and zoom_user[1]:
+        if zoom_user[0] not in used_names:
+            add_fact("📹", "Zoom User", f"{zoom_user[0]} mentions video calls {zoom_user[1]} times - meeting master", zoom_user[0])
+
+    if email_user and email_user[1]:
+        if email_user[0] not in used_names:
+            add_fact("📧", "Email User", f"{email_user[0]} mentions email {email_user[1]} times - inbox warrior", email_user[0])
+
+    if calendar_user and calendar_user[1]:
+        if calendar_user[0] not in used_names:
+            add_fact("📅", "Calendar User", f"{calendar_user[0]} mentions calendar {calendar_user[1]} times - scheduler", calendar_user[0])
+
+    if doc_user and doc_user[1]:
+        if doc_user[0] not in used_names:
+            add_fact("📄", "Doc User", f"{doc_user[0]} mentions docs {doc_user[1]} times - documentarian", doc_user[0])
+
+    if figma_user and figma_user[1]:
+        if figma_user[0] not in used_names:
+            add_fact("🎨", "Figma User", f"{figma_user[0]} references Figma {figma_user[1]} times - designer", figma_user[0])
+
+    if notion_user and notion_user[1]:
+        if notion_user[0] not in used_names:
+            add_fact("📝", "Notion User", f"{notion_user[0]} uses Notion {notion_user[1]} times - organized", notion_user[0])
+
+    if linear_user and linear_user[1]:
+        if linear_user[0] not in used_names:
+            add_fact("📊", "Linear User", f"{linear_user[0]} references Linear {linear_user[1]} times - project manager", linear_user[0])
+
+    if todoist_user and todoist_user[1]:
+        if todoist_user[0] not in used_names:
+            add_fact("✅", "Todoist User", f"{todoist_user[0]} mentions todos {todoist_user[1]} times - task master", todoist_user[0])
+
+    if postman_user and postman_user[1]:
+        if postman_user[0] not in used_names:
+            add_fact("📮", "Postman User", f"{postman_user[0]} tests APIs {postman_user[1]} times - API tester", postman_user[0])
+
+    if vscode_user and vscode_user[1]:
+        if vscode_user[0] not in used_names:
+            add_fact("💻", "VSCode User", f"{vscode_user[0]} mentions VSCode {vscode_user[1]} times - editor enthusiast", vscode_user[0])
+
+    if terminal_user and terminal_user[1]:
+        if terminal_user[0] not in used_names:
+            add_fact("⌨️", "Terminal User", f"{terminal_user[0]} lives in the terminal {terminal_user[1]} times - hacker", terminal_user[0])
+
+    if docker_user and docker_user[1]:
+        if docker_user[0] not in used_names:
+            add_fact("🐳", "Docker User", f"{docker_user[0]} containers everything {docker_user[1]} times - DevOps", docker_user[0])
+
+    if kubernetes_user and kubernetes_user[1]:
+        if kubernetes_user[0] not in used_names:
+            add_fact("☸️", "K8s User", f"{kubernetes_user[0]} orchestrates {kubernetes_user[1]} times - cloud native", kubernetes_user[0])
+
+    if terraform_user and terraform_user[1]:
+        if terraform_user[0] not in used_names:
+            add_fact("🏗️", "Terraform User", f"{terraform_user[0]} infrastructures {terraform_user[1]} times - IaC master", terraform_user[0])
+
+    if ansible_user and ansible_user[1]:
+        if ansible_user[0] not in used_names:
+            add_fact("📜", "Ansible User", f"{ansible_user[0]} automates {ansible_user[1]} times - config manager", ansible_user[0])
+
+    if jenkins_user and jenkins_user[1]:
+        if jenkins_user[0] not in used_names:
+            add_fact("🔨", "Jenkins User", f"{jenkins_user[0]} builds {jenkins_user[1]} times - CI master", jenkins_user[0])
+
+    if grafana_user and grafana_user[1]:
+        if grafana_user[0] not in used_names:
+            add_fact("📊", "Grafana User", f"{grafana_user[0]} dashboards {grafana_user[1]} times - observability", grafana_user[0])
+
+    if prometheus_user and prometheus_user[1]:
+        if prometheus_user[0] not in used_names:
+            add_fact("🔥", "Prometheus User", f"{prometheus_user[0]} monitors {prometheus_user[1]} times - SRE", prometheus_user[0])
+
+    if sentry_user and sentry_user[1]:
+        if sentry_user[0] not in used_names:
+            add_fact("🐞", "Sentry User", f"{sentry_user[0]} tracks errors {sentry_user[1]} times - bug hunter", sentry_user[0])
+
+    if datadog_user and datadog_user[1]:
+        if datadog_user[0] not in used_names:
+            add_fact("🐕", "Datadog User", f"{datadog_user[0]} observes {datadog_user[1]} times - monitoring", datadog_user[0])
+
+    if stripe_user and stripe_user[1]:
+        if stripe_user[0] not in used_names:
+            add_fact("💳", "Stripe User", f"{stripe_user[0]} handles payments {stripe_user[1]} times - fintech", stripe_user[0])
+
+    if auth0_user and auth0_user[1]:
+        if auth0_user[0] not in used_names:
+            add_fact("🔐", "Auth0 User", f"{auth0_user[0]} secures auth {auth0_user[1]} times - security", auth0_user[0])
+
+    if firebase_user and firebase_user[1]:
+        if firebase_user[0] not in used_names:
+            add_fact("🔥", "Firebase User", f"{firebase_user[0]} uses Firebase {firebase_user[1]} times - Google fan", firebase_user[0])
+
+    if supabase_user and supabase_user[1]:
+        if supabase_user[0] not in used_names:
+            add_fact("⚡", "Supabase User", f"{supabase_user[0]} uses Supabase {supabase_user[1]} times - open source", supabase_user[0])
+
+    if redis_user and redis_user[1]:
+        if redis_user[0] not in used_names:
+            add_fact("🔴", "Redis User", f"{redis_user[0]} caches {redis_user[1]} times - speed demon", redis_user[0])
+
+    if elasticsearch_user and elasticsearch_user[1]:
+        if elasticsearch_user[0] not in used_names:
+            add_fact("🔍", "Elastic User", f"{elasticsearch_user[0]} searches {elasticsearch_user[1]} times - data explorer", elasticsearch_user[0])
+
+    if rabbitmq_user and rabbitmq_user[1]:
+        if rabbitmq_user[0] not in used_names:
+            add_fact("🐰", "RabbitMQ User", f"{rabbitmq_user[0]} queues {rabbitmq_user[1]} times - message broker", rabbitmq_user[0])
+
+    if kafka_user and kafka_user[1]:
+        if kafka_user[0] not in used_names:
+            add_fact("📊", "Kafka User", f"{kafka_user[0]} streams {kafka_user[1]} times - event-driven", kafka_user[0])
+
+    if graphql_user and graphql_user[1]:
+        if graphql_user[0] not in used_names:
+            add_fact("📡", "GraphQL User", f"{graphql_user[0]} queries {graphql_user[1]} times - API modernist", graphql_user[0])
+
+    if rest_user and rest_user[1]:
+        if rest_user[0] not in used_names:
+            add_fact("🌐", "REST User", f"{rest_user[0]} RESTs {rest_user[1]} times - classic API", rest_user[0])
+
+    if websocket_user and websocket_user[1]:
+        if websocket_user[0] not in used_names:
+            add_fact("🔌", "WebSocket User", f"{websocket_user[0]} connects realtime {websocket_user[1]} times", websocket_user[0])
+
+    if grpc_user and grpc_user[1]:
+        if grpc_user[0] not in used_names:
+            add_fact("⚡", "gRPC User", f"{grpc_user[0]} uses gRPC {grpc_user[1]} times - high performance", grpc_user[0])
+
+    if microservices_user and microservices_user[1]:
+        if microservices_user[0] not in used_names:
+            add_fact("🔀", "Microservices User", f"{microservices_user[0]} microservices {microservices_user[1]} times - distributed", microservices_user[0])
+
+    if monolith_maintainer and monolith_maintainer[1]:
+        if monolith_maintainer[0] not in used_names:
+            add_fact("🏛️", "Monolith User", f"{monolith_maintainer[0]} maintains monolith {monolith_maintainer[1]} times - legacy hero", monolith_maintainer[0])
+
+    if event_driven_user and event_driven_user[1]:
+        if event_driven_user[0] not in used_names:
+            add_fact("📡", "Event-Driven User", f"{event_driven_user[0]} events {event_driven_user[1]} times - async lover", event_driven_user[0])
+
+    if serverless_user and serverless_user[1]:
+        if serverless_user[0] not in used_names:
+            add_fact("☁️", "Serverless User", f"{serverless_user[0]} goes serverless {serverless_user[1]} times - cloud native", serverless_user[0])
+
+    if edge_computing_user and edge_computing_user[1]:
+        if edge_computing_user[0] not in used_names:
+            add_fact("🌐", "Edge User", f"{edge_computing_user[0]} edges {edge_computing_user[1]} times - CDN master", edge_computing_user[0])
+
+    if wasm_user and wasm_user[1]:
+        if wasm_user[0] not in used_names:
+            add_fact("🔧", "WASM User", f"{wasm_user[0]} WebAssemblies {wasm_user[1]} times - browser native", wasm_user[0])
+
+    if typescript_user and typescript_user[1]:
+        if typescript_user[0] not in used_names:
+            add_fact("📘", "TypeScript User", f"{typescript_user[0]} types {typescript_user[1]} times - typed", typescript_user[0])
+
+    if python_user and python_user[1]:
+        if python_user[0] not in used_names:
+            add_fact("🐍", "Python User", f"{python_user[0]} Pythons {python_user[1]} times - snake charmer", python_user[0])
+
+    if go_user and go_user[1]:
+        if go_user[0] not in used_names:
+            add_fact("🐹", "Go User", f"{go_user[0]} goes {go_user[1]} times - gopher", go_user[0])
+
+    if rust_user and rust_user[1]:
+        if rust_user[0] not in used_names:
+            add_fact("🦀", "Rust User", f"{rust_user[0]} rusts {rust_user[1]} times - memory safe", rust_user[0])
+
+    if java_user and java_user[1]:
+        if java_user[0] not in used_names:
+            add_fact("☕", "Java User", f"{java_user[0]} Javas {java_user[1]} times - enterprise", java_user[0])
+
+    if dotnet_user and dotnet_user[1]:
+        if dotnet_user[0] not in used_names:
+            add_fact("🌐", ".NET User", f"{dotnet_user[0]} dots {dotnet_user[1]} times - Microsoft", dotnet_user[0])
+
+    if php_user and php_user[1]:
+        if php_user[0] not in used_names:
+            add_fact("🐘", "PHP User", f"{php_user[0]} PHPs {php_user[1]} times - elephant", php_user[0])
+
+    if ruby_user and ruby_user[1]:
+        if ruby_user[0] not in used_names:
+            add_fact("💎", "Ruby User", f"{ruby_user[0]} rubies {ruby_user[1]} times - gem collector", ruby_user[0])
+
+    if elixir_user and elixir_user[1]:
+        if elixir_user[0] not in used_names:
+            add_fact("🧪", "Elixir User", f"{elixir_user[0]} elixirs {elixir_user[1]} times - potion master", elixir_user[0])
+
+    if haskell_user and haskell_user[1]:
+        if haskell_user[0] not in used_names:
+            add_fact("λ", "Haskell User", f"{haskell_user[0]} Haskells {haskell_user[1]} times - functional", haskell_user[0])
+
+    if scala_user and scala_user[1]:
+        if scala_user[0] not in used_names:
+            add_fact("⚡", "Scala User", f"{scala_user[0]} Scalas {scala_user[1]} times - big data", scala_user[0])
+
+    if kotlin_user and kotlin_user[1]:
+        if kotlin_user[0] not in used_names:
+            add_fact("🤖", "Kotlin User", f"{kotlin_user[0]} Kotlins {kotlin_user[1]} times - Android", kotlin_user[0])
+
+    if swift_user and swift_user[1]:
+        if swift_user[0] not in used_names:
+            add_fact("🐦", "Swift User", f"{swift_user[0]} Swifts {swift_user[1]} times - iOS native", swift_user[0])
+
+    if dart_user and dart_user[1]:
+        if dart_user[0] not in used_names:
+            add_fact("🎯", "Dart User", f"{dart_user[0]} darts {dart_user[1]} times - Flutter", dart_user[0])
+
+    if lua_user and lua_user[1]:
+        if lua_user[0] not in used_names:
+            add_fact("🌙", "Lua User", f"{lua_user[0]} luas {lua_user[1]} times - scripting", lua_user[0])
+
+    if perl_user and perl_user[1]:
+        if perl_user[0] not in used_names:
+            add_fact("🐪", "Perl User", f"{perl_user[0]} perls {perl_user[1]} times - regex wizard", perl_user[0])
+
+    if r_user and r_user[1]:
+        if r_user[0] not in used_names:
+            add_fact("📊", "R User", f"{r_user[0]} Rs {r_user[1]} times - statistician", r_user[0])
+
+    if matlab_user and matlab_user[1]:
+        if matlab_user[0] not in used_names:
+            add_fact("🔢", "MATLAB User", f"{matlab_user[0]} MATLABs {matlab_user[1]} times - engineer", matlab_user[0])
+
+    if julia_user and julia_user[1]:
+        if julia_user[0] not in used_names:
+            add_fact("⚡", "Julia User", f"{julia_user[0]} Julias {julia_user[1]} times - scientific", julia_user[0])
+
+    if fortran_user and fortran_user[1]:
+        if fortran_user[0] not in used_names:
+            add_fact("🏛️", "Fortran User", f"{fortran_user[0]} Fortrans {fortran_user[1]} times - HPC pioneer", fortran_user[0])
+
+    if cobol_user and cobol_user[1]:
+        if cobol_user[0] not in used_names:
+            add_fact("💾", "COBOL User", f"{cobol_user[0]} COBOLs {cobol_user[1]} times - banking", cobol_user[0])
+
+    if assembly_user and assembly_user[1]:
+        if assembly_user[0] not in used_names:
+            add_fact("⚙️", "Assembly User", f"{assembly_user[0]} assembles {assembly_user[1]} times - low-level", assembly_user[0])
+
+    if morning_person and morning_person[1] >= 3:
+        if morning_person[0] not in used_names:
+            add_fact("🌅", "Morning Person", f"{morning_person[0]} submits {morning_person[1]} morning updates - sunrise coder", morning_person[0])
+
+    if lunch_skipper and lunch_skipper[1] >= 3:
+        if lunch_skipper[0] not in used_names:
+            add_fact("🥪", "Lunch Skipper", f"{lunch_skipper[0]} works through lunch {lunch_skipper[1]} times - dedicated", lunch_skipper[0])
+
+    if evening_person and evening_person[1] >= 3:
+        if evening_person[0] not in used_names:
+            add_fact("🌆", "Evening Person", f"{evening_person[0]} submits {evening_person[1]} evening updates - sunset coder", evening_person[0])
+
+    if first_update_today and first_update_today[1]:
+        if first_update_today[0] not in used_names:
+            hour = first_update_today[1][11:13] if len(str(first_update_today[1])) > 13 else '??'
+            add_fact("🥇", "First Today", f"{first_update_today[0]} submitted first today at {hour}:00 - early bird", first_update_today[0])
+
+    if last_update_today and last_update_today[1]:
+        if last_update_today[0] not in used_names:
+            hour = last_update_today[1][11:13] if len(str(last_update_today[1])) > 13 else '??'
+            add_fact("🌙", "Last Today", f"{last_update_today[0]} submitted last today at {hour}:00 - night owl", last_update_today[0])
+
+    if weekend_blocker and weekend_blocker[1]:
+        if weekend_blocker[0] not in used_names:
+            add_fact("😤", "Weekend Blocker", f"{weekend_blocker[0]} gets blocked on weekends {weekend_blocker[1]} times - bad luck", weekend_blocker[0])
+
+    if weekend_done and weekend_done[1] >= 2:
+        if weekend_done[0] not in used_names:
+            add_fact("🎉", "Weekend Done", f"{weekend_done[0]} completes {weekend_done[1]} weekend tasks - work-life what", weekend_done[0])
+
+    if friday_push and friday_push[1] >= 3:
+        if friday_push[0] not in used_names:
+            add_fact("🚀", "Friday Push", f"{friday_push[0]} pushes {friday_push[1]} Friday commits - weekend warrior", friday_push[0])
+
+    if monday_starter_pack and monday_starter_pack[1] >= 3:
+        if monday_starter_pack[0] not in used_names:
+            add_fact("💪", "Monday Starter", f"{monday_starter_pack[0]} starts {monday_starter_pack[1]} Monday tasks - strong start", monday_starter_pack[0])
+
+    if tuesday_blues and tuesday_blues[1]:
+        if tuesday_blues[0] not in used_names:
+            add_fact("😰", "Tuesday Blues", f"{tuesday_blues[0]} gets blocked {tuesday_blues[1]} Tuesdays - tough day", tuesday_blues[0])
+
+    if wednesday_wonder and wednesday_wonder[1] >= 3:
+        if wednesday_wonder[0] not in used_names:
+            add_fact("✨", "Wednesday Wonder", f"{wednesday_wonder[0]} completes {wednesday_wonder[1]} Wednesday tasks - hump day hero", wednesday_wonder[0])
+
+    if thursday_thinker and thursday_thinker[1] >= 3:
+        if thursday_thinker[0] not in used_names:
+            add_fact("🤔", "Thursday Thinker", f"{thursday_thinker[0]} has {thursday_thinker[1]} Thursday in-progress tasks - deep thinker", thursday_thinker[0])
+
+    if quick_turnaround and quick_turnaround[1] is not None and quick_turnaround[1] <= 1:
+        if quick_turnaround[0] not in used_names:
+            add_fact("⚡", "Rapid Turnaround", f"{quick_turnaround[0]} completes tasks same-day - speed demon", quick_turnaround[0])
+
+    if consistent_daily and consistent_daily[1] >= 10:
+        if consistent_daily[0] not in used_names:
+            add_fact("📅", "Consistent Daily", f"{consistent_daily[0]} updates {consistent_daily[1]} of last 14 days - machine", consistent_daily[0])
+
+    if gap_fillers and gap_fillers[1] >= 5:
+        if gap_fillers[0] not in used_names:
+            add_fact("🔨", "Gap Filler", f"{gap_fillers[0]} works on back-to-back days {gap_fillers[1]} times - no rest", gap_fillers[0])
+
+    if big_jumper and big_jumper[1] > 7:
+        if big_jumper[0] not in used_names:
+            days = int(big_jumper[1])
+            add_fact("🦘", "Big Jumper", f"{big_jumper[0]} takes {days}-day gaps - kangaroo mode", big_jumper[0])
+
+    if phoenix_riser and phoenix_riser[1]:
+        if phoenix_riser[0] not in used_names:
+            add_fact("🔥", "Phoenix Riser", f"{phoenix_riser[0]} rises from blocked ashes {phoenix_riser[1]} times - unstoppable", phoenix_riser[0])
+
+    if steady_eddie and steady_eddie[1]:
+        if steady_eddie[0] not in used_names:
+            add_fact("📊", "Steady Eddie", f"{steady_eddie[0]} maintains consistent pace - reliable", steady_eddie[0])
+
+    if module_maverick and module_maverick[1] >= 5:
+        if module_maverick[0] not in used_names:
+            add_fact("🌟", "Module Maverick", f"{module_maverick[0]} works across {module_maverick[1]} modules - explorer", module_maverick[0])
+
+    if focused_specialist and focused_specialist[2] >= 10:
+        if focused_specialist[0] not in used_names:
+            add_fact("🎯", "Focused Specialist", f"{focused_specialist[0]} has {focused_specialist[2]} updates in one module - laser focus", focused_specialist[0])
+
+    if rapid_releaser and rapid_releaser[1]:
+        if rapid_releaser[0] not in used_names:
+            add_fact("🚀", "Rapid Releaser", f"{rapid_releaser[0]} releases {rapid_releaser[1]} times - ship it", rapid_releaser[0])
+
+    if zero_blocked and zero_blocked[1] >= 10:
+        if zero_blocked[0] not in used_names:
+            add_fact("🛡️", "Zero Blocked", f"{zero_blocked[0]} has no blockers in {zero_blocked[1]} updates - smooth sailing", zero_blocked[0])
+
+    if unblocker and unblocker[1]:
+        if unblocker[0] not in used_names:
+            add_fact("🔓", "Unblocker", f"{unblocker[0]} unblocks {unblocker[1]} tasks - problem solver", unblocker[0])
+
+    if first_in_last_out and first_in_last_out[1]:
+        if first_in_last_out[0] not in used_names:
+            add_fact("🏢", "First In Last Out", f"{first_in_last_out[0]} submits from 8 AM to 7 PM+ - workaholic", first_in_last_out[0])
+
+    if mid_day_crunch and mid_day_crunch[1] >= 5:
+        if mid_day_crunch[0] not in used_names:
+            add_fact("☀️", "Mid-Day Crunch", f"{mid_day_crunch[0]} crunches {mid_day_crunch[1]} midday updates", mid_day_crunch[0])
+
+    if afternoon_delight and afternoon_delight[1] >= 5:
+        if afternoon_delight[0] not in used_names:
+            add_fact("🌤️", "Afternoon Delight", f"{afternoon_delight[0]} delights with {afternoon_delight[1]} afternoon updates", afternoon_delight[0])
+
+    if dusk_coder and dusk_coder[1] >= 3:
+        if dusk_coder[0] not in used_names:
+            add_fact("🌆", "Dusk Coder", f"{dusk_coder[0]} codes at dusk {dusk_coder[1]} times - sunset hacker", dusk_coder[0])
+
+    if dawn_patrol and dawn_patrol[1] >= 3:
+        if dawn_patrol[0] not in used_names:
+            add_fact("🌅", "Dawn Patrol", f"{dawn_patrol[0]} patrols at dawn {dawn_patrol[1]} times - early riser", dawn_patrol[0])
+
+    if lunch_break_skipper and lunch_break_skipper[1] >= 3:
+        if lunch_break_skipper[0] not in used_names:
+            add_fact("🍽️", "Lunch Break Skipper", f"{lunch_break_skipper[0]} skips lunch {lunch_break_skipper[1]} times - dedicated", lunch_break_skipper[0])
+
+    if tea_time_coder and tea_time_coder[1] >= 3:
+        if tea_time_coder[0] not in used_names:
+            add_fact("🍵", "Tea Time Coder", f"{tea_time_coder[0]} codes at tea time {tea_time_coder[1]} times - British", tea_time_coder[0])
+
+    if happy_hour_hacker and happy_hour_hacker[1] >= 3:
+        if happy_hour_hacker[0] not in used_names:
+            add_fact("🍻", "Happy Hour Hacker", f"{happy_hour_hacker[0]} hacks during happy hour {happy_hour_hacker[1]} times - fun", happy_hour_hacker[0])
+
+    if post_dinner_dev and post_dinner_dev[1] >= 3:
+        if post_dinner_dev[0] not in used_names:
+            add_fact("🍽️", "Post-Dinner Dev", f"{post_dinner_dev[0]} develops after dinner {post_dinner_dev[1]} times - night owl", post_dinner_dev[0])
+
+    if insomnia_coder and insomnia_coder[1] >= 2:
+        if insomnia_coder[0] not in used_names:
+            add_fact("😴", "Insomnia Coder", f"{insomnia_coder[0]} codes while world sleeps {insomnia_coder[1]} times - vampire", insomnia_coder[0])
+
+    if description_bullet_master and description_bullet_master[1] >= 3:
+        if description_bullet_master[0] not in used_names:
+            add_fact("•", "Bullet Point Master", f"{description_bullet_master[0]} organizes with bullets - structured thinker", description_bullet_master[0])
+
+    if capitals_user and capitals_user[1] >= 3:
+        if capitals_user[0] not in used_names:
+            add_fact("🔤", "ALL CAPS User", f"{capitals_user[0]} SHOUTS {capitals_user[1]} times - enthusiastic", capitals_user[0])
+
+    if question_explorer and question_explorer[1] >= 5:
+        if question_explorer[0] not in used_names:
+            add_fact("❓", "Question Explorer", f"{question_explorer[0]} asks {question_explorer[1]} questions - curious", question_explorer[0])
+
+    if exclamation_enthusiast and exclamation_enthusiast[1] >= 5:
+        if exclamation_enthusiast[0] not in used_names:
+            add_fact("❗", "Exclamation Enthusiast", f"{exclamation_enthusiast[0]} exclaims {exclamation_enthusiast[1]} times - excited", exclamation_enthusiast[0])
+
+    if number_lover and number_lover[1] >= 5:
+        if number_lover[0] not in used_names:
+            add_fact("🔢", "Number Lover", f"{number_lover[0]} includes numbers {number_lover[1]} times - data-driven", number_lover[0])
+
+    if emoji_abuser and emoji_abuser[1] >= 5:
+        if emoji_abuser[0] not in used_names:
+            add_fact("😂", "Emoji Abuser", f"{emoji_abuser[0]} uses {emoji_abuser[1]} emojis - express yourself", emoji_abuser[0])
+
+    if url_master and url_master[1] >= 3:
+        if url_master[0] not in used_names:
+            add_fact("🔗", "URL Master", f"{url_master[0]} shares {url_master[1]} links - resourceful", url_master[0])
+
+    if file_attacher and file_attacher[1]:
+        if file_attacher[0] not in used_names:
+            add_fact("📎", "File Attacher", f"{file_attacher[0]} attaches files {file_attacher[1]} times - sharer", file_attacher[0])
+
+    if command_line_user and command_line_user[1]:
+        if command_line_user[0] not in used_names:
+            add_fact("⌨️", "CLI User", f"{command_line_user[0]} lives in terminal {command_line_user[1]} times - hacker", command_line_user[0])
+
+    if design_thinker and design_thinker[1]:
+        if design_thinker[0] not in used_names:
+            add_fact("🎨", "Design Thinker", f"{design_thinker[0]} designs {design_thinker[1]} times - creative", design_thinker[0])
+
+    if backend_wizard and backend_wizard[1]:
+        if backend_wizard[0] not in used_names:
+            add_fact("⚙️", "Backend Wizard", f"{backend_wizard[0]} builds backend {backend_wizard[1]} times - server-side", backend_wizard[0])
+
+    if frontend_ninja and frontend_ninja[1]:
+        if frontend_ninja[0] not in used_names:
+            add_fact("🎭", "Frontend Ninja", f"{frontend_ninja[0]} crafts frontend {frontend_ninja[1]} times - UI master", frontend_ninja[0])
+
+    if security_minded and security_minded[1]:
+        if security_minded[0] not in used_names:
+            add_fact("🔒", "Security Minded", f"{security_minded[0]} secures {security_minded[1]} times - guardian", security_minded[0])
+
+    if performance_optimizer and performance_optimizer[1]:
+        if performance_optimizer[0] not in used_names:
+            add_fact("🚀", "Performance Optimizer", f"{performance_optimizer[0]} optimizes {performance_optimizer[1]} times - speed demon", performance_optimizer[0])
+
+    if database_tinkerer and database_tinkerer[1]:
+        if database_tinkerer[0] not in used_names:
+            add_fact("🗄️", "Database Tinkerer", f"{database_tinkerer[0]} tinkers with DB {database_tinkerer[1]} times - data lover", database_tinkerer[0])
+
+    if api_builder and api_builder[1]:
+        if api_builder[0] not in used_names:
+            add_fact("🔌", "API Builder", f"{api_builder[0]} builds APIs {api_builder[1]} times - connector", api_builder[0])
+
+    if mobile_dev and mobile_dev[1]:
+        if mobile_dev[0] not in used_names:
+            add_fact("📱", "Mobile Dev", f"{mobile_dev[0]} goes mobile {mobile_dev[1]} times - pocket coder", mobile_dev[0])
+
+    if devops_engineer and devops_engineer[1]:
+        if devops_engineer[0] not in used_names:
+            add_fact("🔄", "DevOps Engineer", f"{devops_engineer[0]} DevOpses {devops_engineer[1]} times - pipeline master", devops_engineer[0])
+
+    if ai_enthusiast and ai_enthusiast[1]:
+        if ai_enthusiast[0] not in used_names:
+            add_fact("🤖", "AI Enthusiast", f"{ai_enthusiast[0]} AI's {ai_enthusiast[1]} times - future is now", ai_enthusiast[0])
+
+    if data_analyst and data_analyst[1]:
+        if data_analyst[0] not in used_names:
+            add_fact("📊", "Data Analyst", f"{data_analyst[0]} analyzes data {data_analyst[1]} times - insights", data_analyst[0])
+
+    if cloud_architect and cloud_architect[1]:
+        if cloud_architect[0] not in used_names:
+            add_fact("☁️", "Cloud Architect", f"{cloud_architect[0]} architects cloud {cloud_architect[1]} times - sky high", cloud_architect[0])
+
+    if meeting_marathon and meeting_marathon[1]:
+        if meeting_marathon[0] not in used_names:
+            add_fact("🏃", "Meeting Marathon", f"{meeting_marathon[0]} meets {meeting_marathon[1]} times - social butterfly", meeting_marathon[0])
+
+    if code_reviewer and code_reviewer[1]:
+        if code_reviewer[0] not in used_names:
+            add_fact("👀", "Code Reviewer", f"{code_reviewer[0]} reviews code {code_reviewer[1]} times - quality gate", code_reviewer[0])
+
+    if standup_star and standup_star[1]:
+        if standup_star[0] not in used_names:
+            add_fact("🌟", "Standup Star", f"{standup_star[0]} standups {standup_star[1]} times - daily hero", standup_star[0])
+
+    if sprint_warrior and sprint_warrior[1]:
+        if sprint_warrior[0] not in used_names:
+            add_fact("🏃", "Sprint Warrior", f"{sprint_warrior[0]} sprints {sprint_warrior[1]} times - agile", sprint_warrior[0])
+
+    if retrospective_fan and retrospective_fan[1]:
+        if retrospective_fan[0] not in used_names:
+            add_fact("🔄", "Retro Fan", f"{retrospective_fan[0]} retros {retrospective_fan[1]} times - reflective", retrospective_fan[0])
+
+    if onboarding_helper and onboarding_helper[1]:
+        if onboarding_helper[0] not in used_names:
+            add_fact("🤝", "Onboarding Helper", f"{onboarding_helper[0]} helps onboard {onboarding_helper[1]} times - mentor", onboarding_helper[0])
+
+    if tech_explorer and tech_explorer[1]:
+        if tech_explorer[0] not in used_names:
+            add_fact("🔬", "Tech Explorer", f"{tech_explorer[0]} explores tech {tech_explorer[1]} times - innovator", tech_explorer[0])
+
+    if bug_hunter and bug_hunter[1]:
+        if bug_hunter[0] not in used_names:
+            add_fact("🐛", "Bug Hunter", f"{bug_hunter[0]} hunts bugs {bug_hunter[1]} times - exterminator", bug_hunter[0])
+
+    if feature_flagger and feature_flagger[1]:
+        if feature_flagger[0] not in used_names:
+            add_fact("🏳️", "Feature Flagger", f"{feature_flagger[0]} flags features {feature_flagger[1]} times - toggle master", feature_flagger[0])
+
+    if legacy_maintainer and legacy_maintainer[1]:
+        if legacy_maintainer[0] not in used_names:
+            add_fact("🏛️", "Legacy Maintainer", f"{legacy_maintainer[0]} maintains legacy {legacy_maintainer[1]} times - historian", legacy_maintainer[0])
+
+    if integration_master and integration_master[1]:
+        if integration_master[0] not in used_names:
+            add_fact("🔌", "Integration Master", f"{integration_master[0]} integrates {integration_master[1]} times - connector", integration_master[0])
+
+    if logging_expert and logging_expert[1]:
+        if logging_expert[0] not in used_names:
+            add_fact("📝", "Logging Expert", f"{logging_expert[0]} logs {logging_expert[1]} times - debugger", logging_expert[0])
+
+    if migration_hero and migration_hero[1]:
+        if migration_hero[0] not in used_names:
+            add_fact("🚚", "Migration Hero", f"{migration_hero[0]} migrates {migration_hero[1]} times - mover", migration_hero[0])
+
+    if config_manager and config_manager[1]:
+        if config_manager[0] not in used_names:
+            add_fact("⚙️", "Config Manager", f"{config_manager[0]} configs {config_manager[1]} times - settings wizard", config_manager[0])
+
+    if dependency_updater and dependency_updater[1]:
+        if dependency_updater[0] not in used_names:
+            add_fact("📦", "Dependency Updater", f"{dependency_updater[0]} updates deps {dependency_updater[1]} times - fresh", dependency_updater[0])
+
+    if accessibility_advocate and accessibility_advocate[1]:
+        if accessibility_advocate[0] not in used_names:
+            add_fact("♿", "Accessibility Advocate", f"{accessibility_advocate[0]} advocates a11y {accessibility_advocate[1]} times - inclusive", accessibility_advocate[0])
+
+    if i18n_master and i18n_master[1]:
+        if i18n_master[0] not in used_names:
+            add_fact("🌍", "i18n Master", f"{i18n_master[0]} goes global {i18n_master[1]} times - polyglot", i18n_master[0])
+
+    if error_handler and error_handler[1]:
+        if error_handler[0] not in used_names:
+            add_fact("🐞", "Error Handler", f"{error_handler[0]} handles errors {error_handler[1]} times - resilient", error_handler[0])
+
+    if late_night_debugger and late_night_debugger[1]:
+        if late_night_debugger[0] not in used_names:
+            add_fact("🌙", "Late Night Debugger", f"{late_night_debugger[0]} debugs at night {late_night_debugger[1]} times - vampire", late_night_debugger[0])
+
+    if weekend_fixer and weekend_fixer[1]:
+        if weekend_fixer[0] not in used_names:
+            add_fact("🛠️", "Weekend Fixer", f"{weekend_fixer[0]} fixes on weekends {weekend_fixer[1]} times - always on", weekend_fixer[0])
+
+    if multi_task_day and multi_task_day[1]:
+        if multi_task_day[0] not in used_names:
+            add_fact("🤹", "Multi-Task Day", f"{multi_task_day[0]} did {multi_task_day[1]} tasks across {multi_task_day[2]} modules in one day", multi_task_day[0])
 
     if row_dicts:
         unused = [r for r in row_dicts if r['name'] not in used_names]
