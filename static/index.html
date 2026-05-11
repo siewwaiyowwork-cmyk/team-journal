@@ -967,7 +967,12 @@ function launchConfetti(x,y){
                 });
             });
 
-            container.innerHTML = '<div class="chart-wrapper"><canvas id="module-done-canvas"></canvas></div>';
+            container.innerHTML = '<div class="chart-wrapper" id="module-done-wrapper"><canvas id="module-done-canvas"></canvas></div>';
+            var wrapper = document.getElementById('module-done-wrapper');
+            if (wrapper) {
+                var calcHeight = Math.max(400, sortedModules.length * 36);
+                wrapper.style.height = calcHeight + 'px';
+            }
 
             var colors = [
                 'rgba(0,230,118,.7)', 'rgba(0,229,255,.7)', 'rgba(255,145,0,.7)', 'rgba(255,23,68,.7)',
@@ -1008,8 +1013,8 @@ function launchConfetti(x,y){
                             y: {
                                 stacked: true,
                                 reverse: true,
-                                ticks: { color: '#aaa', font: { size: 12 } },
-                                grid: { color: 'rgba(255,255,255,.05)' }
+                                ticks: { color: '#aaa', font: { size: 11 }, autoSkip: false, maxRotation: 0 },
+                                grid: { display: false }
                             }
                         },
                         plugins: {
@@ -1185,19 +1190,23 @@ function launchConfetti(x,y){
     function renderHolidayList(){
         var el = document.getElementById('holidayCalendar');
         if(!el) return;
-        
-        var holidays = Object.keys(window.holidayMap).sort();
-        if(!holidays.length){
-            el.innerHTML = '<div class="task-empty-state">No holidays defined</div>';
+
+        var today = new Date(); today.setHours(0,0,0,0);
+        var allHolidays = Object.keys(window.holidayMap).sort().filter(function(date){
+            return new Date(date + 'T12:00:00') >= today;
+        });
+
+        if(!allHolidays.length){
+            el.innerHTML = '<div class="task-empty-state">No upcoming holidays</div>';
             document.getElementById('holidayBadge').textContent = '0';
             return;
         }
-        
-        document.getElementById('holidayBadge').textContent = holidays.length;
-        
+
+        document.getElementById('holidayBadge').textContent = allHolidays.length;
+
         var html = '';
         var currentYear = '';
-        holidays.forEach(function(date){
+        allHolidays.forEach(function(date){
             var year = date.slice(0,4);
             if(year !== currentYear){
                 html += '<div class="holiday-year">' + year + '</div>';
@@ -1211,7 +1220,6 @@ function launchConfetti(x,y){
                 '<span class="holiday-dt">' + wd + '</span>' +
                 '<span class="holiday-month">' + md + '</span>' +
                 '<span class="holiday-name">' + name + '</span>' +
-                '<span onclick="deleteHoliday(\''+date+'\')" style="cursor:pointer;color:var(--red);font-weight:700;font-size:1em;padding:2px 6px;border-radius:4px;" title="Remove">\xd7</span>'+
             '</div>';
         });
         el.innerHTML = html;
