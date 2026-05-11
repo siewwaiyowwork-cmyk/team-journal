@@ -86,6 +86,30 @@ def init_db():
         ('MC', 'Medical Certificate', 'Sick leave with medical certificate', 1),
         ('EL', 'Emergency Leave', 'Unplanned emergency leave', 1);
 
+        INSERT OR IGNORE INTO holidays (date, name) VALUES
+        ('2025-01-01', 'new year'),
+        ('2025-01-29', 'chinese new year'),
+        ('2025-03-31', 'hari raya aidilfitri'),
+        ('2025-04-01', 'hari raya holiday'),
+        ('2025-05-01', 'labour day'),
+        ('2025-05-12', 'wesak day'),
+        ('2025-06-02', 'hari raya haji'),
+        ('2025-08-31', 'national day'),
+        ('2025-09-16', 'malaysia day'),
+        ('2025-10-20', 'deepavali'),
+        ('2025-12-25', 'christmas'),
+        ('2026-01-01', 'new year'),
+        ('2026-02-17', 'chinese new year'),
+        ('2026-03-19', 'hari raya aidilfitri'),
+        ('2026-03-20', 'hari raya holiday'),
+        ('2026-04-03', 'good friday'),
+        ('2026-05-01', 'labour day'),
+        ('2026-05-27', 'hari raya haji'),
+        ('2026-08-31', 'national day'),
+        ('2026-09-16', 'malaysia day'),
+        ('2026-11-09', 'deepavali'),
+        ('2026-12-25', 'christmas');
+
         INSERT OR IGNORE INTO levels (min_tasks, label, color) VALUES
         (0, 'Unranked', '#999999'),
         (1, 'Seed', '#7a6a3a'),
