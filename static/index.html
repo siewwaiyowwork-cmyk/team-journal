@@ -72,6 +72,31 @@
         .ach-badge.freshstart{background:rgba(99,102,241,.15);color:#6366f1;border:1px solid #6366f1}
         .ach-badge.bugslayer{background:rgba(139,92,246,.15);color:#8b5cf6;border:1px solid #8b5cf6}
         .ach-badge.nightowl{background:rgba(30,58,138,.15);color:#1e3a8a;border:1px solid #1e3a8a}
+        
+        /* Achievement Celebration Styles */
+        .achievements-grid{position:relative;overflow:hidden}
+        .achievements-grid::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),var(--orange),var(--green),var(--accent));animation:shimmer 3s infinite}
+        @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+        
+        .ach-member{position:relative;overflow:hidden;transition:transform .3s,box-shadow .3s}
+        .ach-member:hover{transform:translateY(-3px);box-shadow:0 8px 25px rgba(255,215,0,.15)}
+        .ach-member::after{content:'';position:absolute;top:0;right:0;width:40px;height:40px;background:radial-gradient(circle,rgba(255,215,0,.3) 0%,transparent 70%);border-radius:50%;animation:pulse-gold 2s infinite}
+        @keyframes pulse-gold{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.3);opacity:.8}}
+        
+        .ach-badge{position:relative;overflow:hidden;transition:all .3s;font-size:.72em;padding:4px 10px;border-radius:20px;font-weight:700}
+        .ach-badge::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,transparent 40%,rgba(255,255,255,.15) 50%,transparent 60%);animation:shine 3s infinite}
+        @keyframes shine{0%{transform:translateX(-100%) rotate(45deg)}100%{transform:translateX(100%) rotate(45deg)}}
+        .ach-badge:hover{transform:scale(1.05);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+        
+        .achievement-title{font-size:1.2em;font-weight:800;background:linear-gradient(135deg,var(--gold),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+        .sparkle{animation:twinkle 1.5s infinite}
+        @keyframes twinkle{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.8)}}
+        
+        .firework-particle{position:absolute;width:4px;height:4px;border-radius:50%;pointer-events:none;animation:firework-rise 1s ease-out forwards}
+        @keyframes firework-rise{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-80px) scale(0);opacity:0}}
+        
+        .confetti-piece{position:absolute;width:8px;height:8px;pointer-events:none;animation:confetti-fall 2s ease-out forwards}
+        @keyframes confetti-fall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(100px) rotate(720deg);opacity:0}}
 .challenge-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:20px 0}
 .ch-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .ch-title{font-size:1em;font-weight:700}
@@ -230,8 +255,6 @@
         .tips-text{font-size:.85em;color:var(--text);font-style:italic;flex:1}
         .tips-reason{font-size:.78em;color:var(--green);font-weight:600;padding:4px 8px;background:rgba(0,230,118,.1);border-radius:6px;display:block;margin-top:4px}
         .empty-tips{text-align:center;padding:30px;color:var(--green);font-size:1.1em;background:var(--surface);border-radius:12px}
-        .achievements-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:40px}
-        .ach-member{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px}
         .ach-member .ach-name{font-weight:700;font-size:1em;display:flex;align-items:center;gap:10px;margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:8px}.ach-rank-badge{min-width:32px;text-align:center;font-size:.9em}.ach-rank-badge.g1{color:var(--gold)}.ach-rank-badge.g2{color:var(--silver)}.ach-rank-badge.g3{color:var(--bronze)}.ach-name-text{flex:1}
         .ach-count{color:var(--accent);font-size:.85em}
         .ach-list{font-size:.85em;max-height:200px;overflow-y:auto}
