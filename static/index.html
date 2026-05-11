@@ -1990,6 +1990,15 @@ function launchConfetti(x,y){
         // Blocked Rate = blocked / (done + in_progress + blocked) * 100
         const blockedRate = actionableTotal > 0 ? Math.round((blockedCount / actionableTotal) * 1000) / 10 : 0;
 
+        // Support Rate = support tasks / (done + in_progress + blocked) * 100
+        const supportKeywords = ['help', 'support', 'troubleshoot', 'troubleshooting', 'fix', 'debug', 'bug', 'issue', 'incident', 'urgent', 'escalation', 'urgent fix', 'hotfix', 'patch', 'maint', 'maintenance', 'ops', 'operational', 'outage', 'down', 'error', 'fail', 'broken', 'investigate', 'investigating', 'root cause', 'rca', 'workaround'];
+        const supportCount = updates.filter(u => {
+            if (u.status === 'leave') return false;
+            const desc = (u.description || '').toLowerCase();
+            return supportKeywords.some(kw => desc.includes(kw));
+        }).length;
+        const supportRate = actionableTotal > 0 ? Math.round((supportCount / actionableTotal) * 1000) / 10 : 0;
+
         // Rank (global sortedMembers must exist)
         let rank = '--';
         let rankClass = '';
@@ -2151,6 +2160,7 @@ function launchConfetti(x,y){
                         <div class="metric-card" title="Done / (Done + In Progress + Blocked) x 100%. Measures what % of your actionable work is completed."><div class="metric-num" style="color:var(--green)">${completionRate}%</div><div class="metric-label">Completion Rate</div></div>
                         <div class="metric-card" title="In Progress / Done. For every 1 completed task, there are ${ipDoneRatio} in-progress tasks. Lower is better — means faster closure and less work piling up."><div class="metric-num" style="color:var(--accent)">${ipDoneRatio}</div><div class="metric-label">IP/Done Ratio</div></div>
                         <div class="metric-card" title="Blocked / (Done + In Progress + Blocked) x 100%. Measures what % of your work is stuck. Lower is better."><div class="metric-num" style="color:var(--red)">${blockedRate}%</div><div class="metric-label">Blocked Rate</div></div>
+                        <div class="metric-card" title="Support tasks (${supportCount}) / (Done + In Progress + Blocked) x 100%. Keywords: help, support, troubleshoot, fix, debug, bug, issue, incident, urgent, outage, maintenance, etc."><div class="metric-num" style="color:#a855f7">${supportRate}%</div><div class="metric-label">Support Work</div></div>
                         ${getActiveLeaveTypes().map(lt => `<div class="metric-card" title="Days recorded as ${lt.label} leave"><div class="metric-num">${leave[lt.code] || 0}</div><div class="metric-label">${lt.code}</div></div>`).join('')}
                     </div>
                 </div>

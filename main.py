@@ -704,6 +704,26 @@ def get_summary(
         ''', (d['name'], from_date, to_date, leave_s)).fetchall()
         d['modules'] = [dict(x) for x in modules]
         
+        support_keywords = ['help', 'support', 'troubleshoot', 'troubleshooting', 'fix', 'debug', 'bug', 'issue', 'incident', 'urgent', 'escalation', 'urgent fix', 'hotfix', 'patch', 'maint', 'maintenance', 'ops', 'operational', 'outage', 'down', 'error', 'fail', 'broken', 'investigate', 'investigating', 'root cause', 'rca', 'workaround']
+        
+        support_pattern = ' OR '.join(["description LIKE ?" for _ in support_keywords])
+        support_params = [f'%{kw}%' for kw in support_keywords]
+        
+        support_count = conn.execute(f'''
+            SELECT COUNT(*) FROM updates
+            WHERE name = ? AND date BETWEEN ? AND ? AND status != ?
+            AND ({support_pattern})
+        ''', (d['name'], from_date, to_date, leave_s, *support_params)).fetchone()[0]
+        
+        total_work_count = conn.execute('''
+            SELECT COUNT(*) FROM updates
+            WHERE name = ? AND date BETWEEN ? AND ? AND status != ?
+        ''', (d['name'], from_date, to_date, leave_s)).fetchone()[0]
+        
+        d['support_pct'] = round((support_count / max(total_work_count, 1)) * 100, 1) if total_work_count > 0 else 0
+        d['support_count'] = support_count
+        d['total_work_count'] = total_work_count
+        
         badges = conn.execute('''
             SELECT 
                 SUM(CASE WHEN status != ? AND status != ? THEN 1 ELSE 0 END) as ok,
