@@ -1504,10 +1504,10 @@ function launchConfetti(x,y){
                         <div class="rpg-stat-bar"><div class="rpg-stat-fill agility" style="width:${agilityPct}%"></div></div>
                         <span class="rpg-stat-val">${agilityPct}</span>
                     </div>
-                    <div class="rpg-stat" title="Defense: 100 - ${blockedRate}% blocked = ${defensePct}%. Blocked tasks: ${m.blocked || 0} / ${m.total || 0} total. Lower blocked = higher defense.">
-                        <span class="rpg-stat-label">🛡️ DEF</span>
-                        <div class="rpg-stat-bar"><div class="rpg-stat-fill defense" style="width:${defensePct}%"></div></div>
-                        <span class="rpg-stat-val">${defensePct}</span>
+                    <div class="rpg-stat" title="Support Work: module='support' tasks / (done + in_progress + blocked) x 100% = ${m.support_pct || 0}%. Lower = more feature work.">
+                        <span class="rpg-stat-label">🛠️ SUP</span>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill defense" style="width:${Math.min(m.support_pct || 0, 100)}%"></div></div>
+                        <span class="rpg-stat-val">${m.support_pct || 0}%</span>
                     </div>
                 </div>
             `;
