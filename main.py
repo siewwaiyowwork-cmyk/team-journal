@@ -1784,6 +1784,22 @@ def admin_members_list(admin_token: str = Query(...)):
     finally:
         conn.close()
 
+@app.put("/api/admin/members/{name}")
+def admin_member_update(name: str, admin_token: str = Query(...), payload: dict = Body(...)):
+    require_admin(admin_token)
+    conn = get_db()
+    try:
+        active = payload.get('active')
+        if active is not None:
+            conn.execute("UPDATE members SET active = ? WHERE name = ?", (1 if active else 0, name))
+            conn.commit()
+        return {"ok": True}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
 @app.get("/api/admin/updates")
 def admin_updates_list(admin_token: str = Query(...), name: Optional[str] = None, status: Optional[str] = None, limit: int = Query(100, ge=1, le=500)):
     require_admin(admin_token)

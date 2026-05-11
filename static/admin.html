@@ -242,7 +242,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <h2 class="section-title">Members</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>Join Date</th><th>Active</th></tr></thead>
+          <thead><tr><th>Name</th><th>Join Date</th><th>Active</th><th>Actions</th></tr></thead>
           <tbody id="membersTable"></tbody>
         </table>
       </div>
@@ -629,7 +629,18 @@ async function loadMembers() {
         <td>${m.name}</td>
         <td>${m.join_date || '-'}</td>
         <td>${m.active ? 'Yes' : 'No'}</td>
+        <td>
+          <button class="btn-sm" onclick="toggleMember('${m.name}', ${m.active ? 0 : 1})">${m.active ? 'Disable' : 'Enable'}</button>
+        </td>
       </tr>`).join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function toggleMember(name, active) {
+  try {
+    await apiPut('/api/admin/members/' + name, {active: !!active});
+    loadMembers();
+    showToast('Member updated', 'success');
   } catch (e) { showToast(e.message, 'error'); }
 }
 
