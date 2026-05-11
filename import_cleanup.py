@@ -87,12 +87,32 @@ def main():
     cur.execute("SELECT COUNT(*) FROM members")
     db_members = cur.fetchone()[0]
 
-    print(f"\n--- Results ---")
+    leave_path = os.path.join(CLEANUP_DIR, "leave_records.csv")
+    leave_inserted = 0
+    if os.path.exists(leave_path):
+        with open(leave_path, newline="", encoding="utf-8") as f:
+            lr = csv.DictReader(f)
+            for row in lr:
+                typ = row.get("leave_type", "").strip() or "AL"
+                if typ not in ("AL", "MC", "CL", "EL"):
+                    typ = "AL"
+                try:
+                    cur.execute(
+                        "INSERT INTO leave_records (date, name, type, days) VALUES (?, ?, ?, ?)",
+                        (row["date"], row["name"], typ, float(row.get("days", 1.0) or 1.0)),
+                    )
+                    if cur.rowcount > 0:
+                        leave_inserted += 1
+                except Exception:
+                    pass
+        conn.commit()
+
+    print(f"Leave records inserted: {leave_inserted}")
+    print(f"--- Results ---")
     print(f"Updates inserted: {update_count}")
     print(f"Members inserted: {member_count}")
     print(f"DB updates count: {db_updates}")
     print(f"DB members count: {db_members}")
-
     conn.close()
 
 if __name__ == "__main__":
