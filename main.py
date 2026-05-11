@@ -648,6 +648,7 @@ def get_summary(
 
     done_s = get_status_code('done')
     ip_s = get_status_code('in_progress')
+    blocked_s = get_status_code('blocked')
     leave_s = get_status_code('leave')
     vague_s = get_status_code('vague')
 
@@ -656,6 +657,7 @@ def get_summary(
             COUNT(*) as total,
             SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as done,
             SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as in_progress,
+            SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as blocked,
             SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as leave_days,
             SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as vague,
             SUM(CASE WHEN status != ? AND status != ? THEN 1 ELSE 0 END) as specific
@@ -663,7 +665,7 @@ def get_summary(
         WHERE date BETWEEN ? AND ?
         GROUP BY name
         ORDER BY total DESC
-    ''', (done_s, ip_s, leave_s, vague_s, vague_s, leave_s, from_date, to_date)).fetchall()
+    ''', (done_s, ip_s, blocked_s, leave_s, vague_s, vague_s, leave_s, from_date, to_date)).fetchall()
     
     total_workdays = conn.execute('''
         WITH RECURSIVE dates(d) AS (
@@ -682,6 +684,10 @@ def get_summary(
         d['attendance_pct'] = round((d['total'] / max(total_workdays, 1)) * 100, 1) if total_workdays else 0
         d['specificity'] = round((d['specific'] / max(d['total'] - d['leave_days'], 1)) * 100, 1) if (d['total'] - d['leave_days']) > 0 else 0
         d['badge'] = 'S' if d['specificity'] >= get_config_int('specificity_s', 95) else 'A' if d['specificity'] >= get_config_int('specificity_a', 85) else 'B' if d['specificity'] >= get_config_int('specificity_b', 70) else 'C' if d['specificity'] >= get_config_int('specificity_c', 50) else 'F'
+        
+        actionable_total = d['done'] + d['in_progress'] + d['blocked']
+        d['completion_rate'] = round((d['done'] / max(actionable_total, 1)) * 100, 1) if actionable_total > 0 else 0
+        d['ip_done_ratio'] = round((d['in_progress'] / max(d['done'], 1)) * 10) / 10 if d['done'] > 0 else (d['in_progress'] if d['in_progress'] > 0 else 0)
         
         recent = conn.execute('''
             SELECT date, description, status FROM updates

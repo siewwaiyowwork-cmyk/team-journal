@@ -366,6 +366,21 @@
         .fun-fact-title{font-weight:600;color:var(--accent);font-size:.88em}
         .fun-fact-reason{color:var(--text-dim);font-size:.82em;line-height:1.35}
         .fun-fact-name{color:var(--accent);font-weight:600;background:rgba(0,229,255,.15);padding:1px 4px;border-radius:4px}
+        
+        /* RPG Stat Bars */
+        .rpg-stats{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+        .rpg-stat{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.78em}
+        .rpg-stat-label{width:70px;color:var(--text-dim);font-weight:600;text-align:right;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:.7em;text-transform:uppercase;letter-spacing:.5px}
+        .rpg-stat-bar{flex:1;height:10px;background:var(--bg);border-radius:5px;overflow:hidden;position:relative}
+        .rpg-stat-fill{height:100%;border-radius:5px;transition:width .6s cubic-bezier(.34,1.56,.64,1);position:relative}
+        .rpg-stat-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.25),rgba(255,255,255,0));border-radius:5px}
+        .rpg-stat-val{min-width:36px;text-align:right;font-weight:700;font-size:.78em;font-family:'JetBrains Mono',monospace}
+        .rpg-stat-fill.attack{background:linear-gradient(90deg,#ff1744,#ff5252)}
+        .rpg-stat-fill.stamina{background:linear-gradient(90deg,#00e676,#69f0ae)}
+        .rpg-stat-fill.focus{background:linear-gradient(90deg,#ffd600,#ffea00)}
+        .rpg-stat-fill.agility{background:linear-gradient(90deg,#00e5ff,#18ffff)}
+        .rpg-stat-fill.defense{background:linear-gradient(90deg,#7c4dff,#b388ff)}
+        .rpg-stat-emoji{font-size:.85em;margin-right:2px}
     </style>
     </style>
 </head>
@@ -1451,6 +1466,42 @@ function launchConfetti(x,y){
             const hourly = m.hourly_personality;
             const hourlyBadge = hourly ? `<span class="bdg" style="background:${hourly.color}20;color:${hourly.color};border:1px solid ${hourly.color}">${hourly.emoji} ${hourly.label}</span>` : '';
             
+            // RPG Stats calculations
+            const focusPct = Math.round(activePct * 100);
+            const agilityPct = Math.max(0, Math.round(100 - ((m.ip_done_ratio || 0) * 10)));
+            const blockedRate = m.blocked ? Math.round((m.blocked / Math.max(1, m.done + m.in_progress + m.blocked)) * 100) : 0;
+            const defensePct = Math.max(0, 100 - blockedRate);
+            
+            const rpgStatsHtml = `
+                <div class="rpg-stats">
+                    <div class="rpg-stat" title="Completion Rate: done / (done + in_progress + blocked)">
+                        <span class="rpg-stat-label">⚔️ ATK</span>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill attack" style="width:${m.completion_rate || 0}%"></div></div>
+                        <span class="rpg-stat-val">${m.completion_rate || 0}</span>
+                    </div>
+                    <div class="rpg-stat" title="Attendance: physical presence on workdays">
+                        <span class="rpg-stat-label">💚 STM</span>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill stamina" style="width:${m.attendance_pct || 0}%"></div></div>
+                        <span class="rpg-stat-val">${m.attendance_pct || 0}</span>
+                    </div>
+                    <div class="rpg-stat" title="Focus: consistency of daily logging over last 10 workdays">
+                        <span class="rpg-stat-label">🎯 FCS</span>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill focus" style="width:${focusPct}%"></div></div>
+                        <span class="rpg-stat-val">${focusPct}</span>
+                    </div>
+                    <div class="rpg-stat" title="Agility: speed of task closure (100 - IP/Done ratio * 10). Higher = faster closure.">
+                        <span class="rpg-stat-label">⚡ AGI</span>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill agility" style="width:${agilityPct}%"></div></div>
+                        <span class="rpg-stat-val">${agilityPct}</span>
+                    </div>
+                    <div class="rpg-stat" title="Defense: resilience to blockers (100 - blocked rate). Higher = fewer blockers.">
+                        <span class="rpg-stat-label">🛡️ DEF</span>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill defense" style="width:${defensePct}%"></div></div>
+                        <span class="rpg-stat-val">${defensePct}</span>
+                    </div>
+                </div>
+            `;
+            
             return `
                 <div class="overview-card" onclick="showDetail('${m.name}')">
                     <div class="ov-header">
@@ -1465,6 +1516,7 @@ function launchConfetti(x,y){
                         </div>
                         <div class="ov-row"><span class="lab">Status</span><span class="val" style="color:${statusColor}">${statusEmoji} ${statusText}</span></div>
                         <div class="badge-grid">${activityHtml}${hourlyBadge}</div>
+                        ${rpgStatsHtml}
                         <div class="recent-tasks"><div class="recent-tasks-title">Recent Tasks</div>${recentHtml}</div>
                         ${modHtml ? `<div class="ov-modules"><div class="ov-modules-title">Top modules</div>${modHtml}</div>` : ''}
                     </div>
@@ -1928,6 +1980,16 @@ function launchConfetti(x,y){
         const uniqueWorkDates = new Set(updates.filter(u => u.status !== 'leave').map(u => u.date)).size;
         const consistencyPct = totalWorkdays > 0 ? Math.min(100, Math.round((uniqueWorkDates / totalWorkdays) * 1000) / 10) : 0;
 
+        // Completion Rate = done / (done + in_progress + blocked)
+        const actionableTotal = doneCount + inProgressCount + blockedCount;
+        const completionRate = actionableTotal > 0 ? Math.round((doneCount / actionableTotal) * 1000) / 10 : 0;
+
+        // In Progress / Done Ratio (raw multiplier, not percentage)
+        const ipDoneRatio = doneCount > 0 ? Math.round((inProgressCount / doneCount) * 10) / 10 : (inProgressCount > 0 ? inProgressCount : 0);
+
+        // Blocked Rate = blocked / (done + in_progress + blocked) * 100
+        const blockedRate = actionableTotal > 0 ? Math.round((blockedCount / actionableTotal) * 1000) / 10 : 0;
+
         // Rank (global sortedMembers must exist)
         let rank = '--';
         let rankClass = '';
@@ -2079,14 +2141,17 @@ function launchConfetti(x,y){
                 <div class="detail-body">
                     <div class="detail-metrics">
                         ${moduleChampHtml}
-                        <div class="metric-card"><div class="metric-num" style="color:${getStatusStyle('done').color}">${doneCount}</div><div class="metric-label">Done</div></div>
-                        <div class="metric-card"><div class="metric-num" style="color:${getStatusStyle('in_progress').color}">${inProgressCount}</div><div class="metric-label">In Progress</div></div>
-                        <div class="metric-card"><div class="metric-num" style="color:${getStatusStyle('blocked').color}">${blockedCount}</div><div class="metric-label">Blocked</div></div>
-                        <div class="metric-card"><div class="metric-num" style="color:${streak >= 7 ? 'var(--gold)' : 'var(--text)'}">${streak}</div><div class="metric-label">Streak</div></div>
-                        <div class="metric-card"><div class="metric-num">${totalDays}/${totalWorkdays}</div><div class="metric-label">Days Logged</div></div>
-                        <div class="metric-card"><div class="metric-num">${attendancePct}%</div><div class="metric-label">Attendance</div></div>
-                        <div class="metric-card"><div class="metric-num" style="color:var(--yellow)">${consistencyPct}%</div><div class="metric-label">Consistency</div></div>
-                        ${getActiveLeaveTypes().map(lt => `<div class="metric-card"><div class="metric-num">${leave[lt.code] || 0}</div><div class="metric-label">${lt.code}</div></div>`).join('')}
+                        <div class="metric-card" title="Number of tasks marked as Done in the selected period"><div class="metric-num" style="color:${getStatusStyle('done').color}">${doneCount}</div><div class="metric-label">Done</div></div>
+                        <div class="metric-card" title="Number of tasks currently In Progress in the selected period"><div class="metric-num" style="color:${getStatusStyle('in_progress').color}">${inProgressCount}</div><div class="metric-label">In Progress</div></div>
+                        <div class="metric-card" title="Number of tasks currently Blocked in the selected period"><div class="metric-num" style="color:${getStatusStyle('blocked').color}">${blockedCount}</div><div class="metric-label">Blocked</div></div>
+                        <div class="metric-card" title="Consecutive working days with at least one update (resets on gaps)"><div class="metric-num" style="color:${streak >= 7 ? 'var(--gold)' : 'var(--text)'}">${streak}</div><div class="metric-label">Streak</div></div>
+                        <div class="metric-card" title="Unique dates with updates vs total working days in the selected period"><div class="metric-num">${totalDays}/${totalWorkdays}</div><div class="metric-label">Days Logged</div></div>
+                        <div class="metric-card" title="(Total workdays - leave days) / Total workdays x 100%. Measures physical presence excluding leave."><div class="metric-num">${attendancePct}%</div><div class="metric-label">Attendance</div></div>
+                        <div class="metric-card" title="Unique work dates with updates / Total workdays x 100%. Measures how regularly you log updates on working days."><div class="metric-num" style="color:var(--yellow)">${consistencyPct}%</div><div class="metric-label">Consistency</div></div>
+                        <div class="metric-card" title="Done / (Done + In Progress + Blocked) x 100%. Measures what % of your actionable work is completed."><div class="metric-num" style="color:var(--green)">${completionRate}%</div><div class="metric-label">Completion Rate</div></div>
+                        <div class="metric-card" title="In Progress / Done. For every 1 completed task, there are ${ipDoneRatio} in-progress tasks. Lower is better — means faster closure and less work piling up."><div class="metric-num" style="color:var(--accent)">${ipDoneRatio}</div><div class="metric-label">IP/Done Ratio</div></div>
+                        <div class="metric-card" title="Blocked / (Done + In Progress + Blocked) x 100%. Measures what % of your work is stuck. Lower is better."><div class="metric-num" style="color:var(--red)">${blockedRate}%</div><div class="metric-label">Blocked Rate</div></div>
+                        ${getActiveLeaveTypes().map(lt => `<div class="metric-card" title="Days recorded as ${lt.label} leave"><div class="metric-num">${leave[lt.code] || 0}</div><div class="metric-label">${lt.code}</div></div>`).join('')}
                     </div>
                 </div>
             </div>
