@@ -500,7 +500,7 @@
             </div>
             <div class="field-group" id="descGroup">
                 <span class="field-label">Description <span>*</span></span>
-                <textarea class="panel-input" id="pDesc" placeholder="What did you work on? Be specific..." oninput="updateWordBar()"></textarea>
+                <textarea class="panel-input" id="pDesc" placeholder="What did you work on? Be specific..." oninput="updateWordBar(); this.value = this.value.replace(/,/g, ';');"></textarea>
                 <div class="word-bar-wrap">
                     <span id="pWC">0 words</span>
                     <div class="word-bar"><div class="word-bar-fill" id="pWBar" style="width:0%;background:var(--orange)"></div></div>
@@ -1701,7 +1701,7 @@ function launchConfetti(x,y){
                 date: d,
                 name: pName.toLowerCase().trim(),
                 module: pSt==='leave'?'':pMod.toLowerCase().trim(),
-                description: pSt==='leave'?leaveDesc:desc.toLowerCase().trim(),
+                description: pSt==='leave'?leaveDesc:desc.toLowerCase().trim().replace(/,/g, ';'),
                 status: pSt
             };
             if(pSt==='leave'){
