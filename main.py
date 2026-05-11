@@ -419,15 +419,6 @@ def add_holiday(date: str = Form(...), name: str = Form(...)):
         conn.close()
     return {"success": True, "date": date, "name": name}
 
-@app.delete("/api/holidays/{date}")
-def delete_holiday(date: str):
-    conn = get_db()
-    conn.execute("DELETE FROM holidays WHERE date = ?", (date,))
-    conn.commit()
-    deleted = conn.total_changes
-    conn.close()
-    return {"success": deleted > 0, "date": date}
-
 @app.get("/health")
 def health():
     return {"status": "ok"}
