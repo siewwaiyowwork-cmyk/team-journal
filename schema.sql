@@ -31,10 +31,12 @@ CREATE INDEX IF NOT EXISTS idx_updates_name ON updates(name);
 
 CREATE TABLE IF NOT EXISTS holidays (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL UNIQUE,
+    date TEXT NOT NULL,
     name TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 
 CREATE INDEX IF NOT EXISTS idx_updates_status ON updates(status);
 CREATE INDEX IF NOT EXISTS idx_leave_date ON leave_records(date);

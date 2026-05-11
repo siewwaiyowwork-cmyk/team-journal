@@ -590,7 +590,7 @@ async function loadHolidays() {
       <tr>
         <td>${h.date}</td>
         <td>${h.name}</td>
-        <td><button class="btn-sm danger" onclick="deleteHoliday('${h.date}')">Delete</button></td>
+        <td><button class="btn-sm danger" onclick="deleteHoliday(${h.id})">Delete</button></td>
       </tr>`).join('');
   } catch (e) { showToast(e.message, 'error'); }
 }
@@ -612,10 +612,10 @@ async function addHoliday() {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
-async function deleteHoliday(date) {
+async function deleteHoliday(id) {
   if (!confirm('Delete this holiday?')) return;
   try {
-    await apiDelete('/api/holidays/' + date);
+    await apiDelete('/api/holidays/' + id);
     loadHolidays();
     showToast('Holiday deleted', 'success');
   } catch (e) { showToast(e.message, 'error'); }

@@ -386,8 +386,36 @@ def public_leave_types():
 @app.get("/api/holidays")
 def get_holidays():
     conn = get_db()
-    rows = conn.execute("SELECT date, name FROM holidays ORDER BY date").fetchall()
+    rows = conn.execute("SELECT id, date, name FROM holidays ORDER BY date").fetchall()
     conn.close()
+    return {"holidays": [dict(r) for r in rows]}
+
+@app.post("/api/holidays")
+def add_holiday(date: str = Form(...), name: str = Form(...)):
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO holidays (date, name) VALUES (?, ?)", (date, name.lower()))
+        conn.commit()
+        return {"ok": True, "date": date, "name": name.lower()}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/api/holidays/{holiday_id}")
+def delete_holiday(holiday_id: int, admin_token: str = Query(...)):
+    require_admin(admin_token)
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM holidays WHERE id = ?", (holiday_id,))
+        conn.commit()
+        return {"ok": True}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
     return {"holidays": [dict(r) for r in rows]}
 
 @app.post("/api/holidays")
