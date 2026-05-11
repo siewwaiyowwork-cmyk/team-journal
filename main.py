@@ -1800,6 +1800,22 @@ def admin_member_update(name: str, admin_token: str = Query(...), payload: dict 
     finally:
         conn.close()
 
+@app.delete("/api/admin/members/{name}")
+def admin_member_delete(name: str, admin_token: str = Query(...)):
+    require_admin(admin_token)
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM members WHERE name = ?", (name,))
+        conn.execute("DELETE FROM updates WHERE name = ?", (name,))
+        conn.execute("DELETE FROM leave_records WHERE name = ?", (name,))
+        conn.commit()
+        return {"ok": True, "deleted": name}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
 @app.get("/api/admin/updates")
 def admin_updates_list(admin_token: str = Query(...), name: Optional[str] = None, status: Optional[str] = None, limit: int = Query(100, ge=1, le=500)):
     require_admin(admin_token)

@@ -630,7 +630,8 @@ async function loadMembers() {
         <td>${m.join_date || '-'}</td>
         <td>${m.active ? 'Yes' : 'No'}</td>
         <td>
-          <button class="btn-sm" onclick="toggleMember('${m.name}', ${m.active ? 0 : 1})">${m.active ? 'Disable' : 'Enable'}</button>
+          <button class="btn-sm ${m.active ? 'danger' : 'success'}" onclick="toggleMember('${m.name}', ${m.active ? 0 : 1})">${m.active ? 'Disable' : 'Enable'}</button>
+          <button class="btn-sm danger" onclick="deleteMember('${m.name}')">Delete</button>
         </td>
       </tr>`).join('');
   } catch (e) { showToast(e.message, 'error'); }
@@ -641,6 +642,15 @@ async function toggleMember(name, active) {
     await apiPut('/api/admin/members/' + name, {active: !!active});
     loadMembers();
     showToast('Member updated', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteMember(name) {
+  if (!confirm('Delete member ' + name + '? This will also remove all their updates and leave records.')) return;
+  try {
+    await apiDelete('/api/admin/members/' + name);
+    loadMembers();
+    showToast('Member deleted', 'success');
   } catch (e) { showToast(e.message, 'error'); }
 }
 

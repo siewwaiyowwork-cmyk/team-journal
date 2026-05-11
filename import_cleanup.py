@@ -3,7 +3,7 @@ import csv
 import os
 import glob
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scoreboard.db")
+DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scoreboard.db")
 CLEANUP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cleanup")
 
 def read_csv(filepath):
@@ -26,7 +26,7 @@ def read_csv(filepath):
     return rows
 
 def main():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB)
     cur = conn.cursor()
 
     cur.execute("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_updates_dedup'")
