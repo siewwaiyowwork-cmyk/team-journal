@@ -913,10 +913,20 @@ function launchConfetti(x,y){
     var weeks=data.weeks;
     var modules=data.modules||[];
     var chartData=data.data||{};
-    var colors=['#FF6B6B','#4ECDC4','#FFE66D','#95E1D3','#F38181','#AA96DA'];
-    var datasets=modules.map(function(mod,i){
+    var colors=['#FF6B6B','#4ECDC4','#FFE66D','#95E1D3','#F38181','#AA96DA','#FCBAD3','#FFFFD2','#A8E6CF','#DCEDC1','#FFD3B6','#FFAAA5','#FF8B94','#B4A7D6','#C5CAE9','#BBDEFB'];
+    
+    // Calculate total done per module (sum across all weeks) and sort descending
+    var moduleTotals = {};
+    modules.forEach(function(mod){
+        var total = 0;
+        (chartData[mod] || []).forEach(function(v){ total += v || 0; });
+        moduleTotals[mod] = total;
+    });
+    var sortedModules = modules.slice().sort(function(a, b){ return moduleTotals[b] - moduleTotals[a]; });
+    
+    var datasets=sortedModules.map(function(mod,i){
         return{
-            label:mod,
+            label:mod + ' (' + moduleTotals[mod] + ')',
             data:chartData[mod]||weeks.map(function(){return 0;}),
             backgroundColor:colors[i%colors.length]+'20',
             borderColor:colors[i%colors.length],
