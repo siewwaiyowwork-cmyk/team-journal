@@ -196,10 +196,10 @@ def clear_config_cache():
 def set_config(key: str, value: str, description: str = None):
     conn = get_db()
     try:
-        desc_clause = ", description = ?" if description else ""
-        params = [value, key]
+        desc_clause = ", description = excluded.description" if description else ""
+        params = [key, value]
         if description:
-            params.insert(1, description)
+            params.append(description)
         conn.execute(f"INSERT INTO config (key, value, description) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value{desc_clause}", params)
         conn.commit()
         _CONFIG_CACHE[key] = str(value)
@@ -244,18 +244,6 @@ def get_working_statuses():
     if _WORKING_STATUS_CODES is None:
         return _load_working_statuses()
     return _WORKING_STATUS_CODES
-
-def set_config(key: str, value: str, description: str = None):
-    conn = get_db()
-    try:
-        desc_clause = ", description = ?" if description else ""
-        params = [value, key]
-        if description:
-            params.insert(1, description)
-        conn.execute(f"INSERT INTO config (key, value, description) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value{desc_clause}", params)
-        conn.commit()
-    finally:
-        conn.close()
 
 # Status helper functions
 def get_statuses(active_only: bool = True):
