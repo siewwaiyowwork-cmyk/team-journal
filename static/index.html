@@ -973,10 +973,10 @@ function launchConfetti(x,y){
 
             // Sort modules by total done count descending (most first) so largest appears on top
             var moduleTotals = {};
-            data.modules.forEach(function(mod, idx){
+            data.modules.forEach(function(mod){
                 var total = 0;
                 data.members.forEach(function(member){
-                    total += (data.data[member] && data.data[member][idx]) || 0;
+                    total += (data.data[member] && data.data[member][mod]) || 0;
                 });
                 moduleTotals[mod] = total;
             });
