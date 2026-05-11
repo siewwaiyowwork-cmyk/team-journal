@@ -1474,27 +1474,27 @@ function launchConfetti(x,y){
             
             const rpgStatsHtml = `
                 <div class="rpg-stats">
-                    <div class="rpg-stat" title="Completion Rate: done / (done + in_progress + blocked)">
+                    <div class="rpg-stat" title="Completion Rate: ${m.done || 0} done / (${m.done || 0} done + ${m.in_progress || 0} in_progress + ${m.blocked || 0} blocked) = ${m.completion_rate || 0}%">
                         <span class="rpg-stat-label">⚔️ ATK</span>
                         <div class="rpg-stat-bar"><div class="rpg-stat-fill attack" style="width:${m.completion_rate || 0}%"></div></div>
                         <span class="rpg-stat-val">${m.completion_rate || 0}</span>
                     </div>
-                    <div class="rpg-stat" title="Attendance: physical presence on workdays">
+                    <div class="rpg-stat" title="Attendance: ${m.total || 0} days present / ${totalWorkdays} workdays = ${m.attendance_pct || 0}% (includes leave as absent)">
                         <span class="rpg-stat-label">💚 STM</span>
                         <div class="rpg-stat-bar"><div class="rpg-stat-fill stamina" style="width:${m.attendance_pct || 0}%"></div></div>
                         <span class="rpg-stat-val">${m.attendance_pct || 0}</span>
                     </div>
-                    <div class="rpg-stat" title="Focus: consistency of daily logging over last 10 workdays">
+                    <div class="rpg-stat" title="Focus: ${activeCount} active days / 10 tracked days = ${focusPct}% (last 10 workdays)">
                         <span class="rpg-stat-label">🎯 FCS</span>
                         <div class="rpg-stat-bar"><div class="rpg-stat-fill focus" style="width:${focusPct}%"></div></div>
                         <span class="rpg-stat-val">${focusPct}</span>
                     </div>
-                    <div class="rpg-stat" title="Agility: speed of task closure (100 - IP/Done ratio * 10). Higher = faster closure.">
+                    <div class="rpg-stat" title="Agility: 100 - (${m.ip_done_ratio || 0} IP/Done × 10) = ${agilityPct}. ${m.ip_done_ratio || 0} in-progress per 1 done task. Lower IP/Done = higher agility.">
                         <span class="rpg-stat-label">⚡ AGI</span>
                         <div class="rpg-stat-bar"><div class="rpg-stat-fill agility" style="width:${agilityPct}%"></div></div>
                         <span class="rpg-stat-val">${agilityPct}</span>
                     </div>
-                    <div class="rpg-stat" title="Defense: resilience to blockers (100 - blocked rate). Higher = fewer blockers.">
+                    <div class="rpg-stat" title="Defense: 100 - ${blockedRate}% blocked = ${defensePct}%. Blocked tasks: ${m.blocked || 0} / ${m.total || 0} total. Lower blocked = higher defense.">
                         <span class="rpg-stat-label">🛡️ DEF</span>
                         <div class="rpg-stat-bar"><div class="rpg-stat-fill defense" style="width:${defensePct}%"></div></div>
                         <span class="rpg-stat-val">${defensePct}</span>
