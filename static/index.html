@@ -42,17 +42,15 @@
         .ov-row .lab{color:var(--text-dim)}.ov-row .val{font-weight:600}
         .badge-grid{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0}
         .bdg{font-size:.68em;padding:2px 5px;border-radius:4px;font-weight:600;font-family:'JetBrains Mono',monospace}
-        .bdg-gr{background:rgba(0,230,118,.2);color:var(--green)}.bdg-or{background:rgba(255,145,0,.2);color:var(--orange)}.bdg-gy{background:var(--surface2);color:var(--text-dim)}.bdg-rd{background:rgba(255,23,68,.2);color:var(--red);border:1px solid rgba(255,23,68,.3)}
+        /* bdg activity styles now injected dynamically via injectStatusStyles() */
         .activity-label{font-size:.65em;color:var(--text-dim);margin-left:6px;font-family:'JetBrains Mono',monospace}
         .recent-tasks{margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
         .recent-tasks-title{font-size:.78em;color:var(--text-dim);margin-bottom:8px;font-weight:600}
         .task-entry{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82em;align-items:flex-start}
         .task-entry:last-child{border:none}
         .task-date{color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:.82em;min-width:70px;flex-shrink:0;margin-top:2px}
-        .task-text{color:var(--text);flex:1}.task-text.vague{color:var(--orange);font-style:italic}
-        .task-done{font-size:.72em;padding:1px 5px;border-radius:4px;background:rgba(0,230,118,.15);color:var(--green);font-weight:600;flex-shrink:0}
-        .task-progress{font-size:.72em;padding:1px 5px;border-radius:4px;background:rgba(0,229,255,.15);color:var(--accent);font-weight:600;flex-shrink:0}
-        .task-vague{font-size:.72em;padding:1px 5px;border-radius:4px;background:rgba(255,145,0,.15);color:var(--orange);font-weight:600;flex-shrink:0}
+        .task-text{color:var(--text);flex:1}
+
         .overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
         .detail-view{display:none}.detail-view.active{display:block}
         .overview-section.hidden{display:none}
@@ -111,8 +109,6 @@
         .streak-cell:hover{transform:scale(1.3);z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.5)}
         .streak-cell.weekend{background:rgba(40,100,180,.55);color:rgba(200,220,255,.5)}
         .streak-cell.ph{background:rgba(230,150,40,.45);color:rgba(255,220,120,.6)}
-        .streak-cell.done{background-color:var(--green);color:#000}
-        .streak-cell.leave{background-color:rgba(255,23,68,.3);color:rgba(255,200,200,.7)}
         .streak-cell.intense{background-color:var(--yellow);color:#000}
         .streak-cell.today{border:1px solid var(--accent)}
 .header-emoji{font-size:1.2em;margin-right:6px;display:inline-block;animation:emoji-bounce 2s ease-in-out infinite}
@@ -149,12 +145,7 @@
 .holiday-year{margin:16px 0 8px;font-weight:700;font-size:1.05em;color:var(--accent);display:flex;align-items:center;gap:8px}
 .holiday-year::after{content:'';flex:1;height:1px;background:var(--border);opacity:.5}
         .cal-grid{display:grid;grid-template-columns:repeat(21,1fr);gap:2px;padding:10px 0}
-        .cal-cell{aspect-ratio:1;border-radius:2px;background:var(--bg);font-size:.5em;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
-        .cal-cell.weekend{background:rgba(40,100,180,.55);color:rgba(180,210,255,.85)}
-        .cal-cell.ph{background:rgba(230,150,40,.45);color:rgba(255,220,120,.9)}
-        .cal-cell.has-update{background:var(--green);color:#000}
-        .cal-cell.leave{background:rgba(255,23,68,.3)}
-        .cal-cell.today{border:1px solid var(--accent)}
+        /* cal-cell styles removed — 21-day calendar replaced by 90-day streak grid */
         @keyframes celebIn{0%{opacity:0;transform:scale(.8)}100%{opacity:1;transform:scale(1)}}
         @keyframes celebOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.9)}}
         @keyframes celebEmoji{0%{transform:scale(0) rotate(-20deg)}60%{transform:scale(1.2) rotate(5deg)}100%{transform:scale(1) rotate(0)}}
@@ -217,10 +208,7 @@
         .timeline-table tr.mon-odd{background:rgba(0,230,118,.025)}
         .tl-date{color:var(--accent);font-family:'JetBrains Mono',monospace;white-space:nowrap}
         .tl-type{font-size:.72em;padding:2px 8px;border-radius:4px;font-weight:600;white-space:nowrap}
-        .tl-type.specific{background:rgba(0,230,118,.15);color:var(--green)}
-        .tl-type.vague{background:rgba(255,145,0,.15);color:var(--orange)}
-        .tl-type.color{background:rgba(0,229,255,.15);color:var(--accent)}
-        .tl-type.leave{background:rgba(255,23,68,.15);color:var(--red)}
+        /* .tl-type status classes now injected dynamically */
         .section-title{font-size:1.8em;font-weight:700;margin:30px 0 20px;padding-bottom:10px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:12px}
         .section-title .badge{font-size:.5em;padding:4px 12px;border-radius:20px;background:var(--surface2);color:var(--text-dim)}
         .leave-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:40px}
@@ -302,7 +290,7 @@
         .word-bar{flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden}.word-bar-fill{height:100%;border-radius:2px;transition:width .3s,background .3s}
         .status-row2{display:flex;gap:8px;flex-wrap:wrap}
         .st-btn{flex:1;min-width:100px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-family:'Syne',sans-serif;font-size:.82em;font-weight:600;padding:10px 8px;cursor:pointer;transition:.15s;text-align:center}
-        .st-btn.ip.sel{border-color:var(--accent);background:rgba(0,229,255,.08);color:var(--accent)}.st-btn.dn.sel{border-color:var(--green);background:rgba(0,230,118,.08);color:var(--green)}.st-btn.bl.sel{border-color:var(--red);background:rgba(255,23,68,.08);color:var(--red)}.st-btn.lv.sel{border-color:var(--orange);background:rgba(255,145,0,.08);color:var(--orange)}
+                /* .st-btn selected styles injected dynamically via injectStatusStyles() */
         .panel-submit-btn{width:100%;background:var(--accent);color:#0a0a0f;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-size:1em;font-weight:700;padding:14px;cursor:pointer;margin-top:20px;transition:.2s}.panel-submit-btn:hover:not(:disabled){background:#33eeff}.panel-submit-btn:disabled{background:var(--surface2);color:var(--text-dim);cursor:not-allowed}
         .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:#1a2a1a;border:1px solid var(--green);border-radius:12px;padding:14px 22px;color:var(--green);font-weight:600;font-size:.9em;z-index:500;transition:transform .35s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap}.toast.show{transform:translateX(-50%) translateY(0)}.toast.err{background:#2a1a1a;border-color:var(--red);color:var(--red)}
         .mode-toggle{display:flex;gap:6px;margin-bottom:16px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:4px}
@@ -334,10 +322,7 @@
         .live-table td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text);vertical-align:top}
         .live-table tr:last-child td{border:none}
         .live-table td:first-child{color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:.8em;white-space:nowrap}
-        .live-badge-done{background:rgba(0,230,118,.15);color:var(--green);border-radius:4px;padding:1px 7px;font-size:.75em;font-weight:600;white-space:nowrap}
-        .live-badge-prog{background:rgba(0,229,255,.12);color:var(--accent);border-radius:4px;padding:1px 7px;font-size:.75em;font-weight:600;white-space:nowrap}
-        .live-badge-blk{background:rgba(255,23,68,.12);color:var(--red);border-radius:4px;padding:1px 7px;font-size:.75em;font-weight:600;white-space:nowrap}
-        .live-badge-lv{background:rgba(255,145,0,.12);color:var(--orange);border-radius:4px;padding:1px 7px;font-size:.75em;font-weight:600;white-space:nowrap}
+                /* live-badge styles now injected dynamically via injectStatusStyles() */
         .live-loading{color:var(--text-dim);font-size:.85em;text-align:center;padding:20px}
         .live-mod{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-family:'JetBrains Mono',monospace;font-size:.75em;color:var(--text-dim);white-space:nowrap;margin-right:5px}
         .ph-notice{display:flex;align-items:flex-start;gap:10px;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.12);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:.8em;color:var(--text-dim)}
@@ -351,10 +336,8 @@
         .task-module-badge{font-size:.68em;padding:2px 7px;border-radius:4px;font-weight:600;font-family:'JetBrains Mono',monospace;text-transform:uppercase;background:var(--surface2);color:var(--text-dim);border:1px solid var(--border);flex-shrink:0;white-space:nowrap}
         .task-desc{color:var(--text);flex:1;line-height:1.35}
         .task-status-pill{font-size:.72em;padding:2px 9px;border-radius:10px;font-weight:600;white-space:nowrap;flex-shrink:0}
-        .task-status-pill.in_progress{background:rgba(0,229,255,.15);color:var(--accent)}
-        .task-status-pill.done{background:rgba(0,230,118,.15);color:var(--green)}
-        .task-status-pill.blocked{background:rgba(255,23,68,.15);color:var(--red)}
-        .task-status-pill.leave{background:rgba(255,145,0,.15);color:var(--orange)}\n        .task-status-pill.vague{background:rgba(255,145,0,.15);color:var(--orange)}
+        /* task-status-pill dynamic class styles injected via injectStatusStyles() */
+        /* more task-status-pill classes removed - now dynamic */
         .task-empty-state{text-align:center;padding:20px;color:var(--text-dim);font-style:italic;font-size:.9em}
         .task-loading{text-align:center;padding:20px;color:var(--text-dim);font-size:.85em}
         .task-edit-btn:hover{border-color:var(--accent);color:var(--accent)}
@@ -395,7 +378,8 @@
             <div class="stats-row" id="statsRow"></div>
 <div id="goalSection" style="display:none"></div>
             <div class="header-actions">
-                <button class="btn-submit" onclick="openPanel()">+ Submit Today's Update</button>
+                <button class="btn-submit" onclick="openPanel()">+ Submit Today Update</button>
+                <a href="/admin" class="back-btn" style="margin-bottom:0;text-decoration:none">Admin</a>
             </div>
         </div>
 
@@ -433,8 +417,8 @@
             <section id="on-leave">
                 <div class="section-title">Leave Analysis <span class="badge">2026 · Sorted by total</span></div>
                 <div class="leave-charts">
-                    <div class="leave-chart-wrap"><div class="chart-title">Total Leave (AL + MC + Others)</div><div class="leave-area"><div class="leave-y-axis" id="leave-all-y"></div><div class="leave-right"><div class="leave-chart" id="leave-all"></div><div class="leave-xaxis" id="leave-all-x"></div></div></div><div class="leave-legend"><span><i class="leave-seg-v al"></i>Annual</span><span><i class="leave-seg-v mc"></i>MC</span><span><i class="leave-seg-v ot"></i>Others</span></div></div>
-                    <div class="leave-chart-wrap"><div class="chart-title">MC Only</div><div class="leave-area"><div class="leave-y-axis" id="leave-mc-y"></div><div class="leave-right"><div class="leave-chart" id="leave-mc"></div><div class="leave-xaxis" id="leave-mc-x"></div></div></div></div>
+                    <div class="leave-chart-wrap"><div class="chart-title" id="leave-all-title">Total Leave</div><div class="leave-area"><div class="leave-y-axis" id="leave-all-y"></div><div class="leave-right"><div class="leave-chart" id="leave-all"></div><div class="leave-xaxis" id="leave-all-x"></div></div></div><div class="leave-legend" id="leave-all-legend"><span><i class="leave-seg-v al"></i>Annual</span><span><i class="leave-seg-v mc"></i>MC</span><span><i class="leave-seg-v el"></i>EL</span><span><i class="leave-seg-v ot"></i>Others</span></div></div>
+                    <div class="leave-chart-wrap"><div class="chart-title" id="leave-mc-title">MC Only</div><div class="leave-area"><div class="leave-y-axis" id="leave-mc-y"></div><div class="leave-right"><div class="leave-chart" id="leave-mc"></div><div class="leave-xaxis" id="leave-mc-x"></div></div></div></div>
                 </div>
             </section>
             
@@ -446,11 +430,6 @@
                 </div>
                 <div id="holidayPanel" style="display:none">
                     <div class="holiday-card">
-                        <div class="holiday-inputs">
-                            <input type="date" id="holidayDate" placeholder="Date" value="">
-                            <input type="text" id="holidayName" placeholder="Holiday name" value="">
-                            <button onclick="addHoliday()">Add</button>
-                        </div>
                         <div id="holidayCalendar"><div class="task-empty-state">No holidays defined yet</div></div>
                     </div>
                 </div>
@@ -515,11 +494,8 @@
             </div>
             <div class="field-group">
                 <span class="field-label">Status <span>*</span></span>
-                <div class="status-row2">
-                    <button class="st-btn ip" data-val="in_progress" onclick="selSt(this)">In Progress</button>
-                    <button class="st-btn dn" data-val="done" onclick="selSt(this)">Done</button>
-                    <button class="st-btn bl" data-val="blocked" onclick="selSt(this)">Blocked</button>
-                    <button class="st-btn lv" data-val="leave" onclick="selSt(this)">Leave</button>
+                <div class="status-row2" id="pStatusGrid">
+                    <!-- Status buttons rendered dynamically by renderStatusButtons() -->
                 </div>
             </div>
             <div class="field-group" id="leaveTypeGroup" style="display:none">
@@ -545,6 +521,275 @@
     var MEMBERS = [];
     const MODS = ['san','myd','rpp','dnp','nebula','twanel','swiper','fi','osp','nats','ta','ci/cd','load test','bug fix','deploy','study','support'];
 
+    let APP_CONFIG = {
+        statuses: [],
+        levels: [],
+        leaveTypes: [],
+        thresholds: {
+            specificity_s: 95,
+            specificity_a: 85,
+            specificity_b: 70,
+            specificity_c: 50,
+            activity_godlike: 0.9,
+            activity_active: 0.6,
+            activity_coma: 0.3,
+            activity_ghost: 0.1,
+            goal_target: 50,
+            earlybird_hour: 9,
+            nightowl_hour: 22
+        }
+    };
+
+    function getConfig(key, fallback){
+        if(APP_CONFIG.thresholds && APP_CONFIG.thresholds[key] !== undefined){
+            var val = APP_CONFIG.thresholds[key];
+            if(typeof val === 'string') val = parseFloat(val);
+            return val;
+        }
+        return fallback;
+    }
+
+    // ── DYNAMIC STATUS STYLE HELPERS ────────────────────────────
+    // Fallback map used before API config loads
+    var STATUS_FALLBACK = {
+        'in_progress': {label:'In Progress', color:'#f0ad4e'},
+        'done':        {label:'Done',        color:'#5cb85c'},
+        'blocked':     {label:'Blocked',     color:'#d9534f'},
+        'leave':       {label:'Leave',       color:'#5bc0de'},
+        'vague':       {label:'Vague',       color:'#777'}
+    };
+
+    function getStatusStyle(code){
+        if(!code) return {label:code, color:'#777'};
+        var s = (APP_CONFIG.statuses||[]).find(function(st){return st.code===code;});
+        if(s) return {label:s.label, color:s.color};
+        var fb = STATUS_FALLBACK[code];
+        return fb || {label:code, color:'#777'};
+    }
+
+    // Map status codes to the short abbreviation class suffixes used by submit panel
+    var STATUS_CLASS_MAP = {'in_progress':'ip','done':'dn','blocked':'bl','leave':'lv','vague':'vg'};
+
+    function injectStatusStyles(){
+        var statuses = APP_CONFIG.statuses.length ? APP_CONFIG.statuses : Object.keys(STATUS_FALLBACK).map(function(k){return {code:k, label:STATUS_FALLBACK[k].label, color:STATUS_FALLBACK[k].color};});
+        var css = '';
+        statuses.forEach(function(st){
+            var c = st.color;
+            // Generate rgba with 15% opacity for backgrounds
+            var r = parseInt(c.slice(1,3),16);
+            var g = parseInt(c.slice(3,5),16);
+            var b = parseInt(c.slice(5,7),16);
+            var bg15 = 'rgba('+r+','+g+','+b+',0.15)';
+            var bg08 = 'rgba('+r+','+g+','+b+',0.08)';
+            var bg12 = 'rgba('+r+','+g+','+b+',0.12)';
+
+            // task-status-pill classes
+            css += '.task-status-pill.'+st.code+'{background:'+bg15+';color:'+c+'}\n';
+
+            // submit panel st-btn selected styles
+            var shortClass = STATUS_CLASS_MAP[st.code] || st.code;
+            css += '.st-btn.'+shortClass+'.sel{border-color:'+c+';background:'+bg08+';color:'+c+'}\n';
+
+            // live feed badges
+            if(st.code==='done')       css += '.live-badge-done{background:'+bg15+';color:'+c+';border-radius:4px;padding:1px 7px;font-size:.75em;font-weight:600;white-space:nowrap}\n';
+            if(st.code==='in_progress') css += '.live-badge-prog{background:'+bg12+';color:'+c+';border-radius:4px;padding:1px 7px;font-size:.75em;font-weight:600;white-space:nowrap}\n';
+            if(st.code==='blocked')     css += '.live-badge-blk{background:'+bg12+';color:'+c+';border-radius:4px;padding:1px 7px;font-size:.75em;font-weight:600;white-space:nowrap}\n';
+            if(st.code==='leave')       css += '.live-badge-lv{background:'+bg12+';color:'+c+';border-radius:4px;padding:1px 7px;font-size:.75em;font-weight:600;white-space:nowrap}\n';
+
+            // tl-type classes (used in timeline table)
+            if(st.code==='done')        css += '.tl-type.specific{background:'+bg15+';color:'+c+'}\n';
+            if(st.code==='vague')       css += '.tl-type.vague{background:'+bg15+';color:'+c+'}\n';
+            if(st.code==='in_progress') css += '.tl-type.color{background:'+bg15+';color:'+c+'}\n';
+            if(st.code==='leave')       css += '.tl-type.leave{background:'+bg12+';color:'+c+'}\n';
+
+            // task-text styling for vague descriptions
+            if(st.code==='vague') css += '.task-text.vague{color:'+c+';font-style:italic}\n';
+
+            // bdg activity badges mapped to status colors
+            if(st.code==='done')        css += '.bdg-gr{background:'+bg15+';color:'+c+'}\n';
+            if(st.code==='vague')       css += '.bdg-or{background:'+bg15+(';color:'+c)+'}\n';
+            if(st.code==='leave')       css += '.bdg-gy{background:var(--surface2);color:'+c+'}\n';
+            if(st.code==='blocked')     css += '.bdg-rd{background:'+bg15+';color:'+c+';border:1px solid '+c+'4d}\n';
+
+            // streak-cell status colors (90-day streak grid)
+            if(st.code==='done')   css += '.streak-cell.done{background-color:'+c+';color:#000}\n';
+            if(st.code==='leave')  css += '.streak-cell.leave{background-color:rgba('+r+','+g+','+b+',0.3);color:rgba('+r+','+g+','+b+',0.7)}\n';
+        });
+
+        // Inject or replace the dynamic style element
+        var el = document.getElementById('dynamic-status-styles');
+        if(!el){
+            el = document.createElement('style');
+            el.id = 'dynamic-status-styles';
+            document.head.appendChild(el);
+        }
+        el.textContent = css;
+    }
+
+    function renderStatusButtons(){
+        var container = document.querySelector('.status-row2');
+        if(!container) return;
+        container.innerHTML = '';
+        var statuses = APP_CONFIG.statuses.length ? APP_CONFIG.statuses : Object.keys(STATUS_FALLBACK).map(function(k){return {code:k, label:STATUS_FALLBACK[k].label, color:STATUS_FALLBACK[k].color};});
+        statuses.forEach(function(st){
+            var shortClass = STATUS_CLASS_MAP[st.code] || st.code;
+            var btn = document.createElement('button');
+            btn.className = 'st-btn ' + shortClass;
+            btn.dataset.val = st.code;
+            btn.textContent = st.label;
+            btn.onclick = function(){ selSt(this); };
+            container.appendChild(btn);
+        });
+    }
+
+    // Generate a status pill span with dynamic inline styles
+    function statusPillHtml(code, label){
+        var st = getStatusStyle(code);
+        var l = label || st.label;
+        var r = parseInt(st.color.slice(1,3),16);
+        var g = parseInt(st.color.slice(3,5),16);
+        var b = parseInt(st.color.slice(5,7),16);
+        return '<span class="task-status-pill '+code+'">'+l+'</span>';
+    }
+
+    // Generate an inline-styled badge for activity ticker
+    function statusBadgeHtml(code, label){
+        var st = getStatusStyle(code);
+        var l = label || st.label;
+        var r = parseInt(st.color.slice(1,3),16);
+        var g = parseInt(st.color.slice(3,5),16);
+        var b = parseInt(st.color.slice(5,7),16);
+        var bg = 'rgba('+r+','+g+','+b+',0.15)';
+        return '<span style="background:'+bg+';color:'+st.color+';border-radius:4px;padding:1px 7px;font-size:.75em;font-weight:600;white-space:nowrap">'+l+'</span>';
+    }
+
+    // Default leave type fallbacks (used when API hasn't loaded or fails)
+    const DEFAULT_LEAVE_TYPES = [
+        {code: 'AL', label: 'Annual Leave', description: 'Standard annual leave entitlement', active: 1, color: 'rgba(0,229,255,0.7)'},
+        {code: 'MC', label: 'Medical Certificate', description: 'Sick leave with medical certificate', active: 1, color: 'rgba(255,23,68,0.7)'},
+        {code: 'EL', label: 'Emergency Leave', description: 'Unplanned emergency leave', active: 1, color: 'rgba(0,230,118,0.7)'}
+    ];
+
+    // Get active leave types from config, with hardcoded fallback
+    function getActiveLeaveTypes() {
+        const types = (APP_CONFIG.leaveTypes && APP_CONFIG.leaveTypes.length > 0)
+            ? APP_CONFIG.leaveTypes.filter(lt => lt.active)
+            : DEFAULT_LEAVE_TYPES;
+        return types;
+    }
+
+    // Get leave type description map from config
+    function getLeaveDescMap() {
+        const map = {};
+        const types = getActiveLeaveTypes();
+        types.forEach(lt => { map[lt.code] = lt.label; });
+        // Hardcoded fallbacks for backwards compat with codes not in API
+        map['CL'] = map['CL'] || 'Compassionate Leave';
+        map['Others'] = 'Others';
+        return map;
+    }
+
+    // Build leave color map from config (with fallbacks)
+    function getLeaveColorMap() {
+        const map = {};
+        const types = getActiveLeaveTypes();
+        types.forEach(lt => {
+            map[lt.code] = lt.color || DEFAULT_LEAVE_TYPES.find(d => d.code === lt.code)?.color || 'rgba(255,214,0,0.7)';
+        });
+        map['Others'] = 'rgba(255,214,0,0.7)';
+        return map;
+    }
+
+    // Get all leave type codes (active ones + 'Others')
+    function getLeaveTypeCodes() {
+        const codes = getActiveLeaveTypes().map(lt => lt.code);
+        if (!codes.includes('Others')) codes.push('Others');
+        return codes;
+    }
+
+    // Build dynamic CSS for leave segment colors
+    function injectLeaveTypeStyles() {
+        const colorMap = getLeaveColorMap();
+        let css = '';
+        const cssMap = {'AL':'al','MC':'mc','EL':'el','Others':'ot'};
+        Object.entries(colorMap).forEach(([code, color]) => {
+            const cls = cssMap[code] || code.toLowerCase().replace(/[^a-z0-9]/g,'');
+            css += `.leave-seg-v.${cls}{background:${color}}\n`;
+        });
+        // Add legend items that use same class
+        Object.entries(colorMap).forEach(([code, color]) => {
+            const cls = cssMap[code] || code.toLowerCase().replace(/[^a-z0-9]/g,'');
+            css += `.leave-legend i.leave-seg-v.${cls}{background:${color}}\n`;
+        });
+        let styleEl = document.getElementById('dynamic-leave-styles');
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'dynamic-leave-styles';
+            document.head.appendChild(styleEl);
+        }
+        styleEl.textContent = css;
+    }
+
+    // Populate leave type selector buttons dynamically
+    function populateLeaveTypeSelector() {
+        const wrap = document.getElementById('leaveTypeWrap');
+        if (!wrap) return;
+        wrap.innerHTML = '';
+        const types = getActiveLeaveTypes();
+        types.forEach(lt => {
+            const btn = document.createElement('button');
+            btn.className = 'mod-chip';
+            btn.dataset.type = lt.code;
+            btn.textContent = lt.label + ' (' + lt.code + ')';
+            btn.onclick = function() { selLeaveType(this); };
+            wrap.appendChild(btn);
+        });
+        // Always add Others option
+        const othersBtn = document.createElement('button');
+        othersBtn.className = 'mod-chip';
+        othersBtn.dataset.type = 'Others';
+        othersBtn.textContent = 'Others';
+        othersBtn.onclick = function() { selLeaveType(this); };
+        wrap.appendChild(othersBtn);
+    }
+
+    async function loadAppConfig(){
+        try{
+            const [statusRes, levelRes, leaveRes, configRes] = await Promise.all([
+                fetch(`${API_URL}/api/statuses`),
+                fetch(`${API_URL}/api/levels`),
+                fetch(`${API_URL}/api/leave_types`),
+                fetch(`${API_URL}/api/config`)
+            ]);
+            const statusData = await statusRes.json();
+            const levelData = await levelRes.json();
+            const leaveData = await leaveRes.json();
+            const configData = await configRes.json();
+            if(statusData.statuses) APP_CONFIG.statuses = statusData.statuses;
+            if(levelData.levels) APP_CONFIG.levels = levelData.levels;
+            if(leaveData.leave_types) APP_CONFIG.leaveTypes = leaveData.leave_types;
+            if(configData.config && Array.isArray(configData.config)){
+                configData.config.forEach(function(item){
+                    if(item.key && APP_CONFIG.thresholds.hasOwnProperty(item.key)){
+                        var parsed = parseFloat(item.value);
+                        if(!isNaN(parsed)) APP_CONFIG.thresholds[item.key] = parsed;
+                    }
+                });
+            }
+            // Inject dynamic status styles after config loads
+            injectStatusStyles();
+            renderStatusButtons();
+        }catch(e){
+            console.error('Failed to load app config',e);
+            // Still inject fallback styles
+            injectStatusStyles();
+            renderStatusButtons();
+        }
+        // Inject dynamic styles and populate selectors after config loads
+        injectLeaveTypeStyles();
+        populateLeaveTypeSelector();
+    }
+
     async function loadMembers(){
         try{
             const res = await fetch(`${API_URL}/api/members`);
@@ -563,13 +808,16 @@
 
     function processLeaveData(apiLeave) {
         const data = {};
+        const codes = getLeaveTypeCodes();
         for (const m of MEMBERS) {
-            data[m] = {AL:0, MC:0, EL:0, Others:0, total:0};
+            const entry = {total:0};
+            codes.forEach(c => { entry[c] = 0; });
+            data[m] = entry;
         }
         for (const row of apiLeave) {
             if (data[row.name]) {
                 const type = row.type;
-                if (type === 'AL' || type === 'MC' || type === 'EL') {
+                if (data[row.name].hasOwnProperty(type)) {
                     data[row.name][type] = row.total;
                 } else {
                     data[row.name].Others = (data[row.name].Others || 0) + row.total;
@@ -601,7 +849,7 @@
     if(!el||!data){if(el)el.style.display='none';return;}
     var fill=Math.min(100,Math.max(0,data.percentage||0));
     var contrib=(data.top_contributors||[]).map(function(c){return'<span>'+c.name+' '+c.done+'</span>';}).join('');
-    el.innerHTML='<div class="goal-section"><div class="goal-header"><span class="goal-title">Monthly Goal: '+(data.current||0)+'/'+(data.target||50)+' Done Tasks · '+(data.month_name||'')+'</span><span class="goal-pct">'+fill+'%</span></div><div class="goal-track"><div class="goal-fill" style="width:'+fill+'%"></div></div><div class="goal-contributors">'+contrib+'</div></div>';
+    el.innerHTML='<div class="goal-section"><div class="goal-header"><span class="goal-title">Monthly Goal: '+(data.current||0)+'/'+(data.target||getConfig('goal_target',50))+' Done Tasks · '+(data.month_name||'')+'</span><span class="goal-pct">'+fill+'%</span></div><div class="goal-track"><div class="goal-fill" style="width:'+fill+'%"></div></div><div class="goal-contributors">'+contrib+'</div></div>';
     el.style.display='block';
 }
 function renderPulse(data){
@@ -613,8 +861,8 @@ function renderPulse(data){
             var el=document.getElementById('activityTicker');
     if(!el||!data.activity||!data.activity.length){if(el)el.style.display='none';return;}
     var items=data.activity.slice(0,10).map(function(a){
-        var doneClass=a.status==='done'?'t-done':'';
-        return'<div class="ticker-item"><span class="t-name">'+a.name+'</span><span class="'+doneClass+'">'+(a.status_label||a.status)+'</span>'+(a.module?'<span style="color:var(--text-dim)">'+a.module+'</span>':'')+'</div>';
+        var badgeHtml = statusBadgeHtml(a.status, a.status_label);
+        return'<div class="ticker-item"><span class="t-name">'+a.name+'</span>'+badgeHtml+(a.module?'<span style="color:var(--text-dim)">'+a.module+'</span>':'')+'</div>';
     }).join('');
     el.innerHTML='<div class="activity-ticker"><div class="ticker-title">Recent</div><div class="ticker-items">'+items+'</div></div>';
     el.style.display='block';
@@ -689,6 +937,7 @@ function launchConfetti(x,y){
     },100);
 }
 
+    var moduleDoneChart = null;
     function renderModuleDoneChart(data){
             var container = document.getElementById('module-done-container');
             if(!container) return;
@@ -714,8 +963,7 @@ function launchConfetti(x,y){
             var sortedData = {};
             data.members.forEach(function(member){
                 sortedData[member] = sortedModules.map(function(mod){
-                    var originalIdx = data.modules.indexOf(mod);
-                    return (data.data[member] && data.data[member][originalIdx]) || 0;
+                    return (data.data[member] && data.data[member][mod]) || 0;
                 });
             });
 
@@ -738,7 +986,10 @@ function launchConfetti(x,y){
             });
 
             setTimeout(function(){
-                new Chart(document.getElementById('module-done-canvas'), {
+                if (moduleDoneChart) {
+                    moduleDoneChart.destroy();
+                }
+                moduleDoneChart = new Chart(document.getElementById('module-done-canvas'), {
                     type: 'bar',
                     data: {
                         labels: sortedModules,
@@ -966,54 +1217,11 @@ function launchConfetti(x,y){
         el.innerHTML = html;
     }
 
-    async function addHoliday(){
-        var date = document.getElementById('holidayDate').value;
-        var name = document.getElementById('holidayName').value.trim();
-        if(!date || !name){
-            showToast('Please enter both date and name', 'err');
-            return;
-        }
-        try{
-            var fd = new FormData();
-            fd.append('date', date);
-            fd.append('name', name);
-            var res = await fetch(`${API_URL}/api/holidays`, {method:'POST', body:fd});
-            var data = await res.json();
-            if(data.success){
-                showToast('Holiday added: '+name);
-                await loadHolidays();
-                document.getElementById('holidayName').value='';
-                location.reload();
-            }else{
-                showToast(data.detail || 'Failed to add holiday', 'err');
-            }
-        }catch(e){
-            showToast('Error adding holiday', 'err');
-        }
-    }
-
-    async function deleteHoliday(date){
-        if(!confirm('Delete holiday on '+date+'?')) return;
-        try{
-            var res = await fetch(`${API_URL}/api/holidays/`+encodeURIComponent(date), {method:'DELETE'});
-            var data = await res.json();
-            if(data.success){
-                showToast('Holiday deleted');
-                await loadHolidays();
-                location.reload();
-            }else{
-                showToast('Failed to delete holiday', 'err');
-            }
-        }catch(e){
-            showToast('Error deleting holiday', 'err');
-        }
-    }
-
     function isPH(ymd){return !!window.holidayMap[ymd];}
     function getHolidayName(ymd){return window.holidayMap[ymd];}
 
-
     async function initDashboard(){
+        await loadAppConfig();
         await loadMembers();
         await loadHolidays();
         try{
@@ -1175,10 +1383,10 @@ function launchConfetti(x,y){
     }
 
     function getBadgeClass(specificity){
-        if(specificity >= 95) return ['badge-s','S'];
-        if(specificity >= 85) return ['badge-a','A'];
-        if(specificity >= 70) return ['badge-b','B'];
-        if(specificity >= 50) return ['badge-c','C'];
+        if(specificity >= getConfig('specificity_s', 95)) return ['badge-s','S'];
+        if(specificity >= getConfig('specificity_a', 85)) return ['badge-a','A'];
+        if(specificity >= getConfig('specificity_b', 70)) return ['badge-b','B'];
+        if(specificity >= getConfig('specificity_c', 50)) return ['badge-c','C'];
         return ['badge-x','F'];
     }
 
@@ -1201,17 +1409,18 @@ function launchConfetti(x,y){
             const activeCount = m.activity.filter(function(d){ return d.status !== 'missing'; }).length;
             const activePct = activeCount / m.activity.length;
             let statusText, statusColor, statusEmoji;
-            if(activePct >= 0.9){ statusText='GODLIKE'; statusColor='var(--green)'; statusEmoji='🔥'; }
-            else if(activePct >= 0.6){ statusText='ACTIVE'; statusColor='var(--yellow)'; statusEmoji='⚡'; }
-            else if(activePct >= 0.3){ statusText='COMA'; statusColor='var(--orange)'; statusEmoji='🛌'; }
-            else if(activePct >= 0.1){ statusText='GHOST'; statusColor='var(--red)'; statusEmoji='👻'; }
+            if(activePct >= getConfig('activity_godlike', 0.9)){ statusText='GODLIKE'; statusColor='var(--green)'; statusEmoji='🔥'; }
+            else if(activePct >= getConfig('activity_active', 0.6)){ statusText='ACTIVE'; statusColor='var(--yellow)'; statusEmoji='⚡'; }
+            else if(activePct >= getConfig('activity_coma', 0.3)){ statusText='COMA'; statusColor='var(--orange)'; statusEmoji='🛌'; }
+            else if(activePct >= getConfig('activity_ghost', 0.1)){ statusText='GHOST'; statusColor='var(--red)'; statusEmoji='👻'; }
             else{ statusText='FOSSIL'; statusColor='var(--bronze)'; statusEmoji='🦴'; }
-            if(activePct >= 0.6) fireCards.push(m.name);
+            if(activePct >= getConfig('activity_active', 0.6)) fireCards.push(m.name);
             
             const recentHtml = (m.recent||[]).slice(0,5).map(r=>{
                 const st = (r.status||'').toLowerCase();
+                const ss = getStatusStyle(r.status);
                 const descClass = st==='vague'?'vague':'';
-                const statusLabel = st==='done'?'done':st==='blocked'?'blocked':st==='leave'?'leave':st==='vague'?'vague':'in prog';
+                const statusLabel = ss.label;
                 return `<div class="task-entry"><span class="task-date">${r.date.slice(5)}</span><span class="task-text ${descClass}">${r.description}</span><span class="task-status-pill ${r.status}">${statusLabel}</span></div>`;
             }).join('');
             
@@ -1416,8 +1625,8 @@ function launchConfetti(x,y){
         progress.classList.add('visible');
         
         var entries = dates.map(d=>{
-            var leaveDescMap={'AL':'Annual Leave','MC':'Medical Certificate','EL':'Emergency Leave','CL':'Compassionate Leave'};
-            var leaveDesc=leaveDescMap[pLeaveType] || (pLeaveType ? pLeaveType + ' Leave' : 'Leave');
+            var leaveDescMap2=getLeaveDescMap();
+            var leaveDesc=leaveDescMap2[pLeaveType] || (pLeaveType ? pLeaveType + ' Leave' : 'Leave');
             var entry = {
                 date: d,
                 name: pName.toLowerCase().trim(),
@@ -1626,8 +1835,8 @@ function launchConfetti(x,y){
         if(peakHour){
             const h = parseInt(peakHour[0]);
             let label = '';
-            if(h < 9) label = 'Early Bird — most active before 9am';
-            else if(h >= 22) label = 'Night Owl — most active after 10pm';
+            if(h < getConfig('earlybird_hour', 9)) label = 'Early Bird — most active before 9am';
+            else if(h >= getConfig('nightowl_hour', 22)) label = 'Night Owl — most active after 10pm';
             else if(h >= 18) label = 'Late Worker — most active in the evening';
             else label = `Peak at ${h}:00 — your most productive hour`;
             if(peakHour[1] >= 5){
@@ -1683,8 +1892,11 @@ function launchConfetti(x,y){
             updates = updates.filter(u => u.date >= range.from && u.date <= range.to);
         }
 
-        // Get leave for this person
-        const leave = leaveData[name] || {AL:0, MC:0, Others:0, total:0};
+        // Get leave for this person (dynamic leave type codes with fallback)
+        const leaveDefault = {};
+        getLeaveTypeCodes().forEach(c => { leaveDefault[c] = 0; });
+        leaveDefault.total = 0;
+        const leave = leaveData[name] || leaveDefault;
 
         // Counts
         const doneCount = updates.filter(u => u.status === 'done').length;
@@ -1701,7 +1913,7 @@ function launchConfetti(x,y){
         const totalWorkdays = (window.currentRange && window.currentRange.workdays) ? window.currentRange.workdays : 56;
 
         // Attendance = (total workdays - absent days) / total workdays
-        const absentDays = (leave.AL || 0) + (leave.MC || 0) + (leave.EL || 0) + (leave.Others || 0);
+        const absentDays = getLeaveTypeCodes().reduce((sum, code) => sum + (leave[code] || 0), 0);
         const attendancePct = totalWorkdays > 0 ? Math.max(0, Math.min(100, Math.round(((totalWorkdays - absentDays) / totalWorkdays) * 1000) / 10)) : 0;
 
         // Consistency Score = unique days with updates / total workdays (cap at 100%)
@@ -1859,15 +2071,14 @@ function launchConfetti(x,y){
                 <div class="detail-body">
                     <div class="detail-metrics">
                         ${moduleChampHtml}
-                        <div class="metric-card"><div class="metric-num" style="color:var(--green)">${doneCount}</div><div class="metric-label">Done</div></div>
-                        <div class="metric-card"><div class="metric-num" style="color:var(--accent)">${inProgressCount}</div><div class="metric-label">In Progress</div></div>
-                        <div class="metric-card"><div class="metric-num" style="color:var(--orange)">${blockedCount}</div><div class="metric-label">Blocked</div></div>
+                        <div class="metric-card"><div class="metric-num" style="color:${getStatusStyle('done').color}">${doneCount}</div><div class="metric-label">Done</div></div>
+                        <div class="metric-card"><div class="metric-num" style="color:${getStatusStyle('in_progress').color}">${inProgressCount}</div><div class="metric-label">In Progress</div></div>
+                        <div class="metric-card"><div class="metric-num" style="color:${getStatusStyle('blocked').color}">${blockedCount}</div><div class="metric-label">Blocked</div></div>
                         <div class="metric-card"><div class="metric-num" style="color:${streak >= 7 ? 'var(--gold)' : 'var(--text)'}">${streak}</div><div class="metric-label">Streak</div></div>
                         <div class="metric-card"><div class="metric-num">${totalDays}/${totalWorkdays}</div><div class="metric-label">Days Logged</div></div>
                         <div class="metric-card"><div class="metric-num">${attendancePct}%</div><div class="metric-label">Attendance</div></div>
                         <div class="metric-card"><div class="metric-num" style="color:var(--yellow)">${consistencyPct}%</div><div class="metric-label">Consistency</div></div>
-                        <div class="metric-card"><div class="metric-num">${leave.AL}</div><div class="metric-label">AL</div></div>
-                        <div class="metric-card"><div class="metric-num">${leave.MC}</div><div class="metric-label">MC</div></div>
+                        ${getActiveLeaveTypes().map(lt => `<div class="metric-card"><div class="metric-num">${leave[lt.code] || 0}</div><div class="metric-label">${lt.code}</div></div>`).join('')}
                     </div>
                 </div>
             </div>
@@ -1973,9 +2184,10 @@ function launchConfetti(x,y){
                 grouped[date].forEach((u, i) => {
                     const dateStr = i === 0 ? `<span class="task-date-inline">${formatDateShort(date)}</span>` : '<span class="task-date-inline"></span>';
                     const moduleBadge = u.module ? `<span class="task-module-badge">${u.module}</span>` : '';
+                    const ss = getStatusStyle(u.status);
                     const statusPill = isYearDone
                         ? `<span class="task-status-pill done">✓</span>`
-                        : `<span class="task-status-pill ${u.status}">${u.status.replace('_', ' ')}</span>`;
+                        : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
                     const editBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
                     const delBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
                     htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${editBtn}${delBtn}</div>`;
@@ -1999,7 +2211,7 @@ function launchConfetti(x,y){
             if(compChart && (doneCount+inProgressCount+blockedCount+leaveCountCount)>0){
                 new Chart(compChart.getContext('2d'),{
                     type:'doughnut',
-                    data:{labels:['Done','In Progress','Blocked','Leave'], datasets:[{data:[doneCount,inProgressCount,blockedCount,leaveCountCount], backgroundColor:['rgba(0,230,118,.7)','rgba(0,229,255,.7)','rgba(255,23,68,.7)','rgba(255,145,0,.7)'],borderWidth:0}]},
+                    data:{labels:['Done','In Progress','Blocked','Leave'], datasets:[{data:[doneCount,inProgressCount,blockedCount,leaveCountCount], backgroundColor:[getStatusStyle('done').color+'b3',getStatusStyle('in_progress').color+'b3',getStatusStyle('blocked').color+'b3',getStatusStyle('leave').color+'b3'],borderWidth:0}]},
                     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#fff',font:{size:11},boxWidth:12}}}}
                 });
             }
@@ -2016,9 +2228,9 @@ function launchConfetti(x,y){
                     data:{
                         labels:modLabels,
                         datasets:[
-                            {label:'Done',data:modDone,backgroundColor:'rgba(0,230,118,.7)',borderRadius:2},
-                            {label:'In Progress',data:modInProgress,backgroundColor:'rgba(0,229,255,.7)',borderRadius:2},
-                            {label:'Blocked',data:modBlocked,backgroundColor:'rgba(255,23,68,.6)',borderRadius:2}
+                            {label:'Done',data:modDone,backgroundColor:getStatusStyle('done').color+'b3',borderRadius:2},
+                            {label:'In Progress',data:modInProgress,backgroundColor:getStatusStyle('in_progress').color+'b3',borderRadius:2},
+                            {label:'Blocked',data:modBlocked,backgroundColor:getStatusStyle('blocked').color+'99',borderRadius:2}
                         ]
                     },
                     options:{
@@ -2057,9 +2269,9 @@ function launchConfetti(x,y){
                     data:{
                         labels:weekLabels,
                         datasets:[
-                            {label:'Done',data:weekDone,backgroundColor:'rgba(0,230,118,.7)',borderRadius:2},
-                            {label:'In Progress',data:weekIP,backgroundColor:'rgba(0,229,255,.7)',borderRadius:2},
-                            {label:'Blocked',data:weekBlocked,backgroundColor:'rgba(255,23,68,.6)',borderRadius:2}
+                            {label:'Done',data:weekDone,backgroundColor:getStatusStyle('done').color+'b3',borderRadius:2},
+                            {label:'In Progress',data:weekIP,backgroundColor:getStatusStyle('in_progress').color+'b3',borderRadius:2},
+                            {label:'Blocked',data:weekBlocked,backgroundColor:getStatusStyle('blocked').color+'99',borderRadius:2}
                         ]
                     },
                     options:{
@@ -2136,10 +2348,11 @@ function launchConfetti(x,y){
             '<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap">'+
                 '<input type="text" class="edit-module" value="' + currentModule + '" placeholder="Module" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8em;width:100px">'+
                 '<select class="edit-status" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8em">'+
+                    (APP_CONFIG.statuses.length ? APP_CONFIG.statuses.map(function(st){return '<option value="'+st.code+'"' + (currentStatus===st.code?' selected':'') + '>'+st.label+'</option>';}).join('') :
                     '<option value="in_progress"' + (currentStatus==='in_progress'?' selected':'') + '>In Progress</option>'+
                     '<option value="done"' + (currentStatus==='done'?' selected':'') + '>Done</option>'+
                     '<option value="blocked"' + (currentStatus==='blocked'?' selected':'') + '>Blocked</option>'+
-                    '<option value="leave"' + (currentStatus==='leave'?' selected':'') + '>Leave</option>'+
+                    '<option value="leave"' + (currentStatus==='leave'?' selected':'') + '>Leave</option>')+
                 '</select>'+
             '</div>'+
             '<textarea class="edit-desc" style="width:100%;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8em;box-sizing:border-box;margin-bottom:6px;resize:vertical" rows="2">' + currentDesc + '</textarea>'+
@@ -2250,116 +2463,28 @@ function launchConfetti(x,y){
         }
     }
     function getLevel(doneCount){
-        if(doneCount <= 0) return {level:0,title:'',emoji:'—',desc:'No tasks completed yet',color:'var(--text-dim)',bg:'var(--surface2)',progress:0,next:1};
-        const tiers=[
-            {lv:1,title:'Seedling',emoji:'🌱',desc:'First task!',min:1,color:'#4CAF50',bg:'linear-gradient(135deg,#4CAF50,#8BC34A)'},
-            {lv:2,title:'Sprout',emoji:'🌿',desc:'2nd task',min:3,color:'#66BB6A',bg:'linear-gradient(135deg,#66BB6A,#A5D6A7)'},
-            {lv:3,title:'Bud',emoji:'🌷',desc:'3rd task',min:6,color:'#81C784',bg:'linear-gradient(135deg,#81C784,#C8E6C9)'},
-            {lv:4,title:'Sapling',emoji:'🌳',desc:'4th task',min:9,color:'#26A69A',bg:'linear-gradient(135deg,#26A69A,#80CBC4)'},
-            {lv:5,title:'Gardener',emoji:'🪴',desc:'5th task',min:12,color:'#00BCD4',bg:'linear-gradient(135deg,#00BCD4,#80DEEA)'},
-            {lv:6,title:'Scout',emoji:'🔍',desc:'6th task',min:15,color:'#29B6F6',bg:'linear-gradient(135deg,#29B6F6,#81D4FA)'},
-            {lv:7,title:'Ranger',emoji:'🏹',desc:'7th task',min:18,color:'#42A5F5',bg:'linear-gradient(135deg,#42A5F5,#90CAF9)'},
-            {lv:8,title:'Knight',emoji:'⚔️',desc:'8th task',min:21,color:'#5C6BC0',bg:'linear-gradient(135deg,#5C6BC0,#9FA8DA)'},
-            {lv:9,title:'Captain',emoji:'🛡️',desc:'9th task',min:26,color:'#7E57C2',bg:'linear-gradient(135deg,#7E57C2,#B39DDB)'},
-            {lv:10,title:'Champion',emoji:'🏆',desc:'10th task',min:31,color:'#AB47BC',bg:'linear-gradient(135deg,#AB47BC,#CE93D8)'},
-            {lv:11,title:'Mage',emoji:'🔮',desc:'11th task',min:36,color:'#EC407A',bg:'linear-gradient(135deg,#EC407A,#F48FB1)'},
-            {lv:12,title:'Wizard',emoji:'🧙‍♂️',desc:'12th task',min:41,color:'#EF5350',bg:'linear-gradient(135deg,#EF5350,#EF9A9A)'},
-            {lv:13,title:'Paladin',emoji:'⚜️',desc:'13th task',min:46,color:'#FF7043',bg:'linear-gradient(135deg,#FF7043,#FFAB91)'},
-            {lv:14,title:'Templar',emoji:'✨',desc:'14th task',min:51,color:'#FF9800',bg:'linear-gradient(135deg,#FF9800,#FFCC80)'},
-            {lv:15,title:'Warlord',emoji:'👑',desc:'15th task',min:56,color:'#FFB300',bg:'linear-gradient(135deg,#FFB300,#FFE082)'},
-            {lv:16,title:'Demigod',emoji:'🔥',desc:'16th task',min:62,color:'#FDD835',bg:'linear-gradient(135deg,#FDD835,#FFF59D)'},
-            {lv:17,title:'Elder',emoji:'🐉',desc:'17th task',min:68,color:'#C0CA33',bg:'linear-gradient(135deg,#C0CA33,#E6EE9C)'},
-            {lv:18,title:'Titan',emoji:'⚡',desc:'18th task',min:74,color:'#9CCC65',bg:'linear-gradient(135deg,#9CCC65,#C5E1A5)'},
-            {lv:19,title:'Celestial',emoji:'🌟',desc:'19th task',min:80,color:'#26C6DA',bg:'linear-gradient(135deg,#26C6DA,#80DEEA)'},
-            {lv:20,title:'Immortal',emoji:'👑🔥',desc:'20th task',min:86,color:'#FFD700',bg:'linear-gradient(135deg,#FFD700,#FFA000)'},
-            {lv:21,title:'Transcendent',emoji:'🚀',desc:'21st task',min:92,color:'#FF6D00',bg:'linear-gradient(135deg,#FF6D00,#FF9E80)'},
-            {lv:22,title:'Ascendant',emoji:'☄️',desc:'22nd task',min:98,color:'#FF3D00',bg:'linear-gradient(135deg,#FF3D00,#FF6E40)'},
-            {lv:23,title:'Paragon',emoji:'💎',desc:'23rd task',min:104,color:'#DD2C00',bg:'linear-gradient(135deg,#DD2C00,#FF6E40)'},
-            {lv:24,title:'Archon',emoji:'🏛️',desc:'24th task',min:110,color:'#BF360C',bg:'linear-gradient(135deg,#BF360C,#FF6E40)'},
-            {lv:25,title:'Sovereign',emoji:'⚜️',desc:'25th task',min:116,color:'#FFAB00',bg:'linear-gradient(135deg,#FFAB00,#FFD180)'},
-            {lv:26,title:'Hyperion',emoji:'🌌',desc:'26th task',min:123,color:'#FFEA00',bg:'linear-gradient(135deg,#FFEA00,#FFFF8D)'},
-            {lv:27,title:'Aeternum',emoji:'♾️',desc:'27th task',min:130,color:'#AEEA00',bg:'linear-gradient(135deg,#AEEA00,#CCFF90)'},
-            {lv:28,title:'Infinity',emoji:'🔮',desc:'28th task',min:137,color:'#64DD17',bg:'linear-gradient(135deg,#64DD17,#B2FF59)'},
-            {lv:29,title:'Omega',emoji:'🔱',desc:'29th task',min:144,color:'#00C853',bg:'linear-gradient(135deg,#00C853,#69F0AE)'},
-            {lv:30,title:'Primordial',emoji:'🌋',desc:'30th task',min:151,color:'#00BFA5',bg:'linear-gradient(135deg,#00BFA5,#64FFDA)'},
-            {lv:31,title:'Elysian',emoji:'🕊️',desc:'31st task',min:158,color:'#4CAF50',bg:'linear-gradient(135deg,#4CAF50,#8BC34A)'},
-            {lv:32,title:'Seraphic',emoji:'👼',desc:'32nd task',min:165,color:'#66BB6A',bg:'linear-gradient(135deg,#66BB6A,#A5D6A7)'},
-            {lv:33,title:'Empyrean',emoji:'🔥',desc:'33rd task',min:172,color:'#81C784',bg:'linear-gradient(135deg,#81C784,#C8E6C9)'},
-            {lv:34,title:'Astral',emoji:'🌠',desc:'34th task',min:179,color:'#26A69A',bg:'linear-gradient(135deg,#26A69A,#80CBC4)'},
-            {lv:35,title:'Cosmic',emoji:'🪐',desc:'35th task',min:186,color:'#00BCD4',bg:'linear-gradient(135deg,#00BCD4,#80DEEA)'},
-            {lv:36,title:'Galactic',emoji:'🌌',desc:'36th task',min:193,color:'#29B6F6',bg:'linear-gradient(135deg,#29B6F6,#81D4FA)'},
-            {lv:37,title:'Universal',emoji:'🌐',desc:'37th task',min:200,color:'#42A5F5',bg:'linear-gradient(135deg,#42A5F5,#90CAF9)'},
-            {lv:38,title:'Multiversal',emoji:'🔀',desc:'38th task',min:207,color:'#5C6BC0',bg:'linear-gradient(135deg,#5C6BC0,#9FA8DA)'},
-            {lv:39,title:'Omniversal',emoji:'🔁',desc:'39th task',min:214,color:'#7E57C2',bg:'linear-gradient(135deg,#7E57C2,#B39DDB)'},
-            {lv:40,title:'Absolute',emoji:'⚪',desc:'40th task',min:221,color:'#AB47BC',bg:'linear-gradient(135deg,#AB47BC,#CE93D8)'},
-            {lv:41,title:'Singularity',emoji:'⚫',desc:'41st task',min:229,color:'#EC407A',bg:'linear-gradient(135deg,#EC407A,#F48FB1)'},
-            {lv:42,title:'Apex',emoji:'🔺',desc:'42nd task',min:237,color:'#EF5350',bg:'linear-gradient(135deg,#EF5350,#EF9A9A)'},
-            {lv:43,title:'Zenith',emoji:'🏔️',desc:'43rd task',min:245,color:'#FF7043',bg:'linear-gradient(135deg,#FF7043,#FFAB91)'},
-            {lv:44,title:'Pinnacle',emoji:'🌅',desc:'44th task',min:253,color:'#FF9800',bg:'linear-gradient(135deg,#FF9800,#FFCC80)'},
-            {lv:45,title:'Genesis',emoji:'⏳',desc:'45th task',min:261,color:'#FFB300',bg:'linear-gradient(135deg,#FFB300,#FFE082)'},
-            {lv:46,title:'Eternal',emoji:'♾️',desc:'46th task',min:269,color:'#FDD835',bg:'linear-gradient(135deg,#FDD835,#FFF59D)'},
-            {lv:47,title:'Infinite',emoji:'👑',desc:'47th task',min:277,color:'#C0CA33',bg:'linear-gradient(135deg,#C0CA33,#E6EE9C)'},
-            {lv:48,title:'Supreme',emoji:'🌟',desc:'48th task',min:285,color:'#9CCC65',bg:'linear-gradient(135deg,#9CCC65,#C5E1A5)'},
-            {lv:49,title:'Origin',emoji:'🔥',desc:'49th task',min:293,color:'#26C6DA',bg:'linear-gradient(135deg,#26C6DA,#80DEEA)'},
-            {lv:50,title:'True God',emoji:'👑👑',desc:'50th task',min:301,color:'#FFD700',bg:'linear-gradient(135deg,#FFD700,#FFA000)'},
-            {lv:51,title:'Level 51',emoji:'🌱',desc:'51st task',min:309,color:'#4CAF50',bg:'linear-gradient(135deg,#4CAF50,rgba(255,255,255,0.3))'},
-            {lv:52,title:'Level 52',emoji:'🌿',desc:'52nd task',min:317,color:'#66BB6A',bg:'linear-gradient(135deg,#66BB6A,rgba(255,255,255,0.3))'},
-            {lv:53,title:'Level 53',emoji:'🌷',desc:'53rd task',min:325,color:'#81C784',bg:'linear-gradient(135deg,#81C784,rgba(255,255,255,0.3))'},
-            {lv:54,title:'Level 54',emoji:'🌳',desc:'54th task',min:333,color:'#26A69A',bg:'linear-gradient(135deg,#26A69A,rgba(255,255,255,0.3))'},
-            {lv:55,title:'Level 55',emoji:'🪴',desc:'55th task',min:341,color:'#00BCD4',bg:'linear-gradient(135deg,#00BCD4,rgba(255,255,255,0.3))'},
-            {lv:56,title:'Level 56',emoji:'🔍',desc:'56th task',min:349,color:'#29B6F6',bg:'linear-gradient(135deg,#29B6F6,rgba(255,255,255,0.3))'},
-            {lv:57,title:'Level 57',emoji:'🏹',desc:'57th task',min:357,color:'#42A5F5',bg:'linear-gradient(135deg,#42A5F5,rgba(255,255,255,0.3))'},
-            {lv:58,title:'Level 58',emoji:'⚔️',desc:'58th task',min:365,color:'#5C6BC0',bg:'linear-gradient(135deg,#5C6BC0,rgba(255,255,255,0.3))'},
-            {lv:59,title:'Level 59',emoji:'🛡️',desc:'59th task',min:373,color:'#7E57C2',bg:'linear-gradient(135deg,#7E57C2,rgba(255,255,255,0.3))'},
-            {lv:60,title:'Level 60',emoji:'🏆',desc:'60th task',min:381,color:'#AB47BC',bg:'linear-gradient(135deg,#AB47BC,rgba(255,255,255,0.3))'},
-            {lv:61,title:'Level 61',emoji:'🔮',desc:'61st task',min:390,color:'#EC407A',bg:'linear-gradient(135deg,#EC407A,rgba(255,255,255,0.3))'},
-            {lv:62,title:'Level 62',emoji:'🧙‍♂️',desc:'62nd task',min:399,color:'#EF5350',bg:'linear-gradient(135deg,#EF5350,rgba(255,255,255,0.3))'},
-            {lv:63,title:'Level 63',emoji:'⚜️',desc:'63rd task',min:408,color:'#FF7043',bg:'linear-gradient(135deg,#FF7043,rgba(255,255,255,0.3))'},
-            {lv:64,title:'Level 64',emoji:'✨',desc:'64th task',min:417,color:'#FF9800',bg:'linear-gradient(135deg,#FF9800,rgba(255,255,255,0.3))'},
-            {lv:65,title:'Level 65',emoji:'👑',desc:'65th task',min:426,color:'#FFB300',bg:'linear-gradient(135deg,#FFB300,rgba(255,255,255,0.3))'},
-            {lv:66,title:'Level 66',emoji:'🔥',desc:'66th task',min:435,color:'#FDD835',bg:'linear-gradient(135deg,#FDD835,rgba(255,255,255,0.3))'},
-            {lv:67,title:'Level 67',emoji:'🐉',desc:'67th task',min:444,color:'#C0CA33',bg:'linear-gradient(135deg,#C0CA33,rgba(255,255,255,0.3))'},
-            {lv:68,title:'Level 68',emoji:'⚡',desc:'68th task',min:453,color:'#9CCC65',bg:'linear-gradient(135deg,#9CCC65,rgba(255,255,255,0.3))'},
-            {lv:69,title:'Level 69',emoji:'🌟',desc:'69th task',min:462,color:'#26C6DA',bg:'linear-gradient(135deg,#26C6DA,rgba(255,255,255,0.3))'},
-            {lv:70,title:'Level 70',emoji:'👑🔥',desc:'70th task',min:471,color:'#FFD700',bg:'linear-gradient(135deg,#FFD700,rgba(255,255,255,0.3))'},
-            {lv:71,title:'Level 71',emoji:'🚀',desc:'71st task',min:480,color:'#FF6D00',bg:'linear-gradient(135deg,#FF6D00,rgba(255,255,255,0.3))'},
-            {lv:72,title:'Level 72',emoji:'☄️',desc:'72nd task',min:489,color:'#FF3D00',bg:'linear-gradient(135deg,#FF3D00,rgba(255,255,255,0.3))'},
-            {lv:73,title:'Level 73',emoji:'💎',desc:'73rd task',min:498,color:'#DD2C00',bg:'linear-gradient(135deg,#DD2C00,rgba(255,255,255,0.3))'},
-            {lv:74,title:'Level 74',emoji:'🏛️',desc:'74th task',min:507,color:'#BF360C',bg:'linear-gradient(135deg,#BF360C,rgba(255,255,255,0.3))'},
-            {lv:75,title:'Level 75',emoji:'⚜️',desc:'75th task',min:516,color:'#FFAB00',bg:'linear-gradient(135deg,#FFAB00,rgba(255,255,255,0.3))'},
-            {lv:76,title:'Level 76',emoji:'🌌',desc:'76th task',min:525,color:'#FFEA00',bg:'linear-gradient(135deg,#FFEA00,rgba(255,255,255,0.3))'},
-            {lv:77,title:'Level 77',emoji:'♾️',desc:'77th task',min:534,color:'#AEEA00',bg:'linear-gradient(135deg,#AEEA00,rgba(255,255,255,0.3))'},
-            {lv:78,title:'Level 78',emoji:'🔮',desc:'78th task',min:543,color:'#64DD17',bg:'linear-gradient(135deg,#64DD17,rgba(255,255,255,0.3))'},
-            {lv:79,title:'Level 79',emoji:'🔱',desc:'79th task',min:552,color:'#00C853',bg:'linear-gradient(135deg,#00C853,rgba(255,255,255,0.3))'},
-            {lv:80,title:'Level 80',emoji:'🌋',desc:'80th task',min:561,color:'#00BFA5',bg:'linear-gradient(135deg,#00BFA5,rgba(255,255,255,0.3))'},
-            {lv:81,title:'Level 81',emoji:'🕊️',desc:'81st task',min:571,color:'#4CAF50',bg:'linear-gradient(135deg,#4CAF50,rgba(255,255,255,0.3))'},
-            {lv:82,title:'Level 82',emoji:'👼',desc:'82nd task',min:581,color:'#66BB6A',bg:'linear-gradient(135deg,#66BB6A,rgba(255,255,255,0.3))'},
-            {lv:83,title:'Level 83',emoji:'🔥',desc:'83rd task',min:591,color:'#81C784',bg:'linear-gradient(135deg,#81C784,rgba(255,255,255,0.3))'},
-            {lv:84,title:'Level 84',emoji:'🌠',desc:'84th task',min:601,color:'#26A69A',bg:'linear-gradient(135deg,#26A69A,rgba(255,255,255,0.3))'},
-            {lv:85,title:'Level 85',emoji:'🪐',desc:'85th task',min:611,color:'#00BCD4',bg:'linear-gradient(135deg,#00BCD4,rgba(255,255,255,0.3))'},
-            {lv:86,title:'Level 86',emoji:'🌌',desc:'86th task',min:621,color:'#29B6F6',bg:'linear-gradient(135deg,#29B6F6,rgba(255,255,255,0.3))'},
-            {lv:87,title:'Level 87',emoji:'🌐',desc:'87th task',min:631,color:'#42A5F5',bg:'linear-gradient(135deg,#42A5F5,rgba(255,255,255,0.3))'},
-            {lv:88,title:'Level 88',emoji:'🔀',desc:'88th task',min:641,color:'#5C6BC0',bg:'linear-gradient(135deg,#5C6BC0,rgba(255,255,255,0.3))'},
-            {lv:89,title:'Level 89',emoji:'🔁',desc:'89th task',min:651,color:'#7E57C2',bg:'linear-gradient(135deg,#7E57C2,rgba(255,255,255,0.3))'},
-            {lv:90,title:'Level 90',emoji:'⚪',desc:'90th task',min:661,color:'#AB47BC',bg:'linear-gradient(135deg,#AB47BC,rgba(255,255,255,0.3))'},
-            {lv:91,title:'Level 91',emoji:'⚫',desc:'91st task',min:671,color:'#EC407A',bg:'linear-gradient(135deg,#EC407A,rgba(255,255,255,0.3))'},
-            {lv:92,title:'Level 92',emoji:'🔺',desc:'92nd task',min:681,color:'#EF5350',bg:'linear-gradient(135deg,#EF5350,rgba(255,255,255,0.3))'},
-            {lv:93,title:'Level 93',emoji:'🏔️',desc:'93rd task',min:691,color:'#FF7043',bg:'linear-gradient(135deg,#FF7043,rgba(255,255,255,0.3))'},
-            {lv:94,title:'Level 94',emoji:'🌅',desc:'94th task',min:701,color:'#FF9800',bg:'linear-gradient(135deg,#FF9800,rgba(255,255,255,0.3))'},
-            {lv:95,title:'Level 95',emoji:'⏳',desc:'95th task',min:711,color:'#FFB300',bg:'linear-gradient(135deg,#FFB300,rgba(255,255,255,0.3))'},
-            {lv:96,title:'Level 96',emoji:'♾️',desc:'96th task',min:721,color:'#FDD835',bg:'linear-gradient(135deg,#FDD835,rgba(255,255,255,0.3))'},
-            {lv:97,title:'Level 97',emoji:'👑',desc:'97th task',min:731,color:'#C0CA33',bg:'linear-gradient(135deg,#C0CA33,rgba(255,255,255,0.3))'},
-            {lv:98,title:'Level 98',emoji:'🌟',desc:'98th task',min:741,color:'#9CCC65',bg:'linear-gradient(135deg,#9CCC65,rgba(255,255,255,0.3))'},
-            {lv:99,title:'Level 99',emoji:'🔥',desc:'99th task',min:751,color:'#26C6DA',bg:'linear-gradient(135deg,#26C6DA,rgba(255,255,255,0.3))'},
-            {lv:100,title:'Level 100',emoji:'👑👑',desc:'100th task',min:761,color:'#FFD700',bg:'linear-gradient(135deg,#FFD700,rgba(255,255,255,0.3))'}
-        ];
-        let tier=tiers[0];
-        for(var i=tiers.length-1;i>=0;i--){
-            if(doneCount>=tiers[i].min){tier=tiers[i];break;}
+        var levels = APP_CONFIG.levels;
+        var emojis = ['','🌱','🌿','🌷','🌳','🪴','🔍','🏹','⚔️','🛡️','🏆','🔮','🧙‍♂️','⚜️','✨','👑','🔥','🐉','⚡','🌟','👑🔥','🚀','☄️','💎','🏛️','⚜️','🌌','♾️','🔮','🔱','🌋','🕊️','👼','🔥','🌠','🪐','🌌','🌐','🔀','🔁','⚪','⚫','🔺','🏔️','🌅','⏳','♾️','👑','🌟','🔥','👑👑'];
+        if(!levels || levels.length === 0){
+            return {level:0,title:'',emoji:'—',desc:'No tasks completed yet',color:'var(--text-dim)',bg:'var(--surface2)',progress:0,next:1};
         }
-        var nextMin=tier.lv<100?tiers[tier.lv].min:tier.min+50;
-        var progress=tier.lv<100?Math.round((doneCount-tier.min)/(nextMin-tier.min)*100):100;
-        return{level:tier.lv,title:tier.title,emoji:tier.emoji,desc:tier.desc,color:tier.color,bg:tier.bg,progress:progress,next:nextMin};
+        if(doneCount <= 0) {
+            return {level:0,title:'',emoji:'—',desc:'No tasks completed yet',color:'var(--text-dim)',bg:'var(--surface2)',progress:0,next:levels[0].min_tasks || 1};
+        }
+        var tier = levels[0];
+        var tierIdx = 0;
+        for(var i = 0; i < levels.length; i++){
+            if(doneCount >= levels[i].min_tasks){
+                tier = levels[i];
+                tierIdx = i;
+            }
+        }
+        var nextTier = levels[tierIdx + 1];
+        var nextMin = nextTier ? nextTier.min_tasks : tier.min_tasks + 100;
+        var progress = nextTier ? Math.round((doneCount - tier.min_tasks) / (nextMin - tier.min_tasks) * 100) : 100;
+        if(progress > 100) progress = 100;
+        var lv = tierIdx + 1;
+        return {level:lv, title:tier.label, emoji:emojis[lv] || '🏆', desc:tier.label + ' (' + tier.min_tasks + '+ tasks)', color:tier.color, bg:'linear-gradient(135deg,' + tier.color + ',rgba(255,255,255,0.3))', progress:progress, next:nextMin};
     }
     function addFireParticles(el){
         if(!el) return;
@@ -2431,7 +2556,6 @@ function launchConfetti(x,y){
         setTimeout(function(){document.getElementById('rollMsg').textContent='Bonus unlocked!';},2200);
         setTimeout(function(){document.getElementById('streakBanner').style.transform='translateY(-80px)';},3500);
         setTimeout(function(){ov.remove();},4100);
-        return emojis;
     }
 
     document.addEventListener('DOMContentLoaded',function(){
@@ -2456,10 +2580,22 @@ function launchConfetti(x,y){
     });
 
     function renderLeaveCharts() {
+        const activeLeaveTypes = getActiveLeaveTypes();
+        const leaveCodes = getLeaveTypeCodes();
+        const leaveDescMap = getLeaveDescMap();
+        const colorMap = getLeaveColorMap();
+
+        // Map code to CSS class for segments
+        const codeClassMap = {'AL':'al','MC':'mc','EL':'el','Others':'ot'};
+
         function renderChart(chartId, yAxisId, xAxisId, valueKey) {
             const sorted = MEMBERS.map(n => {
-                const d = leaveData[n] || { AL: 0, MC: 0, Others: 0, total: 0 };
-                return { name: n, ...d, total: (leaveData[n]?.AL||0)+(leaveData[n]?.MC||0)+(leaveData[n]?.Others||0) };
+                const d = leaveData[n] || {};
+                // Ensure all leave type codes exist with 0 fallback
+                const entry = {name: n};
+                leaveCodes.forEach(c => { entry[c] = d[c] || 0; });
+                entry.total = leaveCodes.reduce((sum, c) => sum + (d[c] || 0), 0);
+                return entry;
             }).sort((a, b) => b[valueKey] - a[valueKey]);
 
             const maxVal = Math.max(1, ...sorted.map(m => m[valueKey]));
@@ -2475,15 +2611,21 @@ function launchConfetti(x,y){
                 let tooltipLines = [];
                 if (valueKey === 'total') {
                     const segs = [];
-                    if (m.AL > 0) { segs.push(`<div class="leave-seg-v al" style="height:${(m.AL / maxVal * 100).toFixed(1)}%"></div>`); tooltipLines.push(`AL: ${m.AL}`); }
-                    if (m.MC > 0) { segs.push(`<div class="leave-seg-v mc" style="height:${(m.MC / maxVal * 100).toFixed(1)}%"></div>`); tooltipLines.push(`MC: ${m.MC}`); }
-                    if (m.EL > 0) { segs.push(`<div class="leave-seg-v el" style="height:${(m.EL / maxVal * 100).toFixed(1)}%"></div>`); tooltipLines.push(`EL: ${m.EL}`); }
-                    if (m.Others > 0) { segs.push(`<div class="leave-seg-v ot" style="height:${(m.Others / maxVal * 100).toFixed(1)}%"></div>`); tooltipLines.push(`Others: ${m.Others}`); }
+                    leaveCodes.forEach(code => {
+                        if (m[code] > 0) {
+                            const cls = codeClassMap[code] || code.toLowerCase().replace(/[^a-z0-9]/g,'');
+                            segs.push(`<div class="leave-seg-v ${cls}" style="height:${(m[code] / maxVal * 100).toFixed(1)}%"></div>`);
+                            tooltipLines.push(`${leaveDescMap[code] || code}: ${m[code]}`);
+                        }
+                    });
                     tooltipLines.push(`<strong>Total: ${m.total}</strong>`);
                     barsHTML = segs.join('');
                 } else {
-                    barsHTML = `<div class="leave-mc-v" style="height:${(m.MC / maxVal * 100).toFixed(1)}%"></div>`;
-                    tooltipLines.push(`MC: ${m.MC}`);
+                    // Single type chart (e.g. MC only)
+                    const val = m[valueKey] || 0;
+                    const cls = codeClassMap[valueKey] || valueKey.toLowerCase().replace(/[^a-z0-9]/g,'');
+                    barsHTML = `<div class="leave-seg-v ${cls}" style="height:${(val / maxVal * 100).toFixed(1)}%"></div>`;
+                    tooltipLines.push(`${leaveDescMap[valueKey] || valueKey}: ${val}`);
                 }
                 const tooltipHTML = tooltipLines.join('<br>');
                 return `<div class="leave-col-wrap"><div class="leave-tooltip">${tooltipHTML}</div><div class="leave-col-bar">${barsHTML}</div></div>`;
@@ -2492,6 +2634,30 @@ function launchConfetti(x,y){
             // X-Axis Labels
             document.getElementById(xAxisId).innerHTML = sorted.map(m => `<div class="leave-xlabel"><span>${m.name}</span></div>`).join('');
         }
+
+        // Dynamically update the "Total Leave" chart title and legend
+        const totalTitleEl = document.getElementById('leave-all-title');
+        if (totalTitleEl) {
+            const typeLabels = activeLeaveTypes.map(lt => lt.code).join(' + ');
+            totalTitleEl.textContent = 'Total Leave (' + (typeLabels || 'All') + ' + Others)';
+        }
+        const totalLegendEl = document.getElementById('leave-all-legend');
+        if (totalLegendEl) {
+            const legendItems = activeLeaveTypes.map(lt => {
+                const cls = codeClassMap[lt.code] || lt.code.toLowerCase().replace(/[^a-z0-9]/g,'');
+                return `<span><i class="leave-seg-v ${cls}"></i>${lt.label}</span>`;
+            }).join('');
+            const othersItem = `<span><i class="leave-seg-v ot"></i>Others</span>`;
+            totalLegendEl.innerHTML = legendItems + othersItem;
+        }
+
+        // Dynamically update the second chart title
+        const mcTitleEl = document.getElementById('leave-mc-title');
+        if (mcTitleEl) {
+            const mcType = activeLeaveTypes.find(lt => lt.code === 'MC');
+            mcTitleEl.textContent = mcType ? mcType.label + ' Only' : 'MC Only';
+        }
+
         renderChart('leave-all', 'leave-all-y', 'leave-all-x', 'total');
         renderChart('leave-mc', 'leave-mc-y', 'leave-mc-x', 'MC');
     }
