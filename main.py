@@ -794,7 +794,7 @@ def get_module_done(
 ):
     current_year = datetime.now().year
     if not from_date:
-        from_date = (datetime.now() - timedelta(days=get_config_int('activity_days', 90))).strftime('%Y-%m-%d')
+        from_date = (datetime.now() - timedelta(days=get_config_int('summary_days', 90))).strftime('%Y-%m-%d')
     if not to_date:
         to_date = datetime.now().strftime('%Y-%m-%d')
     
@@ -834,7 +834,7 @@ def get_heatmap(
     to_date: Optional[str] = None
 ):
     if not from_date:
-        from_date = (datetime.now() - timedelta(days=get_config_int('activity_days', 90))).strftime('%Y-%m-%d')
+        from_date = (datetime.now() - timedelta(days=get_config_int('summary_days', 90))).strftime('%Y-%m-%d')
     if not to_date:
         to_date = datetime.now().strftime('%Y-%m-%d')
     
