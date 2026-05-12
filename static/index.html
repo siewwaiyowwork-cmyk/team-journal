@@ -353,6 +353,16 @@
         .ph-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
         .ph-chip{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-family:'JetBrains Mono',monospace;font-size:.78em;color:var(--text-dim)}
         .detail-tasklist,.detail-yeardone{padding:0 20px 20px}
+        .yeardone-header{text-align:center;padding:16px 0 8px;margin-bottom:4px}
+        .yeardone-trophy{font-size:2.4em;margin-bottom:4px;display:inline-block;animation:bounce-trophy 2s infinite}
+        @keyframes bounce-trophy{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-10px) scale(1.15) rotate(-5deg)}}
+        .yeardone-subtitle{font-size:.85em;color:var(--text-dim);margin-top:4px;font-style:italic}
+        .yeardone-milestone{text-align:center;padding:10px 16px;margin:0 -8px 12px;background:linear-gradient(90deg,rgba(255,215,0,.12),rgba(0,230,118,.12),rgba(0,229,255,.12));border:1px solid rgba(255,215,0,.25);border-radius:12px;font-weight:700;font-size:.9em;color:var(--gold);animation:pulse-gold 2s infinite}
+        .yeardone-stars{position:relative;display:inline-block}
+        .yeardone-stars::before,.yeardone-stars::after{content:'✨';position:absolute;font-size:.6em;animation:sparkle 1.5s infinite}
+        .yeardone-stars::before{top:-4px;left:-12px;animation-delay:0s}
+        .yeardone-stars::after{top:-2px;right:-14px;animation-delay:.7s}
+        @keyframes sparkle{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:1;transform:scale(1.2)}}
         .task-date-inline{font-size:.72em;font-weight:700;color:var(--accent);font-family:'JetBrains Mono',monospace;letter-spacing:.3px;width:70px;flex-shrink:0;margin-right:6px}
         .detail-tasklist .task-entry,.detail-yeardone .task-entry{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.88em}
         .detail-tasklist .task-entry:last-child,.detail-yeardone .task-entry:last-child{border-bottom:none}\n.task-week-alt{background:rgba(255,255,255,.025);border-radius:0;margin:0 -8px;padding-left:8px;padding-right:8px}
@@ -2215,7 +2225,17 @@ function launchConfetti(x,y){
                 <div class="chart-box"><div class="chart-title">Weekly Rhythm ${rangeLabel} <span class="info-icon" data-tooltip="Shows how many updates you submitted on each weekday. Higher bars = more activity on that day. Only non-leave entries are counted. Mon-Fri pattern helps identify your most productive days.">ℹ</span></div><div class="chart-wrapper"><canvas id="c-week-${safeId}"></canvas></div></div>
                 <div class="chart-box"><div class="chart-title">90-Day Streak <span class="info-icon" data-tooltip="Activity grid for the last 90 working days (weekends & public holidays excluded). Bright cells = days with updates (brighter = more entries). Orange = leave days. Blank = no activity. Keep logging daily to build and maintain your streak!">ℹ</span></div><div class="streak-grid" id="streak-${safeId}"></div></div>
             </div>
-            <div class="detail-yeardone"><h3 class="section-title">Yearly Achievements<span class="badge" style="margin-left:12px">0</span></h3><div class="task-loading">Loading yearly achievements...</div><div class="task-content" style="display:none"></div></div>
+            <div class="detail-yeardone">
+                <div class="yeardone-header">
+                    <div class="yeardone-trophy">🏆</div>
+                    <div class="yeardone-stars" style="font-size:1.1em;font-weight:700;color:var(--gold)">Yearly Achievements</div>
+                    <div class="yeardone-subtitle">Every completed task is a victory — celebrate your wins!</div>
+                </div>
+                <div class="yeardone-milestone" id="yeardoneMilestone" style="display:none"></div>
+                <h3 class="section-title" style="font-size:.85em;margin-bottom:10px">Completed Tasks <span class="badge" style="margin-left:8px">0</span></h3>
+                <div class="task-loading">Loading yearly achievements...</div>
+                <div class="task-content" style="display:none"></div>
+            </div>
             <div class="detail-tasklist"><h3 class="section-title">Recent Tasks</h3><div class="task-loading">Loading recent tasks...</div><div class="task-content" style="display:none"></div></div>
             <div class="collab-section" id="collaboratorsSection">
                 <div class="collab-title">👥 Who I Work With</div>
@@ -2256,6 +2276,19 @@ function launchConfetti(x,y){
                     const container = document.querySelector('.detail-yeardone');
                     const badge = container?.querySelector('.section-title .badge');
                     if (badge) badge.textContent = data.updates.length;
+                    const milestone = container?.querySelector('#yeardoneMilestone');
+                    if (milestone) {
+                        const n = data.updates.length;
+                        let msg = '';
+                        if (n >= 100) msg = '🎉 Centurion! 100+ tasks conquered — legendary performance!';
+                        else if (n >= 50) msg = '🔥 50+ tasks done — you are on fire!';
+                        else if (n >= 25) msg = '⭐ 25+ tasks completed — solid momentum!';
+                        else if (n >= 10) msg = '🚀 10+ tasks done — great start!';
+                        else if (n > 0) msg = '💪 Keep going! Every task counts!';
+                        else msg = '🌟 Your achievements will shine here — start completing!';
+                        milestone.textContent = msg;
+                        milestone.style.display = msg ? '' : 'none';
+                    }
                     renderTaskData(data.updates, 'yeardone', true);
                 })
                 .catch(e => {
