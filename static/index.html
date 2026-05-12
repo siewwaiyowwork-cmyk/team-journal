@@ -2067,7 +2067,7 @@ function launchConfetti(x,y){
         const supportRate = actionableTotal > 0 ? Math.round((supportCount / actionableTotal) * 1000) / 10 : 0;
 
         // Monster stats
-        const focusPctD = Math.min(100, Math.round(updates.filter(u => u.date > totalDays - 10 && u.status !== 'leave' && u.status !== 'vague').length * 10));
+        const focusPctD = Math.min(100, Math.round(updates.filter(u => u.status !== 'leave' && u.status !== 'vague').slice(-10).length * 10));
         const agilityPctD = Math.max(0, Math.round(100 - (ipDoneRatio * 10)));
         const monsterStats = {
             atk: Math.min(100, Math.round(completionRate)),
