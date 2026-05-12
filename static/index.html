@@ -567,12 +567,12 @@
     <script>
     const API_URL = window.location.origin;
     var MEMBERS = [];
-    const MODS = ['san','myd','rpp','dnp','nebula','twanel','swiper','osp','nats','support'];
 
     let APP_CONFIG = {
         statuses: [],
         levels: [],
         leaveTypes: [],
+        modules: [],
         thresholds: {
             specificity_s: 95,
             specificity_a: 85,
@@ -803,19 +803,22 @@
 
     async function loadAppConfig(){
         try{
-            const [statusRes, levelRes, leaveRes, configRes] = await Promise.all([
+            const [statusRes, levelRes, leaveRes, modRes, configRes] = await Promise.all([
                 fetch(`${API_URL}/api/statuses`),
                 fetch(`${API_URL}/api/levels`),
                 fetch(`${API_URL}/api/leave_types`),
+                fetch(`${API_URL}/api/modules`),
                 fetch(`${API_URL}/api/config`)
             ]);
             const statusData = await statusRes.json();
             const levelData = await levelRes.json();
             const leaveData = await leaveRes.json();
+            const modData = await modRes.json();
             const configData = await configRes.json();
             if(statusData.statuses) APP_CONFIG.statuses = statusData.statuses;
             if(levelData.levels) APP_CONFIG.levels = levelData.levels;
             if(leaveData.leave_types) APP_CONFIG.leaveTypes = leaveData.leave_types;
+            if(modData.modules) APP_CONFIG.modules = modData.modules;
             if(configData.config && Array.isArray(configData.config)){
                 configData.config.forEach(function(item){
                     if(item.key && APP_CONFIG.thresholds.hasOwnProperty(item.key)){
@@ -1587,7 +1590,14 @@ function launchConfetti(x,y){
         
         if(!document.getElementById('pNameGrid').children.length){
             refreshMemberChips();
-            MODS.forEach(m=>{var t=document.createElement('div');t.className='mod-chip';t.textContent=m;t.onclick=function(){selMod(t,m);};document.getElementById('pModGrid').appendChild(t);});
+            var activeMods = APP_CONFIG.modules || [];
+            activeMods.forEach(function(m){
+                var t=document.createElement('div');
+                t.className='mod-chip';
+                t.textContent=m.code;
+                t.onclick=function(){selMod(t,m.code);};
+                document.getElementById('pModGrid').appendChild(t);
+            });
         }
         var defaultDate=new Date();
         while(isWeekend(defaultDate)||isPH(toYMD(defaultDate))){defaultDate.setDate(defaultDate.getDate()-1);}

@@ -43,7 +43,25 @@ CREATE INDEX IF NOT EXISTS idx_updates_status ON updates(status);
 CREATE INDEX IF NOT EXISTS idx_leave_date ON leave_records(date);
 CREATE INDEX IF NOT EXISTS idx_leave_name ON leave_records(name);
 
--- Config table for system settings
+CREATE TABLE IF NOT EXISTS modules (
+    code TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    color TEXT DEFAULT '#ccc',
+    active INTEGER DEFAULT 1
+);
+
+INSERT OR IGNORE INTO modules (code, label, color) VALUES
+('san', 'san', '#ccc'),
+('myd', 'myd', '#ccc'),
+('rpp', 'rpp', '#ccc'),
+('dnp', 'dnp', '#ccc'),
+('nebula', 'nebula', '#ccc'),
+('twanel', 'twanel', '#ccc'),
+('swiper', 'swiper', '#ccc'),
+('osp', 'osp', '#ccc'),
+('nats', 'nats', '#ccc'),
+('support', 'support', '#ccc');
+
 CREATE TABLE IF NOT EXISTS config (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
@@ -176,7 +194,7 @@ INSERT OR IGNORE INTO levels (min_tasks, label, color) VALUES
 (10000, 'Ultimate King', '#ffd700');
 
 -- Seed default badge rules
-INSERT OR IGNORE INTO badge_rules (badge_name, badge_type, threshold, keyword_pattern, description) VALUES
-('Quality Control', 'keyword', 10, '%TA%', 'Complete 10+ tasks mentioning TA/test automation'),
-('Perfect Week', 'perfect_week', 5, NULL, 'Update tasks all Mon-Fri in any week'),
-('Early Bird', 'keyword', 1, '%early%', 'First update of the day');
+INSERT OR IGNORE INTO badge_rules (badge_name, sql_query, result_type, description) VALUES
+('Quality Control', 'SELECT name FROM updates WHERE description LIKE ''%TA%'' AND status=''done'' GROUP BY name HAVING COUNT(*) >= 10', 'top', 'Complete 10+ tasks mentioning TA/test automation'),
+('Perfect Week', 'SELECT name FROM updates WHERE date IN (SELECT date FROM updates WHERE strftime(''%w'', date) BETWEEN ''1'' AND ''5'') GROUP BY name, strftime(''%Y-%W'', date) HAVING COUNT(DISTINCT date) >= 5', 'top', 'Update tasks all Mon-Fri in any week'),
+('Early Bird', 'SELECT name FROM updates WHERE CAST(strftime(''%H'', created_at) AS INTEGER) < 9 GROUP BY name HAVING COUNT(*) >= 1', 'top', 'First update of the day');

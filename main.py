@@ -110,6 +110,18 @@ def init_db():
         ('2026-11-09', 'deepavali'),
         ('2026-12-25', 'christmas');
 
+        INSERT OR IGNORE INTO modules (code, label, color) VALUES
+        ('san', 'san', '#ccc'),
+        ('myd', 'myd', '#ccc'),
+        ('rpp', 'rpp', '#ccc'),
+        ('dnp', 'dnp', '#ccc'),
+        ('nebula', 'nebula', '#ccc'),
+        ('twanel', 'twanel', '#ccc'),
+        ('swiper', 'swiper', '#ccc'),
+        ('osp', 'osp', '#ccc'),
+        ('nats', 'nats', '#ccc'),
+        ('support', 'support', '#ccc');
+
         INSERT OR IGNORE INTO levels (min_tasks, label, color) VALUES
         (0, 'Unranked', '#999999'),
         (1, 'Seed', '#7a6a3a'),
@@ -287,6 +299,27 @@ def validate_leave_type(leave_type: str) -> bool:
     finally:
         conn.close()
 
+def get_modules(active_only: bool = True):
+    conn = get_db()
+    try:
+        sql = "SELECT code, label, color, active FROM modules"
+        if active_only:
+            sql += " WHERE active = 1"
+        rows = conn.execute(sql + " ORDER BY code").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+def validate_module(module: str) -> bool:
+    if not module:
+        return True
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT 1 FROM modules WHERE code = ? AND active = 1", (module,)).fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
 # Level helper functions
 def get_levels():
     conn = get_db()
@@ -370,6 +403,10 @@ def public_config():
 @app.get("/api/leave_types")
 def public_leave_types():
     return {"leave_types": get_leave_types()}
+
+@app.get("/api/modules")
+def public_modules():
+    return {"modules": get_modules()}
 
 @app.get("/api/holidays")
 def get_holidays():
@@ -1769,6 +1806,67 @@ def admin_levels_update(level_id: int, payload: dict = Body(...), admin_token: s
         conn.execute(f"UPDATE levels SET {set_clause} WHERE id = ?", (*updates.values(), level_id))
         conn.commit()
         return {"ok": True, "id": level_id}
+    finally:
+        conn.close()
+
+@app.get("/api/admin/modules")
+def admin_modules_list(admin_token: str = Query(...)):
+    require_admin(admin_token)
+    return {"modules": get_modules(active_only=False)}
+
+@app.post("/api/admin/modules")
+def admin_modules_create(payload: dict = Body(...), admin_token: str = Query(...)):
+    require_admin(admin_token)
+    code = payload.get("code", "").lower().strip()
+    label = payload.get("label", "").strip()
+    color = payload.get("color", "#ccc")
+    if not code or not label:
+        raise HTTPException(status_code=400, detail="code and label are required")
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO modules (code, label, color, active) VALUES (?, ?, ?, 1)", (code, label, color))
+        conn.commit()
+        return {"ok": True, "code": code, "label": label}
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="Module code already exists")
+    finally:
+        conn.close()
+
+@app.put("/api/admin/modules/{code}")
+def admin_modules_update(code: str, payload: dict = Body(...), admin_token: str = Query(...)):
+    require_admin(admin_token)
+    label = payload.get("label")
+    color = payload.get("color")
+    active = payload.get("active")
+    if label is None and color is None and active is None:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    conn = get_db()
+    try:
+        updates = {}
+        if label is not None:
+            updates["label"] = label.strip()
+        if color is not None:
+            updates["color"] = color
+        if active is not None:
+            updates["active"] = 1 if active else 0
+        set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
+        conn.execute(f"UPDATE modules SET {set_clause} WHERE code = ?", (*updates.values(), code))
+        conn.commit()
+        return {"ok": True, "code": code}
+    finally:
+        conn.close()
+
+@app.delete("/api/admin/modules/{code}")
+def admin_modules_delete(code: str, admin_token: str = Query(...)):
+    require_admin(admin_token)
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM modules WHERE code = ?", (code,))
+        conn.commit()
+        return {"ok": True, "code": code}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
     finally:
         conn.close()
 

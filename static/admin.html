@@ -98,12 +98,15 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div class="nav-item" data-section="leave_types" onclick="showSection('leave_types')">
         <span class="nav-icon">🌴</span>Leave Types
       </div>
-      <div class="nav-item" data-section="levels" onclick="showSection('levels')">
-        <span class="nav-icon">🏆</span>Levels
-      </div>
-      <div class="nav-item" data-section="badge_rules" onclick="showSection('badge_rules')">
-        <span class="nav-icon">🎖️</span>Badge Rules
-      </div>
+       <div class="nav-item" data-section="levels" onclick="showSection('levels')">
+         <span class="nav-icon">🏆</span>Levels
+       </div>
+       <div class="nav-item" data-section="modules" onclick="showSection('modules')">
+         <span class="nav-icon">📦</span>Modules
+       </div>
+       <div class="nav-item" data-section="badge_rules" onclick="showSection('badge_rules')">
+         <span class="nav-icon">🎖️</span>Badge Rules
+       </div>
       <div class="nav-item" data-section="holidays" onclick="showSection('holidays')">
         <span class="nav-icon">📅</span>Holidays
       </div>
@@ -192,6 +195,22 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <table>
           <thead><tr><th>Min Tasks</th><th>Label</th><th>Color</th><th>Actions</th></tr></thead>
           <tbody id="levelsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="section-modules" class="section">
+      <h2 class="section-title">Modules</h2>
+      <div class="form-row">
+        <input type="text" id="newModuleCode" class="form-input" placeholder="Code (e.g. san)">
+        <input type="text" id="newModuleLabel" class="form-input" placeholder="Label (e.g. SAN)">
+        <input type="color" id="newModuleColor" class="form-input" value="#cccccc" style="max-width:80px;min-width:60px;padding:4px">
+        <button class="add-btn" onclick="addModule()">Add Module</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Code</th><th>Label</th><th>Color</th><th>Active</th><th>Actions</th></tr></thead>
+          <tbody id="modulesTable"></tbody>
         </table>
       </div>
     </div>
@@ -320,6 +339,7 @@ function showSection(name) {
   if (name === 'statuses') loadStatuses();
   if (name === 'leave_types') loadLeaveTypes();
   if (name === 'levels') loadLevels();
+  if (name === 'modules') loadModules();
   if (name === 'badge_rules') loadBadgeRules();
   if (name === 'holidays') loadHolidays();
   if (name === 'members') loadMembers();
@@ -634,6 +654,54 @@ async function loadMembers() {
           <button class="btn-sm danger" onclick="deleteMember('${m.name}')">Delete</button>
         </td>
       </tr>`).join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadModules() {
+  try {
+    const d = await apiGet('/api/admin/modules');
+    document.getElementById('modulesTable').innerHTML = d.modules.map(m => `
+      <tr>
+        <td><code style="font-family:'JetBrains Mono',monospace;background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:.85em">${m.code}</code></td>
+        <td>${m.label}</td>
+        <td><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:${m.color || '#ccc'};vertical-align:middle;margin-right:6px"></span>${m.color || '#ccc'}</td>
+        <td>${m.active ? '<span style="color:var(--green);font-weight:600">Yes</span>' : '<span style="color:var(--red)">No</span>'}</td>
+        <td>
+          <button class="btn-sm" onclick="toggleModule('${m.code}', ${!m.active})">${m.active ? 'Disable' : 'Enable'}</button>
+          <button class="btn-sm" onclick="deleteModule('${m.code}')" style="background:var(--red);color:#fff;margin-left:6px">Delete</button>
+        </td>
+      </tr>`).join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function addModule() {
+  const code = document.getElementById('newModuleCode').value.trim().toLowerCase();
+  const label = document.getElementById('newModuleLabel').value.trim();
+  const color = document.getElementById('newModuleColor').value;
+  if (!code || !label) { showToast('Code and label are required', 'error'); return; }
+  try {
+    await apiPost('/api/admin/modules', { code, label, color });
+    document.getElementById('newModuleCode').value = '';
+    document.getElementById('newModuleLabel').value = '';
+    loadModules();
+    showToast('Module added', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function toggleModule(code, active) {
+  try {
+    await apiPut('/api/admin/modules/' + code, { active });
+    loadModules();
+    showToast('Module updated', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteModule(code) {
+  if (!confirm('Delete module "' + code + '"? This cannot be undone.')) return;
+  try {
+    await apiDelete('/api/admin/modules/' + code);
+    loadModules();
+    showToast('Module deleted', 'success');
   } catch (e) { showToast(e.message, 'error'); }
 }
 
