@@ -1465,19 +1465,21 @@ def get_fun_facts():
     conn = get_db()
     members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 ORDER BY name").fetchall()]
     facts = []
-    used_names = set()
+    used_names = {}
 
     def add_fact(emoji, title, reason, person=None):
-        if person and person in used_names:
+        if person and used_names.get(person, 0) >= 2:
             return False
         if person:
-            used_names.add(person)
+            used_names[person] = used_names.get(person, 0) + 1
         facts.append({"emoji": emoji, "title": title, "reason": reason, "person": person})
         return True
 
     def get_winner(sql, params=()):
         row = conn.execute(sql, params).fetchone()
         return row[0] if row else None, row[1] if row and len(row) > 1 else None
+
+    # === A. TIME PATTERNS (15) ===
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
@@ -1489,11 +1491,43 @@ def get_fun_facts():
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
-        WHERE strftime('%H', created_at) IN ('05','06','07','08','09')
+        WHERE strftime('%H', created_at) IN ('05','06','07','08')
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     """)
     if winner:
         add_fact("🐔", "Early Bird", f"{winner} submits {cnt} updates before 9 AM", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%H', created_at) IN ('09','10','11')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🌅", "Morning Person", f"{winner} has {cnt} updates in the morning (9 AM-12 PM)", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%H', created_at) = '12'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🍖", "Lunch Breaker", f"{winner} submits {cnt} updates during lunch hour", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%H', created_at) IN ('13','14','15','16')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("☀️", "Afternoon Hero", f"{winner} dominates the afternoon with {cnt} updates (1-5 PM)", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%H', created_at) IN ('18','19','20','21')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🏗️", "Evening Grinder", f"{winner} keeps going with {cnt} evening updates (6-9 PM)", winner)
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
@@ -1503,70 +1537,21 @@ def get_fun_facts():
     if winner:
         add_fact("🌞", "Weekend Warrior", f"{winner} logged {cnt} updates on weekends", winner)
 
-    winner, ratio = get_winner("""
-        SELECT name, ROUND(SUM(CASE WHEN status='done' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
-        FROM updates GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 5
-        ORDER BY ratio DESC LIMIT 1
-    """)
-    if winner:
-        add_fact("✨", "Perfectionist", f"{winner} marks {ratio}% of tasks as Done", winner)
-
-    winner, ratio = get_winner("""
-        SELECT name, ROUND(SUM(CASE WHEN status='done' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
-        FROM updates GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 10
-        ORDER BY ratio ASC LIMIT 1
-    """)
-    if winner:
-        add_fact("🚀", "Starter Spirit", f"{winner} has only {ratio}% Done — great at starting new work", winner)
-
     winner, cnt = get_winner("""
-        SELECT name, COUNT(DISTINCT date) as days FROM updates
-        WHERE status != 'leave' GROUP BY name ORDER BY days DESC LIMIT 1
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%w', date) = '1' AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
     """)
     if winner:
-        add_fact("🔥", "Consistency King", f"{winner} logged work on {cnt} distinct days", winner)
-
-    winner, cnt = get_winner("""
-        SELECT name, COUNT(DISTINCT module) as mods FROM updates
-        WHERE module != '' AND module IS NOT NULL
-        GROUP BY name ORDER BY mods DESC LIMIT 1
-    """)
-    if winner:
-        add_fact("🧩", "Module Juggler", f"{winner} works across {cnt} different modules", winner)
-
-    winner, mod = get_winner("""
-        SELECT name || ' on ' || module, COUNT(*) as cnt FROM updates
-        WHERE module != '' AND module IS NOT NULL
-        GROUP BY name, module ORDER BY cnt DESC LIMIT 1
-    """)
-    if winner:
-        parts = winner.split(' on ', 1)
-        if len(parts) == 2:
-            name, module = parts
-            add_fact("🎯", "Deep Diver", f"{name} has {cnt} updates focused on {module}", name)
-
-    winner, avg_len = get_winner("""
-        SELECT name, ROUND(AVG(LENGTH(description)),0) as avg_len FROM updates
-        WHERE status != 'leave' GROUP BY name HAVING COUNT(*) >= 5
-        ORDER BY avg_len DESC LIMIT 1
-    """)
-    if winner:
-        add_fact("📝", "Wall of Text", f"{winner} averages {avg_len} characters per update", winner)
+        add_fact("💪", "Monday Motivator", f"{winner} powers through Mondays with {cnt} updates", winner)
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
-        WHERE status != 'leave' GROUP BY name, date
-        ORDER BY cnt DESC LIMIT 1
+        WHERE strftime('%w', date) = '3' AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
     """)
     if winner:
-        add_fact("⚡", "Rapid Fire", f"{winner} once submitted {cnt} updates in a single day", winner)
-
-    winner, leave_cnt = get_winner("""
-        SELECT name, SUM(CASE WHEN status='leave' THEN 1 ELSE 0 END) as lv FROM updates
-        GROUP BY name HAVING COUNT(*) >= 20 ORDER BY lv ASC LIMIT 1
-    """)
-    if winner and leave_cnt == 0:
-        add_fact("💪", "Iron Will", f"{winner} has zero leave entries — maximum dedication", winner)
+        add_fact("🦸", "Wednesday Hero", f"{winner} conquers hump day with {cnt} Wednesday updates", winner)
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
@@ -1575,6 +1560,127 @@ def get_fun_facts():
     """)
     if winner:
         add_fact("🎉", "Friday Finisher", f"{winner} completes {cnt} tasks on Fridays", winner)
+
+    rows = conn.execute("""
+        SELECT name, date FROM updates WHERE status != 'leave' ORDER BY name, date
+    """).fetchall()
+    streak_map = {}
+    for r in rows:
+        n, d = r['name'], r['date']
+        streak_map.setdefault(n, set()).add(d)
+    best_streak_name = None
+    best_streak_len = 0
+    for n, dates in streak_map.items():
+        sorted_dates = sorted(dates)
+        curr = 1
+        best = 1
+        for i in range(1, len(sorted_dates)):
+            gap = (datetime.strptime(sorted_dates[i], '%Y-%m-%d') - datetime.strptime(sorted_dates[i-1], '%Y-%m-%d')).days
+            if gap == 1:
+                curr += 1
+                best = max(best, curr)
+            elif gap > 1:
+                curr = 1
+        if best > best_streak_len and n not in used_names:
+            best_streak_len = best
+            best_streak_name = n
+    if best_streak_name:
+        add_fact("🔥", "Same-Day Streak", f"{best_streak_name} had a {best_streak_len}-day consecutive work streak", best_streak_name)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%H', created_at) = '23'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("⏰", "Last Minute Larry", f"{winner} submits {cnt} updates at the 11th hour (11 PM)", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%H', created_at) IN ('05','06')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🌅", "Dawn Patroller", f"{winner} is up before dawn with {cnt} updates at 5-6 AM", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%H', created_at) IN ('00','01')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🕯️", "Midnight Oil", f"{winner} burns midnight oil with {cnt} updates after midnight", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE date IN (SELECT date FROM holidays) AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🎄", "Holiday Worker", f"{winner} worked through {cnt} updates on public holidays", winner)
+
+    # === B. TASK COMPLETION (15) ===
+
+    winner, ratio = get_winner("""
+        SELECT name, ROUND(SUM(CASE WHEN status='done' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
+        FROM updates GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 10
+        ORDER BY ratio DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("✅", "Closer", f"{winner} closes {ratio}% of all tasks", winner)
+
+    winner, ratio = get_winner("""
+        SELECT name, ROUND(SUM(CASE WHEN status='done' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
+        FROM updates GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 10
+        ORDER BY ratio ASC LIMIT 1
+    """)
+    if winner:
+        add_fact("🚀", "Starter", f"{winner} has only {ratio}% Done rate - great at starting new work", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status = 'in_progress'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🏗️", "Work In Progress King", f"{winner} has {cnt} tasks sitting in In Progress", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status = 'blocked'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🚫", "Blocked King", f"{winner} has been blocked {cnt} times", winner)
+
+    rows = conn.execute("""
+        SELECT name, date, status FROM updates WHERE status IN ('blocked','done') ORDER BY name, date, id
+    """).fetchall()
+    bounce = {}
+    prev = {}
+    for r in rows:
+        n, st = r['name'], r['status']
+        if n not in prev:
+            prev[n] = st
+            continue
+        if prev[n] == 'blocked' and st == 'done':
+            bounce[n] = bounce.get(n, 0) + 1
+        prev[n] = st
+    if bounce:
+        best = max(bounce, key=lambda k: bounce[k])
+        if best not in used_names:
+            add_fact("💪", "Unblocker", f"{best} resolved {bounce[best]} blocked tasks into Done", best)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status = 'done' AND date IN (
+            SELECT u1.date FROM updates u1
+            WHERE u1.name = updates.name AND u1.status = 'in_progress'
+        )
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🏃", "Speed Runner", f"{winner} completes {cnt} tasks same day they start", winner)
 
     rows = conn.execute("""
         SELECT name, date FROM updates WHERE status != 'leave' ORDER BY name, date
@@ -1593,47 +1699,890 @@ def get_fun_facts():
         if gap > 0:
             gap_map.setdefault(n, []).append(gap)
         prev_date = d
+    slowest = None
+    slowest_gap = 0
+    for n, gaps in gap_map.items():
+        if len(gaps) >= 3 and n not in used_names:
+            avg = sum(gaps) / len(gaps)
+            if avg > slowest_gap:
+                slowest_gap = avg
+                slowest = n
+    if slowest:
+        add_fact("🐌", "Slow Burner", f"{slowest} averages {slowest_gap:.1f} days between updates", slowest)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status = 'done'
+        GROUP BY name, strftime('%Y-%W', date)
+        ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("💥", "Week Crusher", f"{winner} once completed {cnt} tasks in a single week", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE date >= date('now', '-30 days') AND status != 'leave'
+        GROUP BY name HAVING COUNT(*) >= 1
+        ORDER BY cnt ASC LIMIT 1
+    """)
+    if winner:
+        add_fact("🔇", "Quiet Week", f"{winner} had only {cnt} updates in the last 30 days", winner)
+
+    rows = conn.execute("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status = 'done' GROUP BY name HAVING cnt = 1
+    """).fetchall()
+    if rows and rows[0][0] not in used_names:
+        add_fact("🎵", "One-Hit Wonder", f"{rows[0][0]} has exactly one completed task to their name", rows[0][0])
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status != 'leave' GROUP BY name, date
+        ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("⚡", "Multi-Tasker", f"{winner} once submitted {cnt} updates in a single day", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status = 'done' AND date >= date('now', '-7 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🔥", "Hot Streak", f"{winner} completed {cnt} tasks in the last 7 days", winner)
+
+    rows = conn.execute("""
+        SELECT name, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done_cnt,
+               COUNT(*) as total
+        FROM updates WHERE date >= date('now', '-14 days')
+        GROUP BY name HAVING total >= 1
+        ORDER BY done_cnt ASC, total DESC LIMIT 1
+    """).fetchall()
+    if rows and rows[0][0] not in used_names:
+        add_fact("❄️", "Cold Streak", f"{rows[0][0]} has {rows[0][1]} done tasks in the last 14 days", rows[0][0])
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status != 'leave' GROUP BY name
+        ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and cnt and int(cnt) >= 100:
+        add_fact("🎖️", "Centurion", f"{winner} has crossed {cnt} total updates - centurion status", winner)
+    elif winner:
+        add_fact("🎖️", "Centurion", f"{winner} leads with {cnt} total updates", winner)
+
+    rows = conn.execute("""
+        SELECT m.name, COUNT(u.id) as cnt FROM members m
+        LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave'
+        WHERE m.active = 1
+        GROUP BY m.name ORDER BY cnt ASC, m.join_date DESC LIMIT 1
+    """).fetchall()
+    if rows and rows[0][0] not in used_names:
+        add_fact("🌟", "First Timer", f"{rows[0][0]} is the newest contributor with {rows[0][1]} updates", rows[0][0])
+
+    # === C. COMMUNICATION STYLE (15) ===
+
+    winner, avg_len = get_winner("""
+        SELECT name, ROUND(AVG(LENGTH(description)),0) as avg_len FROM updates
+        WHERE status != 'leave' GROUP BY name HAVING COUNT(*) >= 5
+        ORDER BY avg_len DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("📝", "Wall of Text", f"{winner} averages {int(float(avg_len))} characters per update", winner)
+
+    winner, avg_len = get_winner("""
+        SELECT name, ROUND(AVG(LENGTH(description)),0) as avg_len FROM updates
+        WHERE status != 'leave' GROUP BY name HAVING COUNT(*) >= 5
+        ORDER BY avg_len ASC LIMIT 1
+    """)
+    if winner:
+        add_fact("✂️", "Brief and Sweet", f"{winner} keeps it concise with {int(float(avg_len))} chars per update", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE description LIKE '%?%' AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("❓", "Question Master", f"{winner} asks questions in {cnt} updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE description LIKE '%!%' AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🎉", "Hype Beast", f"{winner} shows enthusiasm in {cnt} exclamation-filled updates", winner)
+
+    rows = conn.execute("""
+        SELECT name, description FROM updates
+        WHERE status != 'leave' ORDER BY created_at DESC LIMIT 200
+    """).fetchall()
+    emoji_map = {}
+    for r in rows:
+        desc = r['description'] or ''
+        has_emoji = any(ord(c) > 0x1F000 for c in desc)
+        if has_emoji:
+            emoji_map[r['name']] = emoji_map.get(r['name'], 0) + 1
+    if emoji_map:
+        best = max(emoji_map, key=lambda k: emoji_map[k])
+        if best not in used_names:
+            add_fact("😀", "Emoji User", f"{best} uses emojis in {emoji_map[best]} updates", best)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%http://%' OR description LIKE '%https://%') AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🔗", "Link Sharer", f"{winner} shares links in {cnt} updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%bug%' OR description LIKE '%fix%' OR description LIKE '%defect%' OR description LIKE '%issue%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🐛", "Bug Hunter", f"{winner} hunts bugs with {cnt} bug-related updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%feature%' OR description LIKE '%implement%' OR description LIKE '%build%' OR description LIKE '%create%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🏗️", "Feature Builder", f"{winner} builds features with {cnt} feature updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%test%' OR description LIKE '%qa%' OR description LIKE '%verify%' OR description LIKE '%automation%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🧪", "Tester", f"{winner} focuses on quality with {cnt} test updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%doc%' OR description LIKE '%readme%' OR description LIKE '%wiki%' OR description LIKE '%guide%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("📖", "Documenter", f"{winner} documents everything with {cnt} doc updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%refactor%' OR description LIKE '%cleanup%' OR description LIKE '%optimize%' OR description LIKE '%improve%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🔧", "Refactorer", f"{winner} keeps code clean with {cnt} refactoring updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%deploy%' OR description LIKE '%release%' OR description LIKE '%ship%' OR description LIKE '%push%' OR description LIKE '%publish%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🚀", "Deployer", f"{winner} ships it with {cnt} deployment updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%report%' OR description LIKE '%review%' OR description LIKE '%summary%' OR description LIKE '%status%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("📊", "Reporter", f"{winner} reports progress with {cnt} reporting updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%team%' OR description LIKE '%pair%' OR description LIKE '%together%' OR description LIKE '%help%' OR description LIKE '%sync%' OR description LIKE '%meeting%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🤝", "Collaborator", f"{winner} works with others with {cnt} collaboration updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%design%' OR description LIKE '%ui%' OR description LIKE '%ux%' OR description LIKE '%layout%' OR description LIKE '%style%' OR description LIKE '%mockup%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🎨", "Designer", f"{winner} designs things with {cnt} design updates", winner)
+
+    # === D. ATTENDANCE & CONSISTENCY (15) ===
+
     best = None
     best_gap = 999
     for n, gaps in gap_map.items():
-        if len(gaps) >= 5:
-            avg = sum(gaps)/len(gaps)
+        if len(gaps) >= 3 and n not in used_names:
+            avg = sum(gaps) / len(gaps)
             if avg < best_gap:
                 best_gap = avg
                 best = n
     if best:
         add_fact("⚡", "Daily Grinder", f"{best} averages {best_gap:.1f} days between updates", best)
 
-    rows = conn.execute("""
-        SELECT name, date, status FROM updates WHERE status IN ('blocked','done') ORDER BY name, date, id
-    """).fetchall()
-    bounce = {}
-    prev = {}
-    for r in rows:
-        n, st = r['name'], r['status']
-        if n not in prev:
-            prev[n] = st
-            continue
-        if prev[n] == 'blocked' and st == 'done':
-            bounce[n] = bounce.get(n, 0) + 1
-        prev[n] = st
-    if bounce:
-        best = max(bounce, key=bounce.get)
-        add_fact("💪", "Bounce Backer", f"{best} resolved {bounce[best]} blocked tasks into Done", best)
+    winner, leave_cnt = get_winner("""
+        SELECT name, SUM(CASE WHEN status='leave' THEN 1 ELSE 0 END) as lv FROM updates
+        GROUP BY name HAVING COUNT(*) >= 20 ORDER BY lv ASC LIMIT 1
+    """)
+    if winner and leave_cnt == 0:
+        add_fact("💪", "Iron Will", f"{winner} has zero leave entries - maximum dedication", winner)
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
-        WHERE strftime('%H', created_at) NOT IN ('09','10','11','12','13','14','15','16','17')
-        AND strftime('%H', created_at) NOT IN ('22','23','00','01','02','03','04','05')
+        WHERE status = 'leave'
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     """)
     if winner:
-        add_fact("🌃", "Off Hours", f"{winner} submits {cnt} updates outside 9-5 hours", winner)
+        add_fact("🧊", "Recharger", f"{winner} takes the most breaks with {cnt} leave days", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(DISTINCT date) as days FROM updates
+        WHERE status != 'leave' GROUP BY name ORDER BY days DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🔥", "Never Misses", f"{winner} has logged work on {cnt} distinct days", winner)
+
+    rows = conn.execute("""
+        SELECT name, date, COUNT(*) as cnt FROM updates
+        WHERE status != 'leave' GROUP BY name, date ORDER BY name, date
+    """).fetchall()
+    daily_counts = {}
+    for r in rows:
+        daily_counts.setdefault(r['name'], []).append(r['cnt'])
+    high_var_name = None
+    high_var_val = 0
+    for n, counts in daily_counts.items():
+        if len(counts) >= 5 and n not in used_names:
+            avg = sum(counts) / len(counts)
+            variance = sum((c - avg) ** 2 for c in counts) / len(counts)
+            if variance > high_var_val:
+                high_var_val = variance
+                high_var_name = n
+    if high_var_name:
+        add_fact("🎢", "Rollercoaster", f"{high_var_name} has the most unpredictable daily output", high_var_name)
+
+    low_var_name = None
+    low_var_val = float('inf')
+    for n, counts in daily_counts.items():
+        if len(counts) >= 5 and n not in used_names:
+            avg = sum(counts) / len(counts)
+            variance = sum((c - avg) ** 2 for c in counts) / len(counts)
+            if variance < low_var_val:
+                low_var_val = variance
+                low_var_name = n
+    if low_var_name:
+        add_fact("🛡️", "Steady Eddie", f"{low_var_name} is the most consistent day-to-day contributor", low_var_name)
+
+    rows = conn.execute("""
+        SELECT name, MIN(date) as first_date FROM updates
+        WHERE status != 'leave' GROUP BY name
+    """).fetchall()
+    slow_start = None
+    worst_start_ratio = float('inf')
+    for r in rows:
+        n, first_d = r['name'], r['first_date']
+        first_month_end = (datetime.strptime(first_d, '%Y-%m-%d') + timedelta(days=30)).strftime('%Y-%m-%d')
+        cnt_first = conn.execute(
+            "SELECT COUNT(*) FROM updates WHERE name=? AND date BETWEEN ? AND ? AND status != 'leave'",
+            (n, first_d, first_month_end)
+        ).fetchone()[0]
+        total = conn.execute(
+            "SELECT COUNT(*) FROM updates WHERE name=? AND status != 'leave'",
+            (n,)
+        ).fetchone()[0]
+        if total >= 20 and n not in used_names:
+            ratio = cnt_first / total
+            if ratio < worst_start_ratio:
+                worst_start_ratio = ratio
+                slow_start = n
+    if slow_start:
+        add_fact("🐌", "Slow Starter", f"{slow_start} took time to ramp up - fewest early updates vs total", slow_start)
+
+    quick_start = None
+    best_start_ratio = 0
+    for r in rows:
+        n, first_d = r['name'], r['first_date']
+        first_month_end = (datetime.strptime(first_d, '%Y-%m-%d') + timedelta(days=30)).strftime('%Y-%m-%d')
+        cnt_first = conn.execute(
+            "SELECT COUNT(*) FROM updates WHERE name=? AND date BETWEEN ? AND ? AND status != 'leave'",
+            (n, first_d, first_month_end)
+        ).fetchone()[0]
+        total = conn.execute(
+            "SELECT COUNT(*) FROM updates WHERE name=? AND status != 'leave'",
+            (n,)
+        ).fetchone()[0]
+        if total >= 20 and n not in used_names:
+            ratio = cnt_first / total
+            if ratio > best_start_ratio:
+                best_start_ratio = ratio
+                quick_start = n
+    if quick_start:
+        add_fact("⚡", "Quick Starter", f"{quick_start} hit the ground running - highest early output ratio", quick_start)
+
+    winner, avg_h = get_winner("""
+        SELECT name, ROUND(AVG(CAST(strftime('%H', created_at) AS FLOAT)),1) as avg_h
+        FROM updates WHERE status != 'leave'
+        GROUP BY name HAVING COUNT(*) >= 10
+        ORDER BY avg_h ASC LIMIT 1
+    """)
+    if winner:
+        add_fact("💨", "First In", f"{winner} clocks in earliest on average (hour {avg_h})", winner)
+
+    winner, avg_h = get_winner("""
+        SELECT name, ROUND(AVG(CAST(strftime('%H', created_at) AS FLOAT)),1) as avg_h
+        FROM updates WHERE status != 'leave'
+        GROUP BY name HAVING COUNT(*) >= 10
+        ORDER BY avg_h DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🌙", "Last Out", f"{winner} logs off latest on average (hour {avg_h})", winner)
+
+    winner, ratio = get_winner("""
+        SELECT name,
+            ROUND(SUM(CASE WHEN strftime('%w', date) IN ('0','6') AND status != 'leave' THEN 1 ELSE 0 END)*100.0/
+                  NULLIF(SUM(CASE WHEN strftime('%w', date) NOT IN ('0','6') AND status != 'leave' THEN 1 ELSE 0 END),0),1) as ratio
+        FROM updates GROUP BY name HAVING SUM(CASE WHEN strftime('%w', date) IN ('0','6') AND status != 'leave' THEN 1 ELSE 0 END) >= 3
+        ORDER BY ratio DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🏘️", "Weekender", f"{winner} has {ratio}% weekend-to-weekday update ratio", winner)
+
+    today_dt = datetime.now()
+    streak_master = None
+    curr_best_streak = 0
+    for n, dates in streak_map.items():
+        if n in used_names:
+            continue
+        sorted_d = sorted(dates, reverse=True)
+        cs = 0
+        check_date = today_dt
+        for d_str in sorted_d:
+            d_dt = datetime.strptime(d_str, '%Y-%m-%d')
+            diff = (check_date - d_dt).days
+            if diff == 0:
+                cs += 1
+                check_date -= timedelta(days=1)
+            elif diff == 1:
+                cs += 1
+                check_date = d_dt - timedelta(days=1)
+            else:
+                break
+        if cs > curr_best_streak:
+            curr_best_streak = cs
+            streak_master = n
+    if streak_master and curr_best_streak >= 3:
+        add_fact("🔥", "Streak Master", f"{streak_master} is on a {curr_best_streak}-day active streak", streak_master)
+
+    rows = conn.execute("""
+        SELECT name, MAX(date) as last_date FROM updates
+        WHERE status != 'leave' GROUP BY name
+        ORDER BY last_date ASC LIMIT 1
+    """).fetchall()
+    if rows and rows[0][0] not in used_names:
+        gap_days = (today_dt - datetime.strptime(rows[0][1], '%Y-%m-%d')).days
+        if gap_days > 7:
+            add_fact("👻", "Ghost Mode", f"{rows[0][0]} has been quiet for {gap_days} days since last update", rows[0][0])
+
+    if daily_counts:
+        cadence_name = None
+        cadence_cv = float('inf')
+        for n, counts in daily_counts.items():
+            if len(counts) >= 10 and n not in used_names:
+                avg = sum(counts) / len(counts)
+                if avg > 0:
+                    std = (sum((c - avg) ** 2 for c in counts) / len(counts)) ** 0.5
+                    cv = std / avg
+                    if cv < cadence_cv:
+                        cadence_cv = cv
+                        cadence_name = n
+        if cadence_name:
+            add_fact("💪", "Consistent Cadence", f"{cadence_name} has the most consistent daily output rhythm", cadence_name)
+
+    if daily_counts:
+        unpred_name = None
+        unpred_cv = 0
+        for n, counts in daily_counts.items():
+            if len(counts) >= 10 and n not in used_names:
+                avg = sum(counts) / len(counts)
+                if avg > 0:
+                    std = (sum((c - avg) ** 2 for c in counts) / len(counts)) ** 0.5
+                    cv = std / avg
+                    if cv > unpred_cv:
+                        unpred_cv = cv
+                        unpred_name = n
+        if unpred_name:
+            add_fact("🎲", "Unpredictable", f"{unpred_name} has the most variable daily output", unpred_name)
+
+    # === E. MODULE EXPERTISE (15) ===
+
+    winner, mod = get_winner("""
+        SELECT name || ' on ' || module, COUNT(*) as cnt FROM updates
+        WHERE module != '' AND module IS NOT NULL
+        GROUP BY name, module ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        parts = winner.split(' on ', 1)
+        if len(parts) == 2:
+            name, module = parts
+            if name not in used_names:
+                add_fact("🎯", "Deep Diver", f"{name} has the deepest focus on {module} module", name)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(DISTINCT module) as mods FROM updates
+        WHERE module != '' AND module IS NOT NULL
+        GROUP BY name ORDER BY mods DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🧩", "Module Juggler", f"{winner} works across {cnt} different modules", winner)
+
+    rows = conn.execute("""
+        SELECT name, module, COUNT(*) as cnt FROM updates
+        WHERE module != '' AND module IS NOT NULL AND status != 'leave'
+        GROUP BY name, module
+    """).fetchall()
+    member_totals = {}
+    member_top_module = {}
+    for r in rows:
+        n, m, c = r['name'], r['module'], r['cnt']
+        member_totals[n] = member_totals.get(n, 0) + c
+        if n not in member_top_module or c > member_top_module[n][1]:
+            member_top_module[n] = (m, c)
+    champ = None
+    champ_pct = 0
+    for n, (m, c) in member_top_module.items():
+        if n in used_names or member_totals.get(n, 0) < 10:
+            continue
+        pct = c * 100.0 / member_totals[n]
+        if pct > champ_pct:
+            champ_pct = pct
+            champ = (n, m, pct)
+    if champ:
+        add_fact("🏆", "Module Champion", f"{champ[0]} owns {champ[2]:.0f}% of their updates in {champ[1]}", champ[0])
+
+    rows = conn.execute("""
+        SELECT u.name, u.module, u.date FROM updates u
+        WHERE u.module != '' AND u.module IS NOT NULL AND u.status != 'leave'
+        GROUP BY u.module HAVING MIN(u.id)
+        ORDER BY u.date DESC LIMIT 1
+    """).fetchall()
+    if rows and rows[0][0] not in used_names:
+        add_fact("🚀", "Pioneer", f"{rows[0][0]} was first to explore the {rows[0][1]} module", rows[0][0])
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status != 'leave' GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🏗️", "Builder", f"{winner} has the most updates with {cnt} total tasks", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%code%' OR description LIKE '%develop%' OR description LIKE '%engineer%' OR description LIKE '%implement%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("⚙️", "Engineer", f"{winner} is the code engineer with {cnt} engineering updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (module LIKE '%qa%' OR module LIKE '%test%' OR module LIKE '%quality%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🔍", "QA Master", f"{winner} dominates QA work with {cnt} quality updates", winner)
+    else:
+        winner2, cnt2 = get_winner("""
+            SELECT name, COUNT(*) as cnt FROM updates
+            WHERE (description LIKE '%test%' OR description LIKE '%qa%' OR description LIKE '%uat%')
+            AND status != 'leave'
+            GROUP BY name ORDER BY cnt DESC LIMIT 1
+        """)
+        if winner2 and winner2 not in used_names:
+            add_fact("🔍", "QA Master", f"{winner2} dominates QA work with {cnt2} test updates", winner2)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%design%' OR description LIKE '%creative%' OR description LIKE '%art%' OR description LIKE '%style%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🎨", "Creative", f"{winner} brings creativity with {cnt} design updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%analysis%' OR description LIKE '%data%' OR description LIKE '%metrics%' OR description LIKE '%stats%' OR description LIKE '%report%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("📊", "Analyst", f"{winner} analyzes data with {cnt} analysis updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%deploy%' OR description LIKE '%ci%' OR description LIKE '%pipeline%' OR description LIKE '%infra%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("📦", "DevOps", f"{winner} handles DevOps with {cnt} deployment updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (module LIKE '%mobile%' OR module LIKE '%android%' OR module LIKE '%ios%' OR description LIKE '%mobile%' OR description LIKE '%android%' OR description LIKE '%ios%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("📱", "Mobile Dev", f"{winner} is the mobile specialist with {cnt} mobile updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (module LIKE '%web%' OR module LIKE '%frontend%' OR module LIKE '%react%' OR description LIKE '%web%' OR description LIKE '%frontend%' OR description LIKE '%react%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🌐", "Web Master", f"{winner} rules the web with {cnt} web updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%ai%' OR description LIKE '%ml%' OR description LIKE '%model%' OR description LIKE '%training%' OR description LIKE '%llm%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🤖", "AI Wrangler", f"{winner} works with AI/ML with {cnt} AI updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%security%' OR description LIKE '%vulnerability%' OR description LIKE '%auth%' OR description LIKE '%encrypt%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🛡️", "Security Guard", f"{winner} protects the system with {cnt} security updates", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%sprint%' OR description LIKE '%backlog%' OR description LIKE '%planning%' OR description LIKE '%roadmap%' OR description LIKE '%pm%')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("📋", "PM Life", f"{winner} lives in project management with {cnt} PM updates", winner)
+
+    # === F. SOCIAL & TEAM DYNAMICS (10) ===
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%pair%' OR description LIKE '%paired%' OR description LIKE '%mob%' OR description LIKE '%together%' OR description LIKE '%with %')
+        AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🤝", "Pair Worker", f"{winner} loves collaboration with {cnt} pair/mob work updates", winner)
+
+    rows = conn.execute("""
+        SELECT name,
+               SUM(CASE WHEN description LIKE '%pair%' OR description LIKE '%paired%' OR description LIKE '%mob%' OR description LIKE '%together%' OR description LIKE '%with %' THEN 1 ELSE 0 END) as collab,
+               COUNT(*) as total
+        FROM updates WHERE status != 'leave' GROUP BY name HAVING total >= 10
+    """).fetchall()
+    lone = None
+    lone_ratio = 1.0
+    for r in rows:
+        n = r['name']
+        if n in used_names:
+            continue
+        ratio = r['collab'] / r['total'] if r['total'] > 0 else 0
+        if ratio < lone_ratio:
+            lone_ratio = ratio
+            lone = n
+    if lone:
+        add_fact("🐺", "Lone Wolf", f"{lone} works independently - minimal collaboration mentions", lone)
+
+    rows = conn.execute("""
+        SELECT name, description FROM updates
+        WHERE status != 'leave' ORDER BY created_at DESC LIMIT 200
+    """).fetchall()
+    mention_map = {}
+    all_member_names = set(members)
+    for r in rows:
+        n, desc = r['name'], r['description'] or ''
+        for m in all_member_names:
+            if m != n and m in desc:
+                mention_map[n] = mention_map.get(n, 0) + 1
+                break
+    if mention_map:
+        shadow = max(mention_map, key=lambda k: mention_map[k])
+        if shadow not in used_names:
+            add_fact("👤", "Shadow", f"{shadow} mentions teammates the most in updates", shadow)
+
+    winner, avg = get_winner("""
+        SELECT name, ROUND(COUNT(*)*1.0/NULLIF(COUNT(DISTINCT date),0),2) as avg
+        FROM updates WHERE status != 'leave'
+        GROUP BY name HAVING COUNT(DISTINCT date) >= 10
+        ORDER BY avg DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🏃", "Pace Setter", f"{winner} sets the pace with {avg} updates per working day", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE (description LIKE '%unblock%' OR description LIKE '%resolve%' OR description LIKE '%help%' OR description LIKE '%assist%')
+        AND status = 'done'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("💪", "Team Booster", f"{winner} unblocks the team with {cnt} helpful completed updates", winner)
+
+    winner, avg_min = get_winner("""
+        SELECT name, ROUND(AVG(CAST(strftime('%H', created_at) AS FLOAT) * 60 + CAST(strftime('%M', created_at) AS FLOAT)),0) as avg_min
+        FROM updates WHERE status != 'leave'
+        GROUP BY name HAVING COUNT(*) >= 10
+        ORDER BY avg_min ASC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        h = int(float(avg_min)) // 60
+        m = int(float(avg_min)) % 60
+        add_fact("🌅", "Morning Kickoff", f"{winner} starts earliest on average at {h:02d}:{m:02d}", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE CAST(strftime('%H', created_at) AS INTEGER) >= 20
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🌙", "Night Shift", f"{winner} works the night shift with {cnt} late-night updates", winner)
+
+    sa_name = None
+    sa_pct = 0
+    sa_totals = {}
+    for r in conn.execute("""
+        SELECT name, module, COUNT(*) as cnt FROM updates
+        WHERE module != '' AND module IS NOT NULL AND status != 'leave'
+        GROUP BY name, module
+    """).fetchall():
+        sa_totals[r['name']] = sa_totals.get(r['name'], 0) + r['cnt']
+    for r in conn.execute("""
+        SELECT name, module, COUNT(*) as cnt FROM updates
+        WHERE module != '' AND module IS NOT NULL AND status != 'leave'
+        GROUP BY name, module
+    """).fetchall():
+        n = r['name']
+        if n in used_names or sa_totals.get(n, 0) < 10:
+            continue
+        pct = r['cnt'] * 100.0 / sa_totals[n]
+        champ_name = champ[0] if champ else None
+        if pct > sa_pct and n != champ_name:
+            sa_pct = pct
+            sa_name = n
+    if sa_name:
+        add_fact("🎭", "Solo Act", f"{sa_name} is deeply specialized with {sa_pct:.0f}% in one module", sa_name)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%w', date) = '5' AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🤝", "Handoff King", f"{winner} wraps up the week with {cnt} Friday updates", winner)
+
+    rows = conn.execute("""
+        SELECT name, strftime('%w', date) as dow, COUNT(*) as cnt FROM updates
+        WHERE status != 'leave' GROUP BY name, dow
+    """).fetchall()
+    dow_pref = {}
+    for r in rows:
+        n, dow, c_val = r['name'], r['dow'], r['cnt']
+        if n not in dow_pref or c_val > dow_pref[n][1]:
+            dow_pref[n] = (dow, c_val)
+    from collections import Counter
+    if dow_pref:
+        common_dow = Counter(v[0] for v in dow_pref.values()).most_common(1)
+        if common_dow:
+            target_dow = common_dow[0][0]
+            dow_names = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+            ts_name = None
+            ts_cnt = 0
+            for n, (dow_val, c_val) in dow_pref.items():
+                if dow_val == target_dow and n not in used_names and c_val > ts_cnt:
+                    ts_cnt = c_val
+                    ts_name = n
+            if ts_name:
+                add_fact("📈", "Trend Setter", f"{ts_name} leads the pack with {ts_cnt} updates on {dow_names[int(target_dow)]}s", ts_name)
+
+    # === G. MILESTONES & RECORDS (15) ===
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status != 'leave' GROUP BY name, date
+        ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🏆", "Record Breaker", f"{winner} set a record with {cnt} updates in a single day", winner)
+
+    winner, days = get_winner("""
+        SELECT name, CAST(julianday('now') - julianday(join_date) AS INTEGER) as days
+        FROM members WHERE active = 1 AND join_date IS NOT NULL
+        ORDER BY days DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🎉", "Anniversary", f"{winner} celebrates {days} days on the team", winner)
+
+    rows = conn.execute("""
+        SELECT name, join_date FROM members WHERE active = 1 AND join_date IS NOT NULL
+    """).fetchall()
+    bday_name = None
+    bday_cnt = 0
+    for r in rows:
+        n, jd = r['name'], r['join_date']
+        if n in used_names:
+            continue
+        anniv_updates = conn.execute(
+            "SELECT COUNT(*) FROM updates WHERE name=? AND strftime('%m-%d', date) = strftime('%m-%d', ?) AND status != 'leave'",
+            (n, jd)
+        ).fetchone()[0]
+        if anniv_updates > bday_cnt:
+            bday_cnt = anniv_updates
+            bday_name = n
+    if bday_name:
+        add_fact("🎂", "Birthday", f"{bday_name} works on their anniversary with {bday_cnt} anniversary-day updates", bday_name)
+
+    winner, days = get_winner("""
+        SELECT name, CAST(julianday('now') - julianday(join_date) AS INTEGER) as days
+        FROM members WHERE active = 1 AND join_date IS NOT NULL
+        ORDER BY days ASC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🌟", "Newbie", f"{winner} is the newest member with {days} days on the team", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🎖️", "Veteran", f"{winner} is the veteran with {cnt} total updates", winner)
+
+    rows = conn.execute("""
+        SELECT m.name,
+               CAST(julianday('now') - julianday(m.join_date) AS INTEGER) as days,
+               COUNT(u.id) as cnt
+        FROM members m LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave'
+        WHERE m.active = 1 AND m.join_date IS NOT NULL
+        GROUP BY m.name HAVING days > 0 AND cnt > 5
+        ORDER BY (cnt*1.0/days) DESC LIMIT 1
+    """).fetchall()
+    if rows and rows[0][0] not in used_names:
+        ratio = rows[0][2] / rows[0][1] if rows[0][1] > 0 else 0
+        add_fact("🚀", "Rookie Rocket", f"{rows[0][0]} is the fastest newcomer with {ratio:.2f} updates/day", rows[0][0])
+
+    rows = conn.execute("""
+        SELECT m.name,
+               CAST(julianday('now') - julianday(m.join_date) AS INTEGER) as days,
+               COUNT(u.id) as cnt
+        FROM members m LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave'
+        WHERE m.active = 1 AND m.join_date IS NOT NULL
+        GROUP BY m.name HAVING days > 30 AND cnt > 5
+        ORDER BY (cnt*1.0/days) ASC LIMIT 1
+    """).fetchall()
+    if rows and rows[0][0] not in used_names:
+        ratio = rows[0][2] / rows[0][1] if rows[0][1] > 0 else 0
+        add_fact("🐌", "Slow Burn", f"{rows[0][0]} takes it steady with {ratio:.2f} updates/day", rows[0][0])
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status = 'done' AND date >= date('now', '-30 days')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🔥", "On Fire", f"{winner} is on fire with {cnt} completed tasks in the last 30 days", winner)
+
+    rows = conn.execute("""
+        SELECT name, MAX(date) as last_done FROM updates
+        WHERE status = 'done' AND date >= date('now', '-60 days')
+        GROUP BY name ORDER BY last_done ASC LIMIT 1
+    """).fetchall()
+    if rows and rows[0][0] not in used_names:
+        gap = (today_dt - datetime.strptime(rows[0][1], '%Y-%m-%d')).days if rows[0][1] else 60
+        add_fact("🐴", "Hibernating", f"{rows[0][0]} last completed a task {gap} days ago", rows[0][0])
+
+    rows = conn.execute("""
+        SELECT name, strftime('%Y-%m', date) as month, COUNT(*) as cnt
+        FROM updates WHERE status != 'leave' AND date >= date('now', '-90 days')
+        GROUP BY name, month ORDER BY name, month
+    """).fetchall()
+    growth = {}
+    prev_m = {}
+    for r in rows:
+        n, mo, c = r['name'], r['month'], r['cnt']
+        if n in prev_m:
+            diff = c - prev_m[n]
+            if prev_m[n] >= 3:
+                growth[n] = diff
+        prev_m[n] = c
+    if growth:
+        grower = max(growth, key=lambda k: growth[k])
+        if grower not in used_names and growth[grower] > 0:
+            add_fact("📈", "Growing Fast", f"{grower} increased output by {growth[grower]} updates month-over-month", grower)
+
+    if growth:
+        slower = min(growth, key=lambda k: growth[k])
+        if slower not in used_names and growth[slower] < 0:
+            add_fact("📉", "Slowing Down", f"{slower} decreased output by {abs(growth[slower])} updates month-over-month", slower)
+
+    rows = conn.execute("""
+        SELECT name, strftime('%Y-%m', date) as month, COUNT(DISTINCT date) as work_days
+        FROM updates WHERE status != 'leave'
+        GROUP BY name, month HAVING work_days >= 20
+        ORDER BY work_days DESC LIMIT 1
+    """).fetchall()
+    if rows and rows[0][0] not in used_names:
+        add_fact("🌟", "Perfect Month", f"{rows[0][0]} logged {rows[0][2]} working days in {rows[0][1]}", rows[0][0])
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status = 'done' AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🏆", "Monthly MVP", f"{winner} is this month MVP with {cnt} completed tasks", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status = 'done' AND date >= date('now', '-3 months')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner and winner not in used_names:
+        add_fact("🏛️", "Quarter Master", f"{winner} leads the quarter with {cnt} completed tasks", winner)
+
+    rows = conn.execute("""
+        SELECT name, COUNT(*) as total,
+               ROUND(SUM(CASE WHEN status='done' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as done_pct
+        FROM updates WHERE status != 'leave'
+        GROUP BY name HAVING total >= 50 AND done_pct >= 70
+        ORDER BY total DESC LIMIT 1
+    """).fetchall()
+    if rows and rows[0][0] not in used_names:
+        add_fact("👑", "Legend", f"{rows[0][0]} is a legend with {rows[0][1]} updates and {rows[0][2]}% done rate", rows[0][0])
 
     conn.close()
-
     random.shuffle(facts)
-    return {"today": today, "facts": facts[:5]}
+    return {"today": today, "facts": facts[:20]}
+
 
 
 
