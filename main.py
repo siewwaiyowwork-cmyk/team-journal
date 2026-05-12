@@ -1462,109 +1462,9 @@ def get_missing_progress():
 @app.get("/api/fun-facts")
 def get_fun_facts():
     today = datetime.now().strftime('%Y-%m-%d')
-    
-    summary_days = get_config_int('summary_days', 90)
-    cutoff_90 = (datetime.now() - timedelta(days=summary_days)).strftime('%Y-%m-%d')
-    
     conn = get_db()
-
     members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 ORDER BY name").fetchall()]
-
-    rows = conn.execute('''
-        SELECT name, COUNT(*) as total,
-               SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done,
-               SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END) as ip,
-               SUM(CASE WHEN status='blocked' THEN 1 ELSE 0 END) as blocked,
-               SUM(CASE WHEN status='leave' THEN 1 ELSE 0 END) as leave,
-               SUM(CASE WHEN status='vague' THEN 1 ELSE 0 END) as vague,
-               SUM(CASE WHEN status!='leave' THEN 1 ELSE 0 END) as workdays,
-               MAX(date) as last_update,
-               MIN(date) as first_update
-        FROM updates
-        WHERE date >= ?
-        GROUP BY name
-    ''', (cutoff_90,)).fetchall()
-
-    modules = conn.execute('''
-        SELECT module, name, COUNT(*) as cnt,
-               SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done
-        FROM updates
-        WHERE module != '' AND date >= ?
-        GROUP BY module, name
-        ORDER BY cnt DESC
-    ''', (cutoff_90,)).fetchall()
-
-    dow = conn.execute('''
-        SELECT CASE strftime('%w', date)
-            WHEN '0' THEN 'Sunday'
-            WHEN '1' THEN 'Monday'
-            WHEN '2' THEN 'Tuesday'
-            WHEN '3' THEN 'Wednesday'
-            WHEN '4' THEN 'Thursday'
-            WHEN '5' THEN 'Friday'
-            WHEN '6' THEN 'Saturday'
-        END as day, COUNT(*) as cnt
-        FROM updates WHERE status != 'leave'
-        GROUP BY strftime('%w', date)
-        ORDER BY cnt DESC
-    ''').fetchall()
-
-    hour_patterns = conn.execute('''
-        SELECT strftime('%H', created_at) as hour, COUNT(*) as cnt
-        FROM updates
-        WHERE date >= ?
-        GROUP BY strftime('%H', created_at)
-        ORDER BY cnt DESC
-    ''', (cutoff_90,)).fetchall()
-
-    long_desc = conn.execute('''
-        SELECT name, description, LENGTH(description) as len
-        FROM updates
-        WHERE status != 'leave'
-        ORDER BY len DESC LIMIT 5
-    ''').fetchall()
-
-    missing = [m for m in members if m not in [r[0] for r in conn.execute("SELECT DISTINCT name FROM updates WHERE date = ?", (today,)).fetchall()]]
-    row_dicts = [dict(r) for r in rows]
-
-    # Execute dynamic badge SQL from database
-    badges = []
-
-    activity_days = get_config_int('activity_days', 30)
-    cutoff_30 = (datetime.now() - timedelta(days=activity_days)).strftime('%Y-%m-%d')
-    streak_days = get_config_int('streak_days', 7)
-    cutoff_7 = (datetime.now() - timedelta(days=streak_days)).strftime('%Y-%m-%d')
-    long_streak_days = get_config_int('long_streak_days', 60)
-    cutoff_60 = (datetime.now() - timedelta(days=long_streak_days)).strftime('%Y-%m-%d')
-
-    param_map = {
-        '{PARAM_1}': "'" + cutoff_90 + "'",
-        '{PARAM_2}': "'" + cutoff_30 + "'",
-        '{PARAM_3}': "'" + cutoff_60 + "'",
-        '{PARAM_4}': "'" + cutoff_7 + "'",
-        '{PARAM_5}': "'" + today + "'"
-    }
-
-    rules = get_badge_rules(active_only=True)
-    for rule in rules:
-        try:
-            sql = rule['sql_query']
-            for k, v in param_map.items():
-                sql = sql.replace(k, v)
-            row = conn.execute(sql).fetchone()
-            if row:
-                badges.append({
-                    'badge_name': rule['badge_name'],
-                    'description': rule['description'],
-                    'winner': row[0] if len(row) > 0 else None,
-                    'metric': row[1] if len(row) > 1 else None,
-                    'result_type': rule['result_type']
-                })
-        except Exception as e:
-            print(f"Badge SQL error for {rule['badge_name']}: {e}")
-
-    conn.close()
-
+    facts = []
     used_names = set()
 
     def add_fact(emoji, title, reason, person=None):
@@ -1575,74 +1475,164 @@ def get_fun_facts():
         facts.append({"emoji": emoji, "title": title, "reason": reason, "person": person})
         return True
 
-    def add_fact_forced(emoji, title, reason, person=None):
-        if person and person in used_names:
-            used_names.discard(person)
-        if person:
-            used_names.add(person)
-        facts.append({"emoji": emoji, "title": title, "reason": reason, "person": person, "forced": True})
-        return True
+    def get_winner(sql, params=()):
+        row = conn.execute(sql, params).fetchone()
+        return row[0] if row else None, row[1] if row and len(row) > 1 else None
 
-    facts = []
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%H', created_at) IN ('22','23','00','01','02','03','04','05')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🌙", "Night Owl", f"{winner} submits {cnt} updates between 10 PM and 5 AM", winner)
 
-    # Add badge results as facts (frontend-compatible format)
-    for badge in badges:
-        emoji = "🏆"
-        title = badge['badge_name']
-        person = badge.get('winner')
-        if badge['result_type'] == 'top':
-            reason = badge['description']
-            if badge.get('metric') is not None:
-                reason = f"{reason} ({badge['metric']})"
-        elif badge['result_type'] == 'count':
-            reason = badge['description']
-            if badge.get('metric') is not None:
-                reason = f"{reason}: {badge['metric']}"
-        elif badge['result_type'] == 'boolean':
-            reason = badge['description']
-        else:
-            reason = badge['description']
-        add_fact(emoji, title, reason, person)
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%H', created_at) IN ('05','06','07','08','09')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🐔", "Early Bird", f"{winner} submits {cnt} updates before 9 AM", winner)
 
-    if missing:
-        msg = f"{', '.join(missing[:3])} has not submit yet" if len(missing) <= 3 else f"{missing[0]} and {len(missing)-1} others has not submit yet"
-        add_fact("⏰", "Still Missing", msg + f" for today ({today})")
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%w', date) IN ('0','6') AND status != 'leave'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🌞", "Weekend Warrior", f"{winner} logged {cnt} updates on weekends", winner)
 
-    if row_dicts:
-        unused = [r for r in row_dicts if r['name'] not in used_names]
-        personalities = [
-            ("🌙", "Night Owl", "{name} submits updates between 10 PM and 5 AM"),
-            ("🐔", "Early Bird", "{name} submits updates between 5 AM and 9 AM"),
-            ("⚡", "Rapid Fire", "{name} has multiple updates in one day"),
-            ("📝", "Wall of Text", "{name} writes the longest descriptions"),
-            ("⏰", "Last Minute", "{name} submits updates after 6 PM"),
-            ("☕", "Coffee Addict", "{name} mentions coffee/caffeine often"),
-            ("🎧", "Music Coder", "{name} mentions music/Spotify/headphones often"),
-            ("✨", "Perfectionist", "{name} marks most tasks as Done"),
-            ("🔥", "Consistency King", "{name} has logged most active days in last 30 days"),
-            ("🎯", "Comeback Kid", "{name} returned after a long gap between updates"),
-            ("💪", "Bounce Backer", "{name} resolves blocked tasks into Done"),
-            ("🌃", "Off Hours", "{name} submits updates outside 9-5 hours"),
-            ("❓", "Question Asker", "{name} uses many question marks in descriptions"),
-            ("❗", "Enthusiast", "{name} uses many exclamation marks"),
-            ("🌞", "Weekend Lover", "{name} submits updates on weekends"),
-            ("🎉", "Friday Finisher", "{name} completes tasks on Fridays"),
-            ("🧩", "Multi-Tasker", "{name} works on multiple modules in a single day"),
-            ("🐛", "Bug Fixer", "{name} fixes bugs often"),
-            ("🏗️", "Feature Builder", "{name} builds features often"),
-            ("🚀", "Speed Demon", "{name} completes tasks with fastest turnaround"),
-        ]
-        random.shuffle(personalities)
-        for i, p in enumerate(personalities[:3]):
-            if i < len(unused):
-                add_fact(p[0], p[1], p[2].format(name=unused[i]['name']), unused[i]['name'])
+    winner, ratio = get_winner("""
+        SELECT name, ROUND(SUM(CASE WHEN status='done' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
+        FROM updates GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 5
+        ORDER BY ratio DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("✨", "Perfectionist", f"{winner} marks {ratio}% of tasks as Done", winner)
 
-    forced = [f for f in facts if f.get('forced')]
-    normal = [f for f in facts if not f.get('forced')]
-    random.shuffle(forced)
-    random.shuffle(normal)
-    facts = forced + normal
+    winner, ratio = get_winner("""
+        SELECT name, ROUND(SUM(CASE WHEN status='done' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
+        FROM updates GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 10
+        ORDER BY ratio ASC LIMIT 1
+    """)
+    if winner:
+        add_fact("🚀", "Starter Spirit", f"{winner} has only {ratio}% Done — great at starting new work", winner)
 
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(DISTINCT date) as days FROM updates
+        WHERE status != 'leave' GROUP BY name ORDER BY days DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🔥", "Consistency King", f"{winner} logged work on {cnt} distinct days", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(DISTINCT module) as mods FROM updates
+        WHERE module != '' AND module IS NOT NULL
+        GROUP BY name ORDER BY mods DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🧩", "Module Juggler", f"{winner} works across {cnt} different modules", winner)
+
+    winner, mod = get_winner("""
+        SELECT name || ' on ' || module, COUNT(*) as cnt FROM updates
+        WHERE module != '' AND module IS NOT NULL
+        GROUP BY name, module ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        parts = winner.split(' on ', 1)
+        if len(parts) == 2:
+            name, module = parts
+            add_fact("🎯", "Deep Diver", f"{name} has {cnt} updates focused on {module}", name)
+
+    winner, avg_len = get_winner("""
+        SELECT name, ROUND(AVG(LENGTH(description)),0) as avg_len FROM updates
+        WHERE status != 'leave' GROUP BY name HAVING COUNT(*) >= 5
+        ORDER BY avg_len DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("📝", "Wall of Text", f"{winner} averages {avg_len} characters per update", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE status != 'leave' GROUP BY name, date
+        ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("⚡", "Rapid Fire", f"{winner} once submitted {cnt} updates in a single day", winner)
+
+    winner, leave_cnt = get_winner("""
+        SELECT name, SUM(CASE WHEN status='leave' THEN 1 ELSE 0 END) as lv FROM updates
+        GROUP BY name HAVING COUNT(*) >= 20 ORDER BY lv ASC LIMIT 1
+    """)
+    if winner and leave_cnt == 0:
+        add_fact("💪", "Iron Will", f"{winner} has zero leave entries — maximum dedication", winner)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%w', date) = '5' AND status = 'done'
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🎉", "Friday Finisher", f"{winner} completes {cnt} tasks on Fridays", winner)
+
+    rows = conn.execute("""
+        SELECT name, date FROM updates WHERE status != 'leave' ORDER BY name, date
+    """).fetchall()
+    gap_map = {}
+    prev_name = None
+    prev_date = None
+    for r in rows:
+        n, d = r['name'], r['date']
+        if n != prev_name:
+            prev_name = n
+            prev_date = d
+            gap_map[n] = []
+            continue
+        gap = (datetime.strptime(d, '%Y-%m-%d') - datetime.strptime(prev_date, '%Y-%m-%d')).days - 1
+        if gap > 0:
+            gap_map.setdefault(n, []).append(gap)
+        prev_date = d
+    best = None
+    best_gap = 999
+    for n, gaps in gap_map.items():
+        if len(gaps) >= 5:
+            avg = sum(gaps)/len(gaps)
+            if avg < best_gap:
+                best_gap = avg
+                best = n
+    if best:
+        add_fact("⚡", "Daily Grinder", f"{best} averages {best_gap:.1f} days between updates", best)
+
+    rows = conn.execute("""
+        SELECT name, date, status FROM updates WHERE status IN ('blocked','done') ORDER BY name, date, id
+    """).fetchall()
+    bounce = {}
+    prev = {}
+    for r in rows:
+        n, st = r['name'], r['status']
+        if n not in prev:
+            prev[n] = st
+            continue
+        if prev[n] == 'blocked' and st == 'done':
+            bounce[n] = bounce.get(n, 0) + 1
+        prev[n] = st
+    if bounce:
+        best = max(bounce, key=bounce.get)
+        add_fact("💪", "Bounce Backer", f"{best} resolved {bounce[best]} blocked tasks into Done", best)
+
+    winner, cnt = get_winner("""
+        SELECT name, COUNT(*) as cnt FROM updates
+        WHERE strftime('%H', created_at) NOT IN ('09','10','11','12','13','14','15','16','17')
+        AND strftime('%H', created_at) NOT IN ('22','23','00','01','02','03','04','05')
+        GROUP BY name ORDER BY cnt DESC LIMIT 1
+    """)
+    if winner:
+        add_fact("🌃", "Off Hours", f"{winner} submits {cnt} updates outside 9-5 hours", winner)
+
+    conn.close()
+
+    random.shuffle(facts)
     return {"today": today, "facts": facts[:5]}
 
 
