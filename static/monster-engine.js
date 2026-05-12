@@ -14,6 +14,21 @@ function mGetDominant(s) { return Object.entries(s).sort((a,b)=>b[1]-a[1])[0][0]
 function mGetSecondary(s) { return Object.entries(s).sort((a,b)=>b[1]-a[1])[1][0]; }
 function mGetTotal(s) { return Object.values(s).reduce((a,b)=>a+b,0); }
 
+let _CURRENT_SEED = '';
+function mSetSeed(seed) { _CURRENT_SEED = seed || ''; }
+function mClearSeed() { _CURRENT_SEED = ''; }
+function mHash() {
+  if (!_CURRENT_SEED) return 0;
+  let h = 0;
+  for (let i = 0; i < _CURRENT_SEED.length; i++) h = ((h << 5) - h) + _CURRENT_SEED.charCodeAt(i) | 0;
+  return Math.abs(h);
+}
+function mSeededPick(items, offset) {
+  if (!_CURRENT_SEED || items.length <= 1) return items[0];
+  const idx = Math.abs((mHash() + (offset || 0) * 137)) % items.length;
+  return items[idx];
+}
+
 const BODY_DEFS = {
   dragon:   {dom:['atk','agi'], sec:['atk','agi','fcs']},
   slime:    {dom:['stm','sup'], sec:['stm','sup','fcs']},
@@ -31,9 +46,11 @@ const BODY_DEFS = {
 
 function selectBody(s) {
   const dom = mGetDominant(s), sec = mGetSecondary(s);
+  const possible = [];
   for (const [type, def] of Object.entries(BODY_DEFS)) {
-    if (def.dom.includes(dom) && def.sec.includes(sec)) return type;
+    if (def.dom.includes(dom) && def.sec.includes(sec)) possible.push(type);
   }
+  if (possible.length > 0) return mSeededPick(possible, 0);
   if (s.atk >= s.stm && s.atk >= s.fcs && s.atk >= s.agi && s.atk >= s.sup) return 'dragon';
   if (s.stm >= s.atk && s.stm >= s.fcs && s.stm >= s.agi && s.stm >= s.sup) return 'golem';
   if (s.fcs >= s.atk && s.fcs >= s.stm && s.fcs >= s.agi && s.fcs >= s.sup) return 'phantom';
@@ -400,7 +417,8 @@ function drawForeheadGem(s, hx, hy, hs) {
   return `<polygon points="${hx},${hy-hs*0.9} ${hx+gr},${hy-hs*0.65} ${hx},${hy-hs*0.5} ${hx-gr},${hy-hs*0.65}" fill="${MSTAT_COLORS['fcs']}" opacity=".9"/>`;
 }
 
-function drawMonster(svg, s, size) {
+function drawMonster(svg, s, size, seed) {
+  mSetSeed(seed || '');
   const cx = size/2, cy = size/2;
   const dom = mGetDominant(s), sec = mGetSecondary(s);
   const total = mGetTotal(s) / 500;
@@ -431,4 +449,5 @@ function drawMonster(svg, s, size) {
   out += drawForeheadGem(s, hx, hy, hs);
 
   svg.innerHTML = out;
+  mClearSeed();
 }

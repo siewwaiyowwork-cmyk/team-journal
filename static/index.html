@@ -1563,7 +1563,7 @@ function launchConfetti(x,y){
             return `
                 <div class="overview-card" onclick="showDetail('${m.name}')">
                     <div class="ov-header">
-                        <svg class="ov-monster" width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" data-stats='${JSON.stringify(monsterStats)}' data-monster="${m.name.replace(/[^a-zA-Z]/g,'')}-${rank}"></svg>
+                        <svg class="ov-monster" width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" data-stats='${JSON.stringify(monsterStats)}' data-seed="${m.name}" data-monster="${m.name.replace(/[^a-zA-Z]/g,'')}-${rank}"></svg>
                         <div class="ov-name">${m.name}${(m.recent && m.recent.length > 0 && m.recent[0].date === todayStr) ? '<span class="active-dot"></span>' : ''}</div>${levelHtml}
                     </div>
                     <div class="ov-body" id="card-${m.name.replace(/[^a-zA-Z]/g,'')}">
@@ -1590,7 +1590,8 @@ function launchConfetti(x,y){
         },100);
         document.querySelectorAll('.ov-monster').forEach(function(svg){
             var stats = JSON.parse(svg.getAttribute('data-stats'));
-            drawMonster(svg, stats, 40);
+            var seed = svg.getAttribute('data-seed') || '';
+            drawMonster(svg, stats, 40, seed);
             var arch = mGetArchetype(stats);
             svg.setAttribute('title', arch.label + ': ' + mGetName(stats));
         });
@@ -2218,7 +2219,7 @@ function launchConfetti(x,y){
         const html = `
             <div class="detail-card">
                 <div class="detail-header-big">
-                    <svg class="detail-avatar" id="${monsterSvgId}" width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" data-stats='${JSON.stringify(monsterStats)}'></svg>
+                    <svg class="detail-avatar" id="${monsterSvgId}" width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" data-stats='${JSON.stringify(monsterStats)}' data-seed="${name}"></svg>
                     <div class="detail-title">
                         <h2>${name} ${dLevelHtml}</h2>
                         <div class="detail-sub">Last 90 working days · ${updates.length} entries · ${doneCount} Done · ${streak}-day streak ${rank !== '--' ? '· Rank #' + rank : ''}</div>
@@ -2290,7 +2291,8 @@ function launchConfetti(x,y){
         setTimeout(function(){
             var dSvg = document.getElementById(monsterSvgId);
             if(dSvg){
-                drawMonster(dSvg, monsterStats, 60);
+                var seed = dSvg.getAttribute('data-seed') || '';
+                drawMonster(dSvg, monsterStats, 60, seed);
                 var dArch = mGetArchetype(monsterStats);
                 dSvg.setAttribute('title', dArch.label + ': ' + mGetName(monsterStats));
             }
