@@ -474,7 +474,25 @@ def migrate_lowercase():
     conn.execute("UPDATE holidays SET name = lower(name) WHERE name != lower(name)")
     conn.commit()
     conn.close()
-    conn.close()
+
+def business_days_ago(n, conn=None):
+    from datetime import datetime, timedelta
+    should_close = conn is None
+    conn = conn or get_db()
+    rows = conn.execute("SELECT date FROM holidays ORDER BY date DESC").fetchall()
+    holidays = {r[0] for r in rows}
+    date = datetime.now()
+    count = 0
+    while count < n:
+        date -= timedelta(days=1)
+        ymd = date.strftime('%Y-%m-%d')
+        w = date.weekday()
+        if w >= 5 or ymd in holidays:
+            continue
+        count += 1
+    if should_close:
+        conn.close()
+    return date.strftime('%Y-%m-%d')
 
 @app.get("/api/updates")
 def get_updates(
@@ -647,17 +665,16 @@ def get_summary(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None
 ):
-    if not from_date:
-        summary_days = get_config_int('summary_days', 90)
-        from_date = (datetime.now() - timedelta(days=summary_days)).strftime('%Y-%m-%d')
-    if not to_date:
-        to_date = datetime.now().strftime('%Y-%m-%d')
-    
-    cutoff_90 = (datetime.now() - timedelta(days=get_config_int('summary_days', 90))).strftime('%Y-%m-%d')
-    
     statuses = get_working_statuses()
     conn = get_db()
-    
+
+    summary_days = get_config_int('summary_days', 90)
+    if not from_date:
+        from_date = business_days_ago(summary_days, conn)
+    if not to_date:
+        to_date = datetime.now().strftime('%Y-%m-%d')
+    cutoff_90 = business_days_ago(summary_days, conn)
+
     def get_status_code(role):
         res = conn.execute("SELECT code FROM statuses WHERE code = ?", (role,)).fetchone()
         return res[0] if res else role
@@ -808,13 +825,12 @@ def get_module_done(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None
 ):
-    current_year = datetime.now().year
+    conn = get_db()
     if not from_date:
-        from_date = (datetime.now() - timedelta(days=get_config_int('summary_days', 90))).strftime('%Y-%m-%d')
+        from_date = business_days_ago(get_config_int('summary_days', 90), conn)
     if not to_date:
         to_date = datetime.now().strftime('%Y-%m-%d')
     
-    conn = get_db()
     rows = conn.execute('''
         SELECT name, module, COUNT(*) as count
         FROM updates
@@ -850,7 +866,7 @@ def get_heatmap(
     to_date: Optional[str] = None
 ):
     if not from_date:
-        from_date = (datetime.now() - timedelta(days=get_config_int('summary_days', 90))).strftime('%Y-%m-%d')
+        from_date = business_days_ago(get_config_int('summary_days', 90), conn)
     if not to_date:
         to_date = datetime.now().strftime('%Y-%m-%d')
     
