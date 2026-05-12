@@ -1465,13 +1465,13 @@ def get_fun_facts():
     conn = get_db()
     members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 ORDER BY name").fetchall()]
     facts = []
-    used_names = {}
+    used_names = set()
 
     def add_fact(emoji, title, reason, person=None):
-        if person and used_names.get(person, 0) >= 2:
+        if person and person in used_names:
             return False
         if person:
-            used_names[person] = used_names.get(person, 0) + 1
+            used_names.add(person)
         facts.append({"emoji": emoji, "title": title, "reason": reason, "person": person})
         return True
 
@@ -2581,7 +2581,7 @@ def get_fun_facts():
 
     conn.close()
     random.shuffle(facts)
-    return {"today": today, "facts": facts[:20]}
+    return {"today": today, "facts": facts[:3]}
 
 
 
