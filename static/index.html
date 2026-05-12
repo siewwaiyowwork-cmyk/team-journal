@@ -29,11 +29,9 @@
         .overview-card,.detail-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:transform .2s}
         .overview-card{cursor:pointer}.overview-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,229,255,.1)}
         .ov-header,.detail-header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--surface2)}
-        .ov-monster{width:40px;height:40px;border-radius:8px;background:#0d0d18;flex-shrink:0;transition:transform .15s}
+        .ov-monster{width:40px;height:40px;border-radius:8px;flex-shrink:0;transition:transform .15s}
         .ov-monster:hover{transform:scale(1.15)}
-.ov-monster{width:40px;height:40px;border-radius:8px;background:#0d0d18;flex-shrink:0;cursor:pointer;transition:transform .15s}
-.ov-monster:hover{transform:scale(1.1)}
-.ov-rank{font-size:.9em;font-weight:700;padding:3px 10px;border-radius:8px;background:var(--bg);color:var(--text-dim);min-width:32px;text-align:center}
+        .ov-rank{font-size:.9em;font-weight:700;padding:3px 10px;border-radius:8px;background:var(--bg);color:var(--text-dim);min-width:32px;text-align:center}
 .ov-rank.g1{background:var(--gold);color:#fff}.ov-rank.g2{background:var(--silver);color:#fff}.ov-rank.g3{background:var(--bronze);color:#fff}
         .ov-name{font-size:1.15em;font-weight:700;flex:1}
         .badge{padding:3px 10px;border-radius:8px;font-weight:700;font-size:.85em}
@@ -1564,7 +1562,7 @@ function launchConfetti(x,y){
             return `
                 <div class="overview-card" onclick="showDetail('${m.name}')">
                     <div class="ov-header">
-                        <svg class="ov-monster" width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" data-stats='${JSON.stringify(monsterStats)}' data-seed="${m.name}" data-monster="${m.name.replace(/[^a-zA-Z]/g,'')}-${rank}"></svg>
+                        <div class="ov-monster" data-stats='${JSON.stringify(monsterStats)}' data-seed="${m.name}" data-monster="${m.name.replace(/[^a-zA-Z]/g,'')}-${rank}"></div>
                         <div class="ov-name">${m.name}${(m.recent && m.recent.length > 0 && m.recent[0].date === todayStr) ? '<span class="active-dot"></span>' : ''}</div>${levelHtml}
                     </div>
                     <div class="ov-body" id="card-${m.name.replace(/[^a-zA-Z]/g,'')}">
@@ -1589,12 +1587,12 @@ function launchConfetti(x,y){
                 if(el) addFireParticles(el);
             });
         },100);
-        document.querySelectorAll('.ov-monster').forEach(function(svg){
-            var stats = JSON.parse(svg.getAttribute('data-stats'));
-            var seed = svg.getAttribute('data-seed') || '';
-            drawMonster(svg, stats, 40, seed);
-            var arch = mGetArchetype(stats);
-            svg.setAttribute('title', arch.label + ': ' + mGetName(stats));
+        document.querySelectorAll('.ov-monster').forEach(function(div){
+            var stats = JSON.parse(div.getAttribute('data-stats'));
+            var seed = div.getAttribute('data-seed') || '';
+            div.innerHTML = '';
+            var w = buildMonsterWidget(stats, 40, seed);
+            div.appendChild(w);
         });
     }
 
@@ -2217,7 +2215,7 @@ function launchConfetti(x,y){
         const html = `
             <div class="detail-card">
                 <div class="detail-header-big">
-                    <svg class="detail-avatar" id="${monsterSvgId}" width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" data-stats='${JSON.stringify(monsterStats)}' data-seed="${name}"></svg>
+                    <div class="detail-avatar" id="${monsterSvgId}" data-stats='${JSON.stringify(monsterStats)}' data-seed="${name}"></div>
                     <div class="detail-title">
                         <h2>${name} ${dLevelHtml}</h2>
                         <div class="detail-sub">Last 90 working days · ${updates.length} entries · ${doneCount} Done · ${streak}-day streak ${rank !== '--' ? '· Rank #' + rank : ''}</div>
@@ -2287,12 +2285,12 @@ function launchConfetti(x,y){
         
         // Draw detail monster
         setTimeout(function(){
-            var dSvg = document.getElementById(monsterSvgId);
-            if(dSvg){
-                var seed = dSvg.getAttribute('data-seed') || '';
-                drawMonster(dSvg, monsterStats, 60, seed);
-                var dArch = mGetArchetype(monsterStats);
-                dSvg.setAttribute('title', dArch.label + ': ' + mGetName(monsterStats));
+            var dDiv = document.getElementById(monsterSvgId);
+            if(dDiv){
+                var seed = dDiv.getAttribute('data-seed') || '';
+                dDiv.innerHTML = '';
+                var w = buildMonsterWidget(monsterStats, 60, seed);
+                dDiv.appendChild(w);
             }
         }, 10);
         
