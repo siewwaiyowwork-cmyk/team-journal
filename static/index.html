@@ -2276,7 +2276,7 @@ function launchConfetti(x,y){
                 <div class="task-loading">Loading yearly achievements...</div>
                 <div class="task-content" style="display:none"></div>
             </div>
-            <div class="detail-tasklist"><h3 class="section-title">Recent Tasks</h3><div class="task-loading">Loading recent tasks...</div><div class="task-content" style="display:none"></div></div>
+            <div class="detail-tasklist"><h3 class="section-title">Yearly Tasks</h3><div class="task-loading">Loading yearly tasks...</div><div class="task-content" style="display:none"></div><div class="task-pagination" style="display:none;align-items:center;justify-content:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);margin-top:8px"><button class="pg-prev" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">← Prev</button><span class="pg-info" style="font-size:.85em;color:var(--text-dim);font-family:'JetBrains Mono',monospace"></span><button class="pg-next" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">Next →</button></div></div>
             <div class="collab-section" id="collaboratorsSection">
                 <div class="collab-title">👥 Who I Work With</div>
                 <div class="collab-grid" id="collabGrid"></div>
@@ -2296,21 +2296,62 @@ function launchConfetti(x,y){
             }
         }, 10);
         
-        // Render task list for last 30 business days
-        (function renderTaskList() {
+        // Render all yearly tasks with pagination (30 per page)
+        var tasklistTotal = 0, tasklistOffset = 0, tasklistPageSize = 30;
+
+        function loadTasklistPage(offset) {
             const taskUrl = new URL(window.location.origin + '/api/updates');
             taskUrl.searchParams.set('name', name);
-            taskUrl.searchParams.set('from_date', getBusinessDaysAgo(30));
-            taskUrl.searchParams.set('limit', '500');
-            
+            taskUrl.searchParams.set('from_date', getYearStart());
+            taskUrl.searchParams.set('limit', String(tasklistPageSize));
+            taskUrl.searchParams.set('offset', String(offset));
+
             fetch(taskUrl)
                 .then(r => r.json())
-                .then(data => renderTaskData(data.updates, 'tasklist'))
+                .then(data => {
+                    tasklistTotal = data.total || 0;
+                    tasklistOffset = offset;
+                    renderTaskData(data.updates, 'tasklist', false);
+                    updatePaginationControls();
+                })
                 .catch(e => {
                     console.error(e);
-                    renderTaskError('tasklist', 'Could not load recent tasks');
+                    renderTaskError('tasklist', 'Could not load yearly tasks');
                 });
-        })();
+        }
+
+        function updatePaginationControls() {
+            const container = document.querySelector('.detail-tasklist');
+            if (!container) return;
+            const pag = container.querySelector('.task-pagination');
+            if (!pag) return;
+            const prev = pag.querySelector('.pg-prev');
+            const next = pag.querySelector('.pg-next');
+            const info = pag.querySelector('.pg-info');
+            if (tasklistTotal <= tasklistPageSize) { pag.style.display = 'none'; return; }
+            pag.style.display = 'flex';
+            const currentPage = Math.floor(tasklistOffset / tasklistPageSize) + 1;
+            const totalPages = Math.ceil(tasklistTotal / tasklistPageSize);
+            info.textContent = currentPage + ' / ' + totalPages + ' (' + tasklistTotal + ')';
+            prev.disabled = tasklistOffset <= 0;
+            prev.style.opacity = prev.disabled ? '0.5' : '1';
+            prev.style.cursor = prev.disabled ? 'not-allowed' : 'pointer';
+            next.disabled = tasklistOffset + tasklistPageSize >= tasklistTotal;
+            next.style.opacity = next.disabled ? '0.5' : '1';
+            next.style.cursor = next.disabled ? 'not-allowed' : 'pointer';
+        }
+
+        loadTasklistPage(0);
+
+        // Attach pagination listeners after DOM insertion
+        setTimeout(function() {
+            const container = document.querySelector('.detail-tasklist');
+            if (!container) return;
+            const prev = container.querySelector('.pg-prev');
+            const next = container.querySelector('.pg-next');
+            if (prev) prev.addEventListener('click', function() { if (tasklistOffset > 0) loadTasklistPage(tasklistOffset - tasklistPageSize); });
+            if (next) next.addEventListener('click', function() { if (tasklistOffset + tasklistPageSize < tasklistTotal) loadTasklistPage(tasklistOffset + tasklistPageSize); });
+        }, 50);
 
         // Render this year's done tasks
         (function renderYearDone() {
@@ -2357,7 +2398,7 @@ function launchConfetti(x,y){
             if (updates.length === 0) {
                 content.innerHTML = isYearDone
                     ? '<div class="task-empty-state">No Done tasks yet this year — keep completing and updating! Your accomplishments will appear here.</div>'
-                    : '<div class="task-empty-state">No updates in the last 30 working days. Start logging your daily progress!</div>';
+                    : '<div class="task-empty-state">No tasks found for this member. Start logging daily progress!</div>';
                 return;
             }
             

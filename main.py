@@ -519,11 +519,14 @@ def get_updates(
         where.append('status = ?')
         params.append(status)
     
+    count_sql = f"SELECT COUNT(*) FROM updates WHERE {' AND '.join(where)}"
+    total = conn.execute(count_sql, params).fetchone()[0]
+
     sql = f"SELECT * FROM updates WHERE {' AND '.join(where)} ORDER BY date DESC, id DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
     rows = conn.execute(sql, params).fetchall()
     conn.close()
-    return {"updates": [dict(r) for r in rows]}
+    return {"total": total, "updates": [dict(r) for r in rows]}
 
 @app.put("/api/updates/{update_id}")
 def update_entry(update_id: int, payload: dict = Body(...)):
@@ -865,13 +868,12 @@ def get_heatmap(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None
 ):
+    conn = get_db()
     if not from_date:
         from_date = business_days_ago(get_config_int('summary_days', 90), conn)
     if not to_date:
         to_date = datetime.now().strftime('%Y-%m-%d')
-    
-    conn = get_db()
-    
+
     all_members = [row['name'] for row in conn.execute(
         "SELECT name FROM members WHERE active = 1 ORDER BY name"
     ).fetchall()]
