@@ -46,22 +46,31 @@ function drawMonster(svg, s, size, seed) {
 
   let out = `<rect width="${size}" height="${size}" rx="${size*0.15}" fill="#0d0d18"/>`;
 
+  const bodyHash = seed ? [...seed].reduce((h,c)=>(h*31+c.charCodeAt(0))|0,0) : 0;
+  const bodyVariant = bodyHash % 3;
+  let bodyShape = dom;
+  if (bodyVariant === 1) bodyShape = sec;
+  if (bodyVariant === 2) {
+    const shift = {atk:'agi', agi:'fcs', fcs:'sup', sup:'stm', stm:'atk'};
+    bodyShape = shift[sec] || sec;
+  }
+
   const bw = Math.round(size * 0.28 * bodyScale);
   const bh = Math.round(size * 0.28 * bodyScale);
   const bx = cx - bw/2, by = cy - bh/2 + size*0.05;
 
-  if (dom === 'atk') {
+  if (bodyShape === 'atk') {
     out += `<polygon points="${cx},${by-bh*0.3} ${bx+bw*1.2},${by+bh*0.4} ${bx+bw},${by+bh*1.3} ${bx},${by+bh*1.3} ${bx-bw*0.2},${by+bh*0.4}" fill="${dc}"/>`;
     out += `<polygon points="${cx},${by-bh*0.2} ${bx+bw},${by+bh*0.4} ${bx+bw*0.8},${by+bh*1.2} ${bx+bw*0.2},${by+bh*1.2} ${bx},${by+bh*0.4}" fill="${mc}"/>`;
-  } else if (dom === 'stm') {
+  } else if (bodyShape === 'stm') {
     const r = bw * 0.9;
     out += `<circle cx="${cx}" cy="${by+bh*0.6}" r="${r*1.1}" fill="${dc}"/>`;
     out += `<circle cx="${cx}" cy="${by+bh*0.5}" r="${r}" fill="${mc}"/>`;
-  } else if (dom === 'fcs') {
+  } else if (bodyShape === 'fcs') {
     const hh = bh * 0.9;
     out += `<polygon points="${cx},${by} ${cx+bw},${by+hh*0.5} ${cx+bw*0.7},${by+hh*1.1} ${cx-bw*0.7},${by+hh*1.1} ${cx-bw},${by+hh*0.5}" fill="${dc}"/>`;
     out += `<polygon points="${cx},${by+hh*0.1} ${cx+bw*0.8},${by+hh*0.55} ${cx+bw*0.55},${by+hh} ${cx-bw*0.55},${by+hh} ${cx-bw*0.8},${by+hh*0.55}" fill="${mc}"/>`;
-  } else if (dom === 'agi') {
+  } else if (bodyShape === 'agi') {
     out += `<ellipse cx="${cx+size*0.05}" cy="${by+bh*0.7}" rx="${bw*1.2}" ry="${bh*0.7}" fill="${dc}"/>`;
     out += `<ellipse cx="${cx}" cy="${by+bh*0.6}" rx="${bw*1.1}" ry="${bh*0.6}" fill="${mc}"/>`;
   } else {
@@ -89,7 +98,7 @@ function drawMonster(svg, s, size, seed) {
   const eyeColor = s.fcs > 60 ? lc : (s.sup > 60 ? MSTAT_LIGHT['sup'] : '#ffffff');
   const pupilColor = '#000a14';
 
-  if (dom === 'fcs') {
+  if (bodyShape === 'fcs') {
     out += `<circle cx="${hx}" cy="${ey}" r="${er*2.5}" fill="${eyeColor}"/>`;
     out += `<ellipse cx="${hx}" cy="${ey}" rx="${er*0.8}" ry="${er*2}" fill="${pupilColor}"/>`;
     out += `<circle cx="${hx-er*0.7}" cy="${ey-er*0.7}" r="${er*0.6}" fill="#ffffff" opacity=".8"/>`;

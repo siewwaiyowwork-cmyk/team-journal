@@ -1530,6 +1530,8 @@ function launchConfetti(x,y){
                 agi: Math.min(100, agilityPct),
                 sup: Math.min(100, Math.round(m.support_pct || 0))
             };
+            window._monsterCache = window._monsterCache || {};
+            window._monsterCache[m.name] = monsterStats;
             const rpgStatsHtml = `
                 <div class="rpg-stats">
                     <div class="rpg-stat" title="Completion Rate: ${m.done || 0} done / (${m.done || 0} done + ${m.in_progress || 0} in_progress + ${m.blocked || 0} blocked) = ${m.completion_rate || 0}%">
@@ -2066,14 +2068,11 @@ function launchConfetti(x,y){
         const supportCount = updates.filter(u => u.status !== 'leave' && u.module === 'support').length;
         const supportRate = actionableTotal > 0 ? Math.round((supportCount / actionableTotal) * 1000) / 10 : 0;
 
-        // Monster stats
-        const focusPctD = Math.min(100, Math.round(updates.filter(u => u.status !== 'leave' && u.status !== 'vague').slice(-10).length * 10));
-        const agilityPctD = Math.max(0, Math.round(100 - (ipDoneRatio * 10)));
-        const monsterStats = {
+        const monsterStats = window._monsterCache && window._monsterCache[name] ? window._monsterCache[name] : {
             atk: Math.min(100, Math.round(completionRate)),
             stm: Math.min(100, Math.round(attendancePct)),
-            fcs: focusPctD,
-            agi: agilityPctD,
+            fcs: Math.min(100, Math.round(updates.filter(u => u.status !== 'leave' && u.status !== 'vague').slice(-10).length * 10)),
+            agi: Math.max(0, Math.round(100 - (ipDoneRatio * 10))),
             sup: Math.min(100, Math.round(supportRate))
         };
         const monsterSvgId = 'detail-monster-' + safeId;
