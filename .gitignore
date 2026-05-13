@@ -36,3 +36,12 @@ Thumbs.db
 
 # Railway local config
 .railway/
+
+# PromptOps context snapshot
+.promptops/
+
+# PromptOps session assets
+.promptops-assets/
+
+# Monster debug preview
+static/monster-preview.html
