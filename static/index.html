@@ -388,6 +388,7 @@
         .detail-tasklist .task-entry:last-child,.detail-yeardone .task-entry:last-child{border-bottom:none}\n.task-week-alt{background:rgba(255,255,255,.025);border-radius:0;margin:0 -8px;padding-left:8px;padding-right:8px}
         .task-module-badge{font-size:.68em;padding:2px 7px;border-radius:4px;font-weight:600;font-family:'JetBrains Mono',monospace;text-transform:uppercase;background:var(--surface2);color:var(--text-dim);border:1px solid var(--border);flex-shrink:0;white-space:nowrap}
         .task-desc{color:var(--text);flex:1;line-height:1.35}
+        .task-remarks-badge{font-size:.78em;margin-left:6px;padding:1px 5px;background:rgba(0,229,255,.1);border-radius:4px;border:1px solid rgba(0,229,255,.3);color:var(--accent);cursor:help;flex-shrink:0}
         .task-status-pill{font-size:.72em;padding:2px 9px;border-radius:10px;font-weight:600;white-space:nowrap;flex-shrink:0}
         /* task-status-pill dynamic class styles injected via injectStatusStyles() */
         /* more task-status-pill classes removed - now dynamic */
@@ -660,6 +661,10 @@
                     <div class="word-bar"><div class="word-bar-fill" id="pWBar" style="width:0%;background:var(--orange)"></div></div>
                     <span id="pWStatus"></span>
                 </div>
+            </div>
+            <div class="field-group" id="remarksGroup">
+                <span class="field-label">Remarks <span style="color:var(--text-dim);font-weight:400">(optional)</span></span>
+                <textarea class="panel-input" id="pRemarks" rows="2" placeholder="Extra context, notes, or explanation..."></textarea>
             </div>
             <div class="field-group">
                 <span class="field-label">Status <span>*</span></span>
@@ -2249,6 +2254,7 @@ function launchConfetti(x,y){
             if(pSt==='leave'){
                 entry.leave_type = pLeaveType||'AL';
             }
+            entry.remarks = document.getElementById('pRemarks').value.trim();
             return entry;
         });
         
@@ -2285,7 +2291,7 @@ function launchConfetti(x,y){
         pName='';pMod='';pSt='';pLeaveType='';
         document.querySelectorAll('.name-chip,.mod-chip,.st-btn').forEach(e=>e.classList.remove('sel'));
         document.querySelectorAll('#leaveTypeWrap .mod-chip').forEach(e=>e.classList.remove('sel'));
-        ['pDesc','pCustomMod','pCustomLeave'].forEach(id=>document.getElementById(id).value='');
+        ['pDesc','pRemarks','pCustomMod','pCustomLeave'].forEach(id=>document.getElementById(id).value='');
         document.getElementById('leaveTypeGroup').style.display='none';
         document.getElementById('modGroup').style.display='block';
         document.getElementById('descGroup').style.display='block';
@@ -2937,19 +2943,25 @@ function launchConfetti(x,y){
                 <div class="chart-box"><div class="chart-title">Weekly Rhythm ${rangeLabel} <span class="info-icon" data-tooltip="Shows how many updates you submitted on each weekday. Higher bars = more activity on that day. Only non-leave entries are counted. Mon-Fri pattern helps identify your most productive days.">ℹ</span></div><div class="chart-wrapper"><canvas id="c-week-${safeId}"></canvas></div></div>
                 <div class="chart-box"><div class="chart-title">90-Day Streak <span class="info-icon" data-tooltip="Activity grid for the last 90 working days (weekends & public holidays excluded). Bright cells = days with updates (brighter = more entries). Orange = leave days. Blank = no activity. Keep logging daily to build and maintain your streak!">ℹ</span></div><div class="streak-grid" id="streak-${safeId}"></div></div>
             </div>
-            <div class="detail-yeardone">
+                <div class="detail-yeardone">
                 <div class="yeardone-header">
                     <div class="yeardone-trophy">🏆</div>
                     <div class="yeardone-stars" style="font-size:1.1em;font-weight:700;color:var(--gold)">Yearly Achievements</div>
                     <div class="yeardone-subtitle">Every completed task is a victory — celebrate your wins!</div>
                 </div>
                 <div class="yeardone-milestone" id="yeardoneMilestone" style="display:none"></div>
+                <div class="task-pagination" id="yeardonePagination" style="display:none;align-items:center;justify-content:center;gap:12px;padding:8px 0">
+                    <button class="pg-prev" onclick="loadYeardonePage(yeardoneOffset - yeardonePageSize)" style="padding:4px 12px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Syne';cursor:pointer">← Prev</button>
+                    <span class="pg-info" style="font-size:.8em;color:var(--text-dim);font-family:'JetBrains Mono'">1 / 1</span>
+                    <button class="pg-next" onclick="loadYeardonePage(yeardoneOffset + yeardonePageSize)" style="padding:4px 12px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Syne';cursor:pointer">Next →</button>
+                </div>
                 <h3 class="section-title" style="font-size:.85em;margin-bottom:10px">Completed Tasks <span class="badge" style="margin-left:8px">0</span></h3>
                 <div class="task-loading">Loading yearly achievements...</div>
                 <div class="task-sort-bar" id="yearDoneSortBar" style="display:none">
                     <button data-sort="date" class="active" onclick="sortDetail('yeardone','date')">📅 Date</button>
                     <button data-sort="module" onclick="sortDetail('yeardone','module')">📦 Module</button>
                     <button data-sort="description" onclick="sortDetail('yeardone','description')">📝 Description</button>
+                    <button data-sort="remarks" onclick="sortDetail('yeardone','remarks')">💬 Remarks</button>
                 </div>
                 <div class="task-content" style="display:none"></div>
                 <div class="task-pagination" style="display:none;align-items:center;justify-content:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);margin-top:8px">
@@ -2966,6 +2978,7 @@ function launchConfetti(x,y){
                     <button data-sort="module" onclick="sortDetail('tasklist','module')">📦 Module</button>
                     <button data-sort="description" onclick="sortDetail('tasklist','description')">📝 Description</button>
                     <button data-sort="status" onclick="sortDetail('tasklist','status')">🔖 Status</button>
+                    <button data-sort="remarks" onclick="sortDetail('tasklist','remarks')">💬 Remarks</button>
                 </div>
                 <div class="task-content" style="display:none"></div>
                 <div class="task-pagination" style="display:none;align-items:center;justify-content:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);margin-top:8px">
@@ -3266,9 +3279,11 @@ function launchConfetti(x,y){
         var descEl = row.querySelector('.task-desc');
         var moduleEl = row.querySelector('.task-module-badge');
         var statusEl = row.querySelector('.task-status-pill');
+        var remarksEl = row.querySelector('.task-remarks-badge');
         var currentDesc = descEl.textContent;
         var currentModule = moduleEl ? moduleEl.textContent : '';
         var currentStatus = statusEl.className.replace('task-status-pill ','');
+        var currentRemarks = remarksEl ? remarksEl.getAttribute('data-remarks') : '';
         
         var formHtml = '<div class="edit-form" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-top:4px">'+
             '<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap">'+
@@ -3282,6 +3297,7 @@ function launchConfetti(x,y){
                 '</select>'+
             '</div>'+
             '<textarea class="edit-desc" style="width:100%;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8em;box-sizing:border-box;margin-bottom:6px;resize:vertical" rows="2">' + currentDesc + '</textarea>'+
+            '<textarea class="edit-remarks" style="width:100%;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8em;box-sizing:border-box;margin-bottom:6px;resize:vertical" rows="1" placeholder="Remarks (optional)">' + currentRemarks + '</textarea>'+
             '<div style="display:flex;gap:8px;justify-content:flex-end">'+
                 '<button onclick="saveUpdateEdit(' + updateId + ', this.parentElement.parentElement)" style="padding:4px 12px;border-radius:6px;border:none;background:var(--green);color:#000;font-size:.78em;font-weight:700;cursor:pointer">Save</button>'+
                 '<button onclick="cancelUpdateEdit(this.parentElement.parentElement)" style="padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text-dim);font-size:.78em;cursor:pointer">Cancel</button>'+
@@ -3303,6 +3319,7 @@ function launchConfetti(x,y){
         var module = formEl.querySelector('.edit-module').value.trim();
         var status = formEl.querySelector('.edit-status').value;
         var description = formEl.querySelector('.edit-desc').value.trim();
+        var remarks = formEl.querySelector('.edit-remarks').value.trim();
         
         if(!description){
             showToast('Description cannot be empty','err');
@@ -3313,7 +3330,7 @@ function launchConfetti(x,y){
             var res = await fetch(API_URL + '/api/updates/' + updateId, {
                 method: 'PUT',
                 headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({fields:{module:module,status:status,description:description}})
+                body: JSON.stringify({fields:{module:module,status:status,description:description,remarks:remarks}})
             });
             var data = await res.json();
             if(data.ok){
@@ -3384,6 +3401,8 @@ function launchConfetti(x,y){
             sorted.sort(function(a,b){ var da=(a.description||''), db=(b.description||''); return da.localeCompare(db) || new Date(b.date)-new Date(a.date); });
         } else if (sortBy === 'status') {
             sorted.sort(function(a,b){ var sa=(a.status||''), sb=(b.status||''); return sa.localeCompare(sb) || new Date(b.date)-new Date(a.date); });
+        } else if (sortBy === 'remarks') {
+            sorted.sort(function(a,b){ var ra=(a.remarks||''), rb=(b.remarks||''); return ra.localeCompare(rb) || new Date(b.date)-new Date(a.date); });
         } else {
             sorted.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
         }
@@ -3406,7 +3425,8 @@ function launchConfetti(x,y){
                     : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
                 const editBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
                 const delBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
-                htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${editBtn}${delBtn}</div>`;
+                const remarksHtml = u.remarks ? `<span class="task-remarks-badge" data-remarks="${u.remarks.replace(/"/g, '&quot;')}" title="💬 Has remarks - click Edit to view">💬</span>` : '';
+                htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${remarksHtml}${editBtn}${delBtn}</div>`;
             });
         } else {
             // Date sort: group by date for cleaner display
@@ -3429,7 +3449,8 @@ function launchConfetti(x,y){
                         : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
                     const editBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
                     const delBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
-                    htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${editBtn}${delBtn}</div>`;
+                    const remarksHtml2 = u.remarks ? `<span class="task-remarks-badge" data-remarks="${u.remarks.replace(/"/g, '&quot;')}" title="💬 Has remarks - click Edit to view">💬</span>` : '';
+                    htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${remarksHtml2}${editBtn}${delBtn}</div>`;
                 });
             });
         }

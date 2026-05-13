@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS updates (
     leave_type TEXT,
     flagged INTEGER DEFAULT 0,
     flag_reason TEXT,
+    remarks TEXT DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

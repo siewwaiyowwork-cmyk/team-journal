@@ -49,6 +49,11 @@ def init_db():
         pass
 
     try:
+        conn.execute("ALTER TABLE updates ADD COLUMN remarks TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
         legacy_cols = [r[1] for r in conn.execute("PRAGMA table_info(badge_rules)").fetchall()]
         if 'badge_type' in legacy_cols and 'sql_query' not in legacy_cols:
             conn.execute("DROP TABLE badge_rules")
@@ -536,11 +541,11 @@ def update_entry(update_id: int, payload: dict = Body(...)):
     fields = payload.get('fields', {})
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
-    allowed = {'module','description','status'}
+    allowed = {'module','description','status','remarks'}
     updates = {}
     for k,v in fields.items():
         if k in allowed:
-            updates[k] = str(v).lower().strip() if k != 'status' else v
+            updates[k] = str(v).lower().strip() if k in ('module','description') else str(v).strip()
     if not updates:
         raise HTTPException(status_code=400, detail="Invalid fields")
     conn = get_db()
@@ -606,12 +611,13 @@ def submit(payload: dict):
         name_lc = str(e.get('name','')).lower().strip()
         module_lc = str(e.get('module','')).lower().strip()
         desc_lc = str(e.get('description','')).lower().strip()
+        remarks = str(e.get('remarks','')).strip()
         
         cursor.execute('''
-            INSERT INTO updates (date, name, module, description, status, leave_type)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO updates (date, name, module, description, status, leave_type, remarks)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
-            date, name_lc, module_lc, desc_lc, status, leave_type
+            date, name_lc, module_lc, desc_lc, status, leave_type, remarks
         ))
         
         if status == 'leave':
@@ -3019,6 +3025,7 @@ async def admin_bulk_import(
         description = row.get('description', '').strip()
         status = row.get('status', '').strip().lower()
         leave_type = row.get('leave_type', '').strip().upper() or None
+        remarks = row.get('remarks', '').strip()
 
         if not date_str or not name:
             raise HTTPException(status_code=400, detail=f"Row {idx}: date and name are required")
@@ -3041,7 +3048,8 @@ async def admin_bulk_import(
             'module': module.lower(),
             'description': description,
             'status': normalized_status,
-            'leave_type': leave_type if normalized_status == 'leave' else None
+            'leave_type': leave_type if normalized_status == 'leave' else None,
+            'remarks': remarks
         })
 
     if preview_only:
@@ -3053,8 +3061,8 @@ async def admin_bulk_import(
         conn.execute("DELETE FROM updates WHERE name = ?", (member_name.lower(),))
         for r in rows:
             conn.execute(
-                "INSERT INTO updates (date, name, module, description, status, leave_type) VALUES (?, ?, ?, ?, ?, ?)",
-                (r['date'], r['name'], r['module'], r['description'], r['status'], r['leave_type'])
+                "INSERT INTO updates (date, name, module, description, status, leave_type, remarks) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (r['date'], r['name'], r['module'], r['description'], r['status'], r['leave_type'], r['remarks'])
             )
         conn.execute("COMMIT")
         return {"ok": True, "deleted_old": True, "imported": len(rows)}
