@@ -1706,11 +1706,11 @@ function launchConfetti(x,y){
     // Track current detail view member
     window.currentDetailName = null;
 
-    function openPanel(){
-        // Check if we're in detail view and have a member selected
+    function openPanel(memberName){
+        // Check if a specific member was requested (from hash link or detail view)
         var detailView = document.getElementById('detail-view');
         var isInDetail = detailView && detailView.classList.contains('active');
-        var detailName = window.currentDetailName;
+        var targetName = memberName || (isInDetail ? window.currentDetailName : '');
         
         if(!document.getElementById('pNameGrid').children.length){
             refreshMemberChips();
@@ -1727,13 +1727,13 @@ function launchConfetti(x,y){
         while(isWeekend(defaultDate)||isPH(toYMD(defaultDate))){defaultDate.setDate(defaultDate.getDate()-1);}
         document.getElementById('pDate').value=toYMD(defaultDate);
         
-        // If in detail view, auto-select the member and hide the name picker
-        if(isInDetail && detailName){
+        // If a member name is provided (from hash or detail view), auto-select and hide picker
+        if(targetName){
             document.getElementById('pNameGrid').parentElement.style.display='none';
-            pName=detailName;
+            pName=targetName;
             // Mark the chip as selected (even though hidden)
             document.querySelectorAll('.name-chip').forEach(function(chip){
-                if(chip.textContent===detailName) chip.classList.add('sel');
+                if(chip.textContent===targetName) chip.classList.add('sel');
             });
         } else {
             document.getElementById('pNameGrid').parentElement.style.display='';
@@ -1745,7 +1745,14 @@ function launchConfetti(x,y){
         document.getElementById('panelOverlay').classList.add('open');
         document.body.style.overflow='hidden';
     }
-    function closePanel(){document.getElementById('panelOverlay').classList.remove('open');document.body.style.overflow='';}
+    function closePanel(){
+        document.getElementById('panelOverlay').classList.remove('open');
+        document.body.style.overflow='';
+        // Clear submit hash if present
+        if(window.location.hash.startsWith('#submit/')){
+            history.pushState({page:'overview'},'',window.location.pathname);
+        }
+    }
     function selName(b,n){document.querySelectorAll('.name-chip').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');pName=n.toLowerCase().trim();validate();}
     function selMod(t,m){document.querySelectorAll('.mod-chip').forEach(x=>x.classList.remove('sel'));t.classList.add('sel');document.getElementById('pCustomMod').value='';pMod=m;validate();}
     function onCustomMod(i){if(i.value.trim()){document.querySelectorAll('.mod-chip').forEach(x=>x.classList.remove('sel'));pMod=i.value.trim().toLowerCase();validate();}}
@@ -3160,6 +3167,10 @@ function launchConfetti(x,y){
         window.addEventListener('popstate',function(e){
             if(e.state && e.state.page==='detail' && e.state.name){
                 showDetail(e.state.name);
+            } else if(e.state && e.state.page==='submit'){
+                var name=e.state.name || '';
+                showOverview();
+                openPanel(name);
             } else {
                 showOverview();
             }
@@ -3169,6 +3180,13 @@ function launchConfetti(x,y){
         if(window.location.hash.startsWith('#detail/')){
             var name=decodeURIComponent(window.location.hash.slice(8));
             if(name) showDetail(name);
+        }
+        
+        // Handle direct URL with submit hash (e.g. #submit/Ain)
+        if(window.location.hash.startsWith('#submit/')){
+            var name=decodeURIComponent(window.location.hash.slice(8));
+            showOverview();
+            openPanel(name);
         }
     });
 
