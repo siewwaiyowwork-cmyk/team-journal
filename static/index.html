@@ -1710,7 +1710,7 @@ function launchConfetti(x,y){
         // Check if a specific member was requested (from hash link or detail view)
         var detailView = document.getElementById('detail-view');
         var isInDetail = detailView && detailView.classList.contains('active');
-        var targetName = memberName || (isInDetail ? window.currentDetailName : '');
+        var targetName = (memberName || (isInDetail ? window.currentDetailName : '')).toLowerCase().trim();
         
         if(!document.getElementById('pNameGrid').children.length){
             refreshMemberChips();
@@ -1733,7 +1733,7 @@ function launchConfetti(x,y){
             pName=targetName;
             // Mark the chip as selected (even though hidden)
             document.querySelectorAll('.name-chip').forEach(function(chip){
-                if(chip.textContent===targetName) chip.classList.add('sel');
+                if(chip.textContent.toLowerCase().trim()===targetName) chip.classList.add('sel');
             });
         } else {
             document.getElementById('pNameGrid').parentElement.style.display='';
@@ -1929,7 +1929,7 @@ function launchConfetti(x,y){
     }
     function showToast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(type==='err'?' err':'');setTimeout(function(){t.classList.add('show');},10);setTimeout(function(){t.classList.remove('show');},4000);}
 
-    function showDetail(name){
+    function showDetail(name, fromHash){
         window.currentDetailName = name;
         document.getElementById('overview-section').classList.add('hidden');
         document.getElementById('detail-view').classList.add('active');
@@ -1943,7 +1943,12 @@ function launchConfetti(x,y){
         
         fetch(url)
             .then(r => r.json())
-            .then(data => renderDetail(name, data.updates))
+            .then(data => {
+                renderDetail(name, data.updates);
+                if(fromHash){
+                    openPanel(name);
+                }
+            })
             .catch(e => {
                 console.error(e);
                 showToast('Failed to load detail view', 'err');
@@ -3158,11 +3163,11 @@ function launchConfetti(x,y){
         setTimeout(function(){ov.remove();},4100);
     }
 
-    document.addEventListener('DOMContentLoaded',function(){
+    document.addEventListener('DOMContentLoaded', async function(){
         randomizeHeaderEmojis();
-        initDashboard();
+        await initDashboard();
         document.addEventListener('keydown',function(e){if(e.key==='n'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName))openPanel();});
-        
+
         // Handle browser back/forward buttons
         window.addEventListener('popstate',function(e){
             if(e.state && e.state.page==='detail' && e.state.name){
@@ -3175,16 +3180,16 @@ function launchConfetti(x,y){
                 showOverview();
             }
         });
-        
-        // Handle direct URL with hash (e.g. page reload on #detail/Ain)
+
+        // Handle direct URL with hash (e.g. page reload on #detail/ain)
         if(window.location.hash.startsWith('#detail/')){
             var name=decodeURIComponent(window.location.hash.slice(8));
-            if(name) showDetail(name);
+            if(name) showDetail(name, true);
         }
-        
-        // Handle direct URL with submit hash (e.g. #submit/Ain)
+
+        // Handle direct URL with submit hash (e.g. #submit/ain)
         if(window.location.hash.startsWith('#submit/')){
-            var name=decodeURIComponent(window.location.hash.slice(8));
+            var name=decodeURIComponent(window.location.hash.slice(8)).toLowerCase();
             showOverview();
             openPanel(name);
         }
