@@ -437,6 +437,34 @@
         .rpg-stat-fill.agility{background:linear-gradient(90deg,#00e5ff,#18ffff)}
         .rpg-stat-fill.defense{background:linear-gradient(90deg,#7c4dff,#b388ff)}
         .rpg-stat-emoji{font-size:.85em;margin-right:2px}
+
+        /* ── Custom Date Calendar ── */
+        .cal-wrap{position:relative}
+        .cal-input-wrap{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+        .cal-display{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Syne',sans-serif;font-size:.9em;padding:11px 14px;cursor:pointer;transition:.2s}.cal-display:hover{border-color:var(--accent)}
+        .cal-open-btn{width:36px;height:36px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1em;transition:.15s}.cal-open-btn:hover{border-color:var(--accent);color:var(--accent)}
+        .cal-popup{position:absolute;z-index:300;background:#12121a;border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 12px 40px rgba(0,0,0,.5);display:none;width:280px}
+        .cal-popup.open{display:block}
+        .cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+        .cal-header button{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);width:28px;height:28px;cursor:pointer;font-size:1em;display:flex;align-items:center;justify-content:center;transition:.15s}.cal-header button:hover{border-color:var(--accent);color:var(--accent)}
+        .cal-month{font-weight:700;font-size:.9em;color:var(--text)}
+        .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+        .cal-dow{font-size:.65em;color:var(--text-dim);font-weight:600;padding:4px 0;text-transform:uppercase}
+        .cal-cell{padding:6px 0;border-radius:6px;font-size:.78em;cursor:pointer;transition:.15s;color:var(--text);background:transparent}
+        .cal-cell:hover:not(.disabled){background:rgba(0,229,255,.15);color:var(--accent)}
+        .cal-cell.today{border:1px solid var(--accent);color:var(--accent)}
+        .cal-cell.selected{background:var(--accent);color:#0a0a0f;font-weight:700}
+        .cal-cell.weekend{color:var(--text-dim);opacity:.6}
+        .cal-cell.ph{border:1px solid var(--orange);color:var(--orange)}
+        .cal-cell.ph.weekend{border-color:var(--text-dim);color:var(--text-dim);opacity:.5}
+        .cal-cell.disabled{color:var(--text-dim);opacity:.25;cursor:not-allowed}
+        .cal-cell.start{background:var(--accent);color:#0a0a0f;font-weight:700;border-radius:6px 0 0 6px}
+        .cal-cell.end{background:var(--accent);color:#0a0a0f;font-weight:700;border-radius:0 6px 6px 0}
+        .cal-cell.inrange{background:rgba(0,229,255,.2);color:var(--accent)}
+        .cal-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:.7em;color:var(--text-dim)}
+        .cal-footer span{display:flex;align-items:center;gap:4px}
+        .cal-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+        .cal-dot.ph{background:var(--orange)}.cal-dot.wd{background:var(--accent)}.cal-dot.we{background:var(--text-dim);opacity:.5}
     </style>
     </style>
 </head>
@@ -574,18 +602,51 @@
             <div id="singleDateWrap">
                 <div class="field-group">
                     <span class="field-label">Date <span>*</span></span>
-                    <input type="date" class="panel-input" id="pDate">
+                    <div class="cal-wrap" id="calSingleWrap">
+                        <div class="cal-input-wrap">
+                            <div class="cal-display" id="calSingleDisplay" onclick="toggleCalendar('single')">Select date...</div>
+                            <button class="cal-open-btn" onclick="toggleCalendar('single')">📅</button>
+                        </div>
+                        <div class="cal-popup" id="calSinglePopup">
+                            <div class="cal-header"><button onclick="calNav('single',-1)">‹</button><span class="cal-month" id="calSingleMonth"></span><button onclick="calNav('single',1)">›</button></div>
+                            <div class="cal-grid" id="calSingleGrid"></div>
+                            <div class="cal-footer"><span><i class="cal-dot wd"></i>Workday</span><span><i class="cal-dot ph"></i>PH</span><span><i class="cal-dot we"></i>Weekend</span></div>
+                        </div>
+                    </div>
+                    <input type="date" class="panel-input" id="pDate" style="display:none">
                 </div>
             </div>
             <div id="rangeDateWrap" style="display:none">
                 <div class="date-row">
                     <div class="field-group">
                         <span class="field-label">From <span>*</span></span>
-                        <input type="date" class="panel-input" id="pDateFrom" onchange="updateRangePreview()">
+                        <div class="cal-wrap" id="calFromWrap">
+                            <div class="cal-input-wrap">
+                                <div class="cal-display" id="calFromDisplay" onclick="toggleCalendar('from')">Select start...</div>
+                                <button class="cal-open-btn" onclick="toggleCalendar('from')">📅</button>
+                            </div>
+                            <div class="cal-popup" id="calFromPopup">
+                                <div class="cal-header"><button onclick="calNav('from',-1)">‹</button><span class="cal-month" id="calFromMonth"></span><button onclick="calNav('from',1)">›</button></div>
+                                <div class="cal-grid" id="calFromGrid"></div>
+                                <div class="cal-footer"><span><i class="cal-dot wd"></i>Workday</span><span><i class="cal-dot ph"></i>PH</span><span><i class="cal-dot we"></i>Weekend</span></div>
+                            </div>
+                        </div>
+                        <input type="date" class="panel-input" id="pDateFrom" onchange="updateRangePreview()" style="display:none">
                     </div>
                     <div class="field-group">
                         <span class="field-label">To <span>*</span></span>
-                        <input type="date" class="panel-input" id="pDateTo" onchange="updateRangePreview()">
+                        <div class="cal-wrap" id="calToWrap">
+                            <div class="cal-input-wrap">
+                                <div class="cal-display" id="calToDisplay" onclick="toggleCalendar('to')">Select end...</div>
+                                <button class="cal-open-btn" onclick="toggleCalendar('to')">📅</button>
+                            </div>
+                            <div class="cal-popup" id="calToPopup">
+                                <div class="cal-header"><button onclick="calNav('to',-1)">‹</button><span class="cal-month" id="calToMonth"></span><button onclick="calNav('to',1)">›</button></div>
+                                <div class="cal-grid" id="calToGrid"></div>
+                                <div class="cal-footer"><span><i class="cal-dot wd"></i>Workday</span><span><i class="cal-dot ph"></i>PH</span><span><i class="cal-dot we"></i>Weekend</span></div>
+                            </div>
+                        </div>
+                        <input type="date" class="panel-input" id="pDateTo" onchange="updateRangePreview()" style="display:none">
                     </div>
                 </div>
                 <div class="range-preview" id="rangePreview"></div>
@@ -1702,6 +1763,243 @@ function launchConfetti(x,y){
         document.body.style.overflow='';
     }
 
+    // ── CALENDAR ──────────────────────────────────────────────
+    window.calState = {
+        single: { year: null, month: null, selected: null },
+        from: { year: null, month: null, selected: null },
+        to: { year: null, month: null, selected: null }
+    };
+
+    function initCalendars(){
+        var today = new Date();
+        // Walk backward if today is weekend/PH
+        while(isWeekend(today) || isPH(toYMD(today))){ today.setDate(today.getDate()-1); }
+        var ymd = toYMD(today);
+
+        // Single calendar
+        var pDate = document.getElementById('pDate');
+        if(pDate.value){
+            ymd = pDate.value;
+            var parts = ymd.split('-');
+            window.calState.single.year = parseInt(parts[0]);
+            window.calState.single.month = parseInt(parts[1]) - 1;
+            window.calState.single.selected = ymd;
+        } else {
+            var parts = ymd.split('-');
+            window.calState.single.year = parseInt(parts[0]);
+            window.calState.single.month = parseInt(parts[1]) - 1;
+            window.calState.single.selected = ymd;
+        }
+        updateCalDisplay('single');
+
+        // From calendar
+        var pFrom = document.getElementById('pDateFrom');
+        if(pFrom.value){
+            ymd = pFrom.value;
+            var p = ymd.split('-');
+            window.calState.from.year = parseInt(p[0]);
+            window.calState.from.month = parseInt(p[1]) - 1;
+            window.calState.from.selected = ymd;
+        } else {
+            var t = toYMD(today).split('-');
+            window.calState.from.year = parseInt(t[0]);
+            window.calState.from.month = parseInt(t[1]) - 1;
+            window.calState.from.selected = null;
+        }
+        updateCalDisplay('from');
+
+        // To calendar
+        var pTo = document.getElementById('pDateTo');
+        if(pTo.value){
+            ymd = pTo.value;
+            var p2 = ymd.split('-');
+            window.calState.to.year = parseInt(p2[0]);
+            window.calState.to.month = parseInt(p2[1]) - 1;
+            window.calState.to.selected = ymd;
+        } else {
+            var t2 = toYMD(today).split('-');
+            window.calState.to.year = parseInt(t2[0]);
+            window.calState.to.month = parseInt(t2[1]) - 1;
+            window.calState.to.selected = null;
+        }
+        updateCalDisplay('to');
+    }
+
+    function toggleCalendar(type){
+        var popup = document.getElementById('cal' + capitalize(type) + 'Popup');
+        var isOpen = popup.classList.contains('open');
+        calCloseAll();
+        if(!isOpen){
+            // Sync month view to selected date if available
+            var state = window.calState[type];
+            if(state.selected){
+                var p = state.selected.split('-');
+                state.year = parseInt(p[0]);
+                state.month = parseInt(p[1]) - 1;
+            } else if(!state.year){
+                var now = new Date();
+                state.year = now.getFullYear();
+                state.month = now.getMonth();
+            }
+            popup.classList.add('open');
+            renderCalendar(type);
+        }
+    }
+
+    function calCloseAll(){
+        ['Single','From','To'].forEach(function(t){
+            var p = document.getElementById('cal'+t+'Popup');
+            if(p) p.classList.remove('open');
+        });
+    }
+
+    function calNav(type, delta){
+        var state = window.calState[type];
+        state.month += delta;
+        if(state.month < 0){ state.month = 11; state.year--; }
+        if(state.month > 11){ state.month = 0; state.year++; }
+        renderCalendar(type);
+    }
+
+    var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    function renderCalendar(type){
+        var state = window.calState[type];
+        var grid = document.getElementById('cal' + capitalize(type) + 'Grid');
+        var monthEl = document.getElementById('cal' + capitalize(type) + 'Month');
+        var year = state.year;
+        var month = state.month;
+
+        monthEl.textContent = MONTHS[month] + ' ' + year;
+
+        var html = '';
+        // Day-of-week headers (Mon-Sun)
+        ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(function(d){
+            html += '<div class="cal-dow">' + d + '</div>';
+        });
+
+        var firstDay = new Date(year, month, 1);
+        // getDay(): 0=Sun. Convert to Mon-first: (getDay()+6)%7
+        var startOffset = (firstDay.getDay() + 6) % 7;
+        var daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        var todayStr = toYMD(new Date());
+        var selectedStr = state.selected;
+        var fromStr = window.calState.from ? window.calState.from.selected : null;
+        var toString = window.calState.to ? window.calState.to.selected : null;
+
+        // Blank cells for offset
+        for(var i = 0; i < startOffset; i++){
+            html += '<div class="cal-cell disabled"></div>';
+        }
+
+        for(var d = 1; d <= daysInMonth; d++){
+            var ymd = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+            var dayDate = new Date(year, month, d);
+            var weekend = isWeekend(dayDate);
+            var ph = isPH(ymd);
+            var holidayName = ph ? getHolidayName(ymd) : '';
+
+            var classes = ['cal-cell'];
+            if(ymd === todayStr) classes.push('today');
+            if(weekend) classes.push('weekend');
+            if(ph) classes.push('ph');
+
+            // For single mode or single-type calendar
+            if(type === 'single'){
+                if(ymd === selectedStr) classes.push('selected');
+            }
+
+            // For range mode: highlight start, end, and in-between
+            if(type === 'from' || type === 'to'){
+                if(fromStr && toString && fromStr <= ymd && ymd <= toString){
+                    if(ymd === fromStr) classes.push('start');
+                    else if(ymd === toString) classes.push('end');
+                    else classes.push('inrange');
+                } else if(ymd === selectedStr){
+                    classes.push('selected');
+                }
+            }
+
+            var title = holidayName ? holidayName : (weekend ? 'Weekend' : '');
+            html += '<div class="' + classes.join(' ') + '" data-ymd="' + ymd + '"' + (title ? ' title="' + title + '"' : '') + '>' + d + '</div>';
+        }
+
+        grid.innerHTML = html;
+
+        // Add click handlers
+        grid.querySelectorAll('.cal-cell[data-ymd]').forEach(function(cell){
+            cell.addEventListener('click', function(e){
+                e.stopPropagation();
+                var ymd = this.getAttribute('data-ymd');
+                if(this.classList.contains('disabled')) return;
+                calSelect(type, ymd);
+            });
+        });
+    }
+
+    function calSelect(type, ymd){
+        window.calState[type].selected = ymd;
+
+        // Update hidden input
+        var inputId = type === 'single' ? 'pDate' : (type === 'from' ? 'pDateFrom' : 'pDateTo');
+        document.getElementById(inputId).value = ymd;
+
+        // For range: if selecting 'from', clear 'to' if it's before 'from'
+        if(type === 'from'){
+            var pTo = document.getElementById('pDateTo');
+            if(pTo.value && pTo.value < ymd){
+                pTo.value = '';
+                window.calState.to.selected = null;
+                updateCalDisplay('to');
+            }
+        }
+
+        // For range: if selecting 'to', validate it's not before 'from'
+        if(type === 'to'){
+            var pFrom = document.getElementById('pDateFrom');
+            if(pFrom.value && ymd < pFrom.value){
+                // Invalid selection: don't proceed
+                return;
+            }
+        }
+
+        updateCalDisplay(type);
+
+        // Close popup
+        calCloseAll();
+
+        // Update displays for both range calendars
+        if(type === 'from'){
+            updateCalDisplay('to');
+            // Also re-render 'to' if it's open
+        }
+
+        validate();
+        updateRangePreview();
+    }
+
+    function updateCalDisplay(type){
+        var displayEl = document.getElementById('cal' + capitalize(type) + 'Display');
+        var inputId = type === 'single' ? 'pDate' : (type === 'from' ? 'pDateFrom' : 'pDateTo');
+        var val = document.getElementById(inputId).value;
+        if(val){
+            displayEl.textContent = formatDateShort(val);
+        } else {
+            var defaults = { single: 'Select date...', from: 'Select start...', to: 'Select end...' };
+            displayEl.textContent = defaults[type];
+        }
+    }
+
+    function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+    // Click outside to close calendars
+    document.addEventListener('click', function(e){
+        if(!e.target.closest('.cal-wrap')){
+            calCloseAll();
+        }
+    });
+
     // ── PANEL ──────────────────────────────────────────────
     // Track current detail view member
     window.currentDetailName = null;
@@ -1726,6 +2024,7 @@ function launchConfetti(x,y){
         var defaultDate=new Date();
         while(isWeekend(defaultDate)||isPH(toYMD(defaultDate))){defaultDate.setDate(defaultDate.getDate()-1);}
         document.getElementById('pDate').value=toYMD(defaultDate);
+        initCalendars();
         
         // If a member name is provided (from hash or detail view), auto-select and hide picker
         if(targetName){
@@ -1746,6 +2045,7 @@ function launchConfetti(x,y){
         document.body.style.overflow='hidden';
     }
     function closePanel(){
+        calCloseAll();
         document.getElementById('panelOverlay').classList.remove('open');
         document.body.style.overflow='';
         // Clear submit hash if present
@@ -1766,6 +2066,23 @@ function launchConfetti(x,y){
         document.getElementById('singleDateWrap').style.display=mode==='single'?'':'none';
         document.getElementById('rangeDateWrap').style.display=mode==='range'?'':'none';
         document.getElementById('rangePreview').classList.remove('visible');
+        calCloseAll();
+        if(mode==='range'){
+            // Initialize from date to today if not set
+            if(!document.getElementById('pDateFrom').value){
+                var d=new Date();
+                while(isWeekend(d)||isPH(toYMD(d))){d.setDate(d.getDate()-1);}
+                document.getElementById('pDateFrom').value=toYMD(d);
+                window.calState.from.selected=toYMD(d);
+            }
+            if(!document.getElementById('pDateTo').value){
+                window.calState.to.selected=null;
+            }
+            updateCalDisplay('from');
+            updateCalDisplay('to');
+        } else {
+            initCalendars();
+        }
         validate();
     }
     function updateRangePreview(){
@@ -1919,6 +2236,13 @@ function launchConfetti(x,y){
         document.getElementById('descGroup').style.display='block';
         document.getElementById('pDate').value=toYMD(new Date());
         document.getElementById('pDateFrom').value='';document.getElementById('pDateTo').value='';
+        // Reset calendar state
+        window.calState.single.selected=null;
+        window.calState.from.selected=null;
+        window.calState.to.selected=null;
+        updateCalDisplay('single');
+        updateCalDisplay('from');
+        updateCalDisplay('to');
         document.getElementById('pWBar').style.width='0%';
         document.getElementById('pWC').textContent='0 words';
         document.getElementById('pWStatus').textContent='';
