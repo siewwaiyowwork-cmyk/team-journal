@@ -2664,6 +2664,20 @@ def admin_statuses_update(code: str, payload: dict = Body(...), admin_token: str
     finally:
         conn.close()
 
+@app.delete("/api/admin/statuses/{code}")
+def admin_statuses_delete(code: str, admin_token: str = Query(...)):
+    require_admin(admin_token)
+    conn = get_db()
+    try:
+        used = conn.execute("SELECT COUNT(*) as cnt FROM updates WHERE status = ?", (code,)).fetchone()
+        if used and used["cnt"] > 0:
+            raise HTTPException(status_code=409, detail=f"Status '{code}' is used by {used['cnt']} updates and cannot be deleted. Disable it instead.")
+        conn.execute("DELETE FROM statuses WHERE code = ?", (code,))
+        conn.commit()
+        return {"ok": True, "code": code}
+    finally:
+        conn.close()
+
 @app.get("/api/admin/leave_types")
 def admin_leave_types_list(admin_token: str = Query(...)):
     require_admin(admin_token)

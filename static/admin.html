@@ -445,6 +445,7 @@ async function loadStatuses() {
         <td>${s.active ? 'Yes' : 'No'}</td>
         <td>
           <button class="btn-sm" onclick="toggleStatus('${s.code}', ${s.active ? 0 : 1})">${s.active ? 'Disable' : 'Enable'}</button>
+          <button class="btn-sm" style="background:rgba(255,23,68,.15);color:var(--red);border-color:rgba(255,23,68,.3)" onclick="deleteStatus('${s.code}')">Delete</button>
         </td>
       </tr>`).join('');
   } catch (e) { showToast(e.message, 'error'); }
@@ -462,6 +463,15 @@ async function toggleStatus(code, active) {
     await apiPut('/api/admin/statuses/' + code, {active: !!active});
     loadStatuses();
     showToast('Status updated', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteStatus(code) {
+  if (!confirm('Delete status "' + code + '"? This cannot be undone if no updates use it.')) return;
+  try {
+    await apiDelete('/api/admin/statuses/' + code);
+    loadStatuses();
+    showToast('Status deleted', 'success');
   } catch (e) { showToast(e.message, 'error'); }
 }
 
