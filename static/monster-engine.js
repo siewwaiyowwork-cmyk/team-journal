@@ -48,6 +48,10 @@ function mArchetype(s){
   return{l:_BASE[d]?.[sc]||'WANDERER',c:MSC[d]};
 }
 
+function getDominant(s){return mDom(s);}
+function getSecondary(s){return mSec(s);}
+function getTotal(s){return mTot(s);}
+
 function mTraits(s){
   const t=[];
   if(s.atk>85)t.push({t:'RAGING',c:'#ff3333'});else if(s.atk>65)t.push({t:'FIERCE',c:'#ff7777'});else if(s.atk>40)t.push({t:'BOLD',c:'#ff9999'});
@@ -61,356 +65,204 @@ function mTraits(s){
   return t.slice(0,5);
 }
 
-const BODIES = {
-  dragon(cx,cy,r,mc,dc,lc,s){
-    const bw=r*1.1,bh=r*0.7; let o='';
-    o+=`<polygon points="${cx},${cy-bh*.3} ${cx+bw*1.2},${cy+bh*.4} ${cx+bw},${cy+bh*1.3} ${cx-bw},${cy+bh*1.3} ${cx-bw*1.2},${cy+bh*.4}" fill="${dc}"/>`;
-    o+=`<polygon points="${cx},${cy-bh*.2} ${cx+bw},${cy+bh*.45} ${cx+bw*.8},${cy+bh*1.2} ${cx-bw*.8},${cy+bh*1.2} ${cx-bw},${cy+bh*.45}" fill="${mc}"/>`;
-    const ns=2+Math.floor(s.atk/25);
-    for(let i=0;i<ns;i++){const sx=cx-bw*.55+i*(bw*1.1/ns),sh=r*(.1+s.atk/100*.22);
-      o+=`<polygon points="${sx-r*.05},${cy-bh*.65} ${sx+r*.05},${cy-bh*.65} ${sx},${cy-bh*.65-sh}" fill="${lc}" opacity=".75"/>`;
-    }
-    o+=`<path d="M${cx+bw*.9},${cy+bh*.2} Q${cx+bw*1.5},${cy+bh} ${cx+bw*1.1},${cy+bh*1.3}" fill="none" stroke="${dc}" stroke-width="${r*.14}" stroke-linecap="round"/>`;
-    o+=`<polygon points="${cx+bw*1.03},${cy+bh*1.22} ${cx+bw*1.17},${cy+bh*1.22} ${cx+bw*1.1},${cy+bh*1.52}" fill="${lc}"/>`;
-    o+=`<ellipse cx="${cx}" cy="${cy+bh*.7}" rx="${bw*.55}" ry="${bh*.45}" fill="${dc}" opacity=".3"/>`;
-    return o;
-  },
-
-  slime(cx,cy,r,mc,dc,lc,s){
-    let o='';
-    o+=`<ellipse cx="${cx}" cy="${cy+r*.15}" rx="${r*1.08}" ry="${r*.92}" fill="${dc}"/>`;
-    o+=`<ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r*.85}" fill="${mc}"/>`;
-    const nb=2+Math.floor(s.stm/20);
-    const bp=[[-.42,.1,.22],[.3,.15,.18],[-.15,-.24,.15],[.5,-.1,.13],[0,.3,.1],[-.3,-.1,.12]];
-    bp.slice(0,nb).forEach(([bx,by2,br])=>o+=`<circle cx="${cx+bx*r}" cy="${cy+by2*r}" r="${br*r}" fill="${lc}" opacity=".32"/>`);
-    o+=`<ellipse cx="${cx-r*.22}" cy="${cy+r*.9}" rx="${r*.12}" ry="${r*.19}" fill="${mc}"/>`;
-    o+=`<ellipse cx="${cx+r*.35}" cy="${cy+r*.88}" rx="${r*.09}" ry="${r*.14}" fill="${mc}"/>`;
-    if(s.stm>70)o+=`<ellipse cx="${cx+r*.1}" cy="${cy+r*.92}" rx="${r*.07}" ry="${r*.11}" fill="${mc}"/>`;
-    return o;
-  },
-
-  mech(cx,cy,r,mc,dc,lc,s){
-    const bw=r*1.05,bh=r*.72; let o='';
-    o+=`<rect x="${cx-bw*1.06}" y="${cy-bh*.56}" width="${bw*2.12}" height="${bh*1.12}" rx="${r*.06}" fill="${dc}"/>`;
-    o+=`<rect x="${cx-bw}" y="${cy-bh*.5}" width="${bw*2}" height="${bh}" rx="${r*.05}" fill="${mc}"/>`;
-    o+=`<line x1="${cx}" y1="${cy-bh*.5}" x2="${cx}" y2="${cy+bh*.5}" stroke="${dc}" stroke-width="${r*.04}"/>`;
-    o+=`<line x1="${cx-bw}" y1="${cy}" x2="${cx+bw}" y2="${cy}" stroke="${dc}" stroke-width="${r*.04}"/>`;
-    const nv=2+Math.floor(s.fcs/35);
-    for(let i=0;i<nv;i++)o+=`<rect x="${cx-bw*.82+(i*bw*1.5/nv)}" y="${cy+bh*.12}" width="${bw*1.2/nv}" height="${bh*.13}" rx="2" fill="${dc}"/>`;
-    o+=`<circle cx="${cx}" cy="${cy-bh*.15}" r="${r*.18}" fill="${lc}" opacity="${.4+s.fcs/100*.4}"/>`;
-    o+=`<circle cx="${cx}" cy="${cy-bh*.15}" r="${r*.1}" fill="#fff" opacity="${.2+s.fcs/100*.4}"/>`;
-    for(const sd of[-1,1]){
-      const ax=cx+sd*(bw+r*.05);
-      o+=`<rect x="${ax-r*.13}" y="${cy-bh*.35}" width="${r*.26}" height="${bh*.7}" rx="${r*.06}" fill="${dc}"/>`;
-      if(s.atk>60)o+=`<ellipse cx="${ax}" cy="${cy+bh*.28}" rx="${r*.18}" ry="${r*.1}" fill="${lc}" opacity=".6"/>`;
-    }
-    for(const sd of[-1,1]){const lx=cx+sd*bw*.46;
-      o+=`<rect x="${lx-r*.15}" y="${cy+bh*.5}" width="${r*.3}" height="${r*.4}" rx="${r*.04}" fill="${dc}"/>`;
-      o+=`<rect x="${lx-r*.2}" y="${cy+bh*.5+r*.4}" width="${r*.4}" height="${r*.12}" rx="${r*.03}" fill="${mc}"/>`;}
-    return o;
-  },
-
-  serpent(cx,cy,r,mc,dc,lc,s){
-    const bw=r*1.1,bh=r*.7; let o='';
-    o+=`<path d="M${cx-bw},${cy+bh*1.2} Q${cx-bw*.5},${cy-bh*.2} ${cx},${cy+bh*.6} Q${cx+bw*.5},${cy+bh*1.4} ${cx+bw},${cy-bh*.1}" fill="none" stroke="${dc}" stroke-width="${bh*.55}" stroke-linecap="round"/>`;
-    o+=`<path d="M${cx-bw*.85},${cy+bh*1.15} Q${cx-bw*.4},${cy-bh*.05} ${cx},${cy+bh*.55} Q${cx+bw*.4},${cy+bh*1.35} ${cx+bw*.85},${cy-bh*.05}" fill="none" stroke="${mc}" stroke-width="${bh*.38}" stroke-linecap="round"/>`;
-    const ns=3+Math.floor(s.fcs/25);
-    for(let i=0;i<ns;i++){const sx=cx-bw*.4+i*r*.15,sy=cy+r*.3+Math.sin(i)*r*.09;
-      o+=`<ellipse cx="${sx}" cy="${sy}" rx="${r*.09}" ry="${r*.055}" fill="${lc}" opacity=".4"/>`;
-    }
-    if(s.atk>30){const rl=s.atk/100;o+=`<ellipse cx="${cx+bw*.88}" cy="${cy+bh*.62}" rx="${r*(.08+rl*.07)}" ry="${r*(.1+rl*.09)}" fill="${lc}"/>`;}
-    return o;
-  },
-
-  insect(cx,cy,r,mc,dc,lc,s){
-    let o='';
-    o+=`<ellipse cx="${cx}" cy="${cy+r*.1}" rx="${r*.75}" ry="${r*.55}" fill="${dc}"/>`;
-    o+=`<ellipse cx="${cx}" cy="${cy}" rx="${r*.7}" ry="${r*.5}" fill="${mc}"/>`;
-    o+=`<ellipse cx="${cx}" cy="${cy-r*.45}" rx="${r*.45}" ry="${r*.35}" fill="${dc}"/>`;
-    o+=`<ellipse cx="${cx}" cy="${cy-r*.5}" rx="${r*.4}" ry="${r*.3}" fill="${mc}"/>`;
-    o+=`<line x1="${cx}" y1="${cy-r*.5}" x2="${cx}" y2="${cy+r*.55}" stroke="${dc}" stroke-width="${r*.05}"/>`;
-    if(s.fcs>50){o+=`<ellipse cx="${cx-r*.3}" cy="${cy-r*.1}" rx="${r*.28}" ry="${r*.38}" fill="${lc}" opacity=".25" transform="rotate(-15,${cx-r*.3},${cy-r*.1})"/>`;o+=`<ellipse cx="${cx+r*.3}" cy="${cy-r*.1}" rx="${r*.28}" ry="${r*.38}" fill="${lc}" opacity=".25" transform="rotate(15,${cx+r*.3},${cy-r*.1})"/>`;}
-    const pairs=s.agi>65?4:3;
-    const legY=Array.from({length:pairs},(_,i)=>cy-r*.2+i*(r*.55/(pairs-1)));
-    legY.forEach((ly,i)=>{[-1,1].forEach(sd=>{const lx=cx+sd*(r*.65+r*.4),lean=(i-.5)*.12*sd;
-      o+=`<line x1="${cx+sd*r*.65}" y1="${ly}" x2="${lx}" y2="${ly+lean*r}" stroke="${dc}" stroke-width="${r*.06}" stroke-linecap="round"/>`;
-      o+=`<line x1="${lx}" y1="${ly+lean*r}" x2="${lx+sd*r*.3}" y2="${ly+lean*r+r*.2}" stroke="${mc}" stroke-width="${r*.04}" stroke-linecap="round"/>`;
-    });});
-    for(const sd of[-1,1]){o+=`<line x1="${cx+sd*r*.2}" y1="${cy-r*.75}" x2="${cx+sd*r*.62}" y2="${cy-r*1.12}" stroke="${dc}" stroke-width="${r*.04}" stroke-linecap="round"/>`;o+=`<circle cx="${cx+sd*r*.62}" cy="${cy-r*1.12}" r="${r*.06}" fill="${lc}"/>`;}
-    return o;
-  },
-
-  phantom(cx,cy,r,mc,dc,lc,s){
-    let o='';
-    o+=`<path d="M${cx-r*.8},${cy+r*.3} Q${cx-r},${cy-r*.5} ${cx},${cy-r*.9} Q${cx+r},${cy-r*.5} ${cx+r*.8},${cy+r*.3} Q${cx+r*.6},${cy+r*.8} ${cx+r*.3},${cy+r*.5} Q${cx},${cy+r*.9} ${cx-r*.3},${cy+r*.5} Q${cx-r*.6},${cy+r*.8} ${cx-r*.8},${cy+r*.3}Z" fill="${dc}"/>`;
-    o+=`<path d="M${cx-r*.75},${cy+r*.25} Q${cx-r*.9},${cy-r*.45} ${cx},${cy-r*.8} Q${cx+r*.9},${cy-r*.45} ${cx+r*.75},${cy+r*.25} Q${cx+r*.55},${cy+r*.7} ${cx+r*.25},${cy+r*.4} Q${cx},${cy+r*.85} ${cx-r*.25},${cy+r*.4} Q${cx-r*.55},${cy+r*.7} ${cx-r*.75},${cy+r*.25}Z" fill="${mc}"/>`;
-    const nw=1+Math.floor(s.sup/22);
-    [[-.5,.9,.25,.4],[.4,.85,.2,.35],[0,1.05,.15,.3],[-.7,.75,.13,.25],[.6,.78,.12,.22]].slice(0,nw).forEach(([wx,wy,wr1,wr2])=>
-      o+=`<ellipse cx="${cx+wx*r}" cy="${cy+wy*r}" rx="${wr1*r}" ry="${wr2*r}" fill="${mc}" opacity=".5"/>`);
-    o+=`<ellipse cx="${cx}" cy="${cy-r*.15}" rx="${r*.35}" ry="${r*.4}" fill="${lc}" opacity="${.15+s.fcs/100*.25}"/>`;
-    return o;
-  },
-
-  golem(cx,cy,r,mc,dc,lc,s){
-    const bw=r*1.05,bh=r*.72; let o='';
-    o+=`<rect x="${cx-bw*1.06}" y="${cy-bh*.56}" width="${bw*2.12}" height="${bh*1.12}" rx="${r*.06}" fill="${dc}"/>`;
-    o+=`<rect x="${cx-bw}" y="${cy-bh*.5}" width="${bw*2}" height="${bh}" rx="${r*.05}" fill="${mc}"/>`;
-    if(s.stm>50){o+=`<rect x="${cx-bw*.8}" y="${cy-bh*.45}" width="${bw*1.6}" height="${r*.06}" rx="3" fill="${dc}" opacity=".35"/>`;o+=`<rect x="${cx-bw*.7}" y="${cy}" width="${bw*1.4}" height="${r*.05}" rx="3" fill="${dc}" opacity=".25"/>`;}
-    const nc=Math.floor((100-s.stm)/22);
-    [[cx-r*.3,cy-r*.1,cx-r*.15,cy+r*.3],[cx+r*.2,cy-r*.25,cx+r*.35,cy+r*.15],[cx,cy-r*.3,cx-r*.1,cy+r*.1],[cx+r*.05,cy+r*.05,cx+r*.25,cy+r*.28]].slice(0,nc).forEach(([x1,y1,x2,y2])=>
-      o+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${dc}" stroke-width="${r*.04}" stroke-linecap="round"/>`);
-    for(const sd of[-1,1]){o+=`<rect x="${cx+sd*(bw+r*.05)-r*.05}" y="${cy-bh*.35}" width="${r*.42}" height="${bh*.7}" rx="${r*.06}" fill="${dc}"/>`;o+=`<rect x="${cx+sd*(bw+r*.05)-r*.03}" y="${cy-bh*.32}" width="${r*.34}" height="${bh*.52}" rx="${r*.04}" fill="${mc}"/>`;}
-    for(const sd of[-1,1]){const lx=cx+sd*bw*.46;o+=`<rect x="${lx-r*.15}" y="${cy+bh*.5}" width="${r*.3}" height="${r*.42}" rx="${r*.04}" fill="${dc}"/>`;o+=`<rect x="${lx-r*.2}" y="${cy+bh*.5+r*.42}" width="${r*.4}" height="${r*.12}" rx="${r*.03}" fill="${mc}"/>`;}
-    return o;
-  },
-
-  phoenix(cx,cy,r,mc,dc,lc,s){
-    const bw=r*1.1,bh=r*.7;
-    const wspan=bw*(.85+s.agi/100*.65); let o='';
-    for(const sd of[-1,1]){
-      o+=`<polygon points="${cx},${cy} ${cx+sd*wspan},${cy-bh*.5} ${cx+sd*wspan*.7},${cy+bh*.42}" fill="${dc}" opacity=".85"/>`;
-      o+=`<polygon points="${cx},${cy} ${cx+sd*wspan*.82},${cy-bh*.33} ${cx+sd*wspan*.58},${cy+bh*.3}" fill="${mc}" opacity=".62"/>`;
-      const np=1+Math.floor(s.sup/28);
-      for(let p=0;p<np;p++){const px=cx+sd*(wspan*.4+p*wspan*.14),py=cy-bh*.18-p*r*.12;
-        o+=`<ellipse cx="${px}" cy="${py}" rx="${r*.08}" ry="${r*.2}" fill="${lc}" opacity=".8" transform="rotate(${sd*(-18+p*8)},${px},${py})"/>`;
-      }
-    }
-    o+=`<ellipse cx="${cx}" cy="${cy+bh*.2}" rx="${bw*.38}" ry="${bh*.54}" fill="${dc}"/>`;
-    o+=`<ellipse cx="${cx}" cy="${cy+bh*.1}" rx="${bw*.33}" ry="${bh*.48}" fill="${mc}"/>`;
-    o+=`<polygon points="${cx-bw*.25},${cy+bh*.58} ${cx+bw*.25},${cy+bh*.58} ${cx},${cy+bh*1.12}" fill="${dc}"/>`;
-    o+=`<polygon points="${cx-bw*.14},${cy+bh*.63} ${cx},${cy+bh*.58} ${cx-bw*.28},${cy+bh*1.07}" fill="${lc}" opacity=".7"/>`;
-    o+=`<polygon points="${cx+bw*.14},${cy+bh*.63} ${cx},${cy+bh*.58} ${cx+bw*.28},${cy+bh*1.07}" fill="${lc}" opacity=".7"/>`;
-    return o;
-  },
-
-  crystal(cx,cy,r,mc,dc,lc,s){
-    let o='';
-    o+=`<polygon points="${cx},${cy-r} ${cx+r*.45},${cy-r*.1} ${cx+r*.3},${cy+r*.62} ${cx-r*.3},${cy+r*.62} ${cx-r*.45},${cy-r*.1}" fill="${dc}"/>`;
-    o+=`<polygon points="${cx},${cy-r*.88} ${cx+r*.38},${cy-r*.08} ${cx+r*.25},${cy+r*.52} ${cx-r*.25},${cy+r*.52} ${cx-r*.38},${cy-r*.08}" fill="${mc}"/>`;
-    o+=`<polygon points="${cx},${cy-r*.88} ${cx+r*.38},${cy-r*.08} ${cx},${cy+r*.12}" fill="${lc}" opacity=".3"/>`;
-    const nc=2+Math.floor(s.fcs/28);
-    const sc=[[-r*.65,r*.1,r*.52,0.72],[r*.55,r*.15,r*.47,0.72],[-r*.4,-r*.28,r*.42,0.55],[r*.35,-r*.23,r*.37,0.55],[-r*.75,r*.3,r*.3,0.45],[r*.68,r*.28,r*.28,0.45]];
-    sc.slice(0,nc).forEach(([ox,oy,sh,op])=>o+=`<polygon points="${cx+ox},${cy+oy-sh} ${cx+ox+sh*.3},${cy+oy+sh*.4} ${cx+ox-sh*.3},${cy+oy+sh*.4}" fill="${mc}" opacity="${op}"/`);
-    o+=`<ellipse cx="${cx}" cy="${cy+r*.64}" rx="${r*.55}" ry="${r*.12}" fill="${dc}" opacity=".5"/>`;
-    o+=`<ellipse cx="${cx}" cy="${cy-r*.3}" rx="${r*.15}" ry="${r*.35}" fill="${lc}" opacity="${.2+s.fcs/100*.35}"/>`;
-    return o;
-  },
-
-  tentacle(cx,cy,r,mc,dc,lc,s){
-    let o='';
-    o+=`<ellipse cx="${cx}" cy="${cy-r*.2}" rx="${r*.65}" ry="${r*.82}" fill="${dc}"/>`;
-    o+=`<ellipse cx="${cx}" cy="${cy-r*.25}" rx="${r*.58}" ry="${r*.74}" fill="${mc}"/>`;
-    for(const sd of[-1,1])o+=`<ellipse cx="${cx+sd*r*.55}" cy="${cy-r*.35}" rx="${r*.18}" ry="${r*.3}" fill="${dc}" opacity=".8" transform="rotate(${sd*20},${cx+sd*r*.55},${cy-r*.35})"/>`;
-    if(s.fcs>40){[[-.2,.1],[.25,-.05],[0,.35],[-.3,.3]].forEach(([fx,fy])=>o+=`<circle cx="${cx+fx*r}" cy="${cy+fy*r}" r="${r*.04}" fill="${lc}" opacity=".7"/>`);}
-    const nT=3+Math.floor(s.sup/18);
-    for(let i=0;i<Math.min(nT,10);i++){
-      const ang=(i/(Math.min(nT,10)-1)*1.3-.65)*Math.PI;
-      const tx=cx+Math.sin(ang)*r*.52,ty=cy+r*.5;
-      const ex=cx+Math.sin(ang)*r*(.78+i*.04),ey=cy+r*(.88+Math.abs(Math.sin(ang))*.42);
-      o+=`<path d="M${tx},${ty} Q${(tx+ex)/2+Math.cos(ang)*r*.22},${(ty+ey)/2} ${ex},${ey}" fill="none" stroke="${i%2===0?dc:mc}" stroke-width="${r*(.13-i*.01)}" stroke-linecap="round"/>`;
-      o+=`<circle cx="${ex}" cy="${ey}" r="${r*.062}" fill="${lc}" opacity=".72"/>`;
-    }
-    return o;
-  },
-
-  chimera(cx,cy,r,mc,dc,lc,s){
-    const sc2=MSC[mSec(s)],scd=MSD[mSec(s)]; let o='';
-    o+=`<ellipse cx="${cx-r*.28}" cy="${cy+r*.1}" rx="${r*.67}" ry="${r*.62}" fill="${dc}"/>`;
-    o+=`<ellipse cx="${cx+r*.28}" cy="${cy+r*.05}" rx="${r*.62}" ry="${r*.57}" fill="${scd}"/>`;
-    o+=`<line x1="${cx}" y1="${cy-r*.58}" x2="${cx}" y2="${cy+r*.68}" stroke="${lc}" stroke-width="${r*.05}" stroke-dasharray="${r*.1} ${r*.06}" opacity=".82"/>`;
-    o+=`<rect x="${cx-r*1.2}" y="${cy-r*.15}" width="${r*.38}" height="${r*.58}" rx="${r*.08}" fill="${dc}"/>`;
-    o+=`<ellipse cx="${cx+r*.98}" cy="${cy+r*.15}" rx="${r*.22}" ry="${r*.36}" fill="${scd}"/>`;
-    for(const sd of[-1,1]){const lx=cx+sd*r*.45;o+=`<rect x="${lx-r*.15}" y="${cy+r*.6}" width="${r*.3}" height="${r*.42}" rx="${r*.05}" fill="${sd<0?dc:scd}"/>`;}
-    o+=`<line x1="${cx}" y1="${cy-r*.55}" x2="${cx}" y2="${cy+r*.65}" stroke="${lc}" stroke-width="${r*.02}" opacity=".6"/>`;
-    return o;
-  },
-
-  wraith(cx,cy,r,mc,dc,lc,s){
-    let o='';
-    const nr=3+Math.floor(s.stm/30);
-    for(let i=0;i<nr;i++){const ry2=cy-r*.15+i*r*(1.0/(nr-1))*.8,rx3=r*(.65-i*.04);
-      o+=`<path d="M${cx},${ry2} Q${cx+rx3},${ry2-r*.12} ${cx+rx3*.9},${ry2+r*.1}" fill="none" stroke="${mc}" stroke-width="${r*.075}" stroke-linecap="round"/>`;
-      o+=`<path d="M${cx},${ry2} Q${cx-rx3},${ry2-r*.12} ${cx-rx3*.9},${ry2+r*.1}" fill="none" stroke="${mc}" stroke-width="${r*.075}" stroke-linecap="round"/>`;
-    }
-    o+=`<line x1="${cx}" y1="${cy-r*.72}" x2="${cx}" y2="${cy+r*.72}" stroke="${dc}" stroke-width="${r*.1}" stroke-linecap="round"/>`;
-    for(const sd of[-1,1]){
-      o+=`<line x1="${cx}" y1="${cy-r*.1}" x2="${cx+sd*r*.82}" y2="${cy-r*.22}" stroke="${dc}" stroke-width="${r*.08}" stroke-linecap="round"/>`;
-      o+=`<line x1="${cx+sd*r*.82}" y1="${cy-r*.22}" x2="${cx+sd*r*1.08}" y2="${cy+r*.32}" stroke="${dc}" stroke-width="${r*.07}" stroke-linecap="round"/>`;
-      o+=`<circle cx="${cx+sd*r*.82}" cy="${cy-r*.22}" r="${r*.1}" fill="${mc}"/>`;
-    }
-    o+=`<ellipse cx="${cx}" cy="${cy}" rx="${r*.9}" ry="${r*.94}" fill="${MSD[mDom(s)]}" opacity=".18"/>`;
-    return o;
-  },
-};
-
-const HEADS = {
-  alien:(hx,hy,hs,dc,mc,lc,s)=>
-    `<ellipse cx="${hx}" cy="${hy-hs*.12}" rx="${hs*.7}" ry="${hs*1.12}" fill="${dc}"/` +
-    `<ellipse cx="${hx}" cy="${hy-hs*.18}" rx="${hs*.62}" ry="${hs*1.02}" fill="${mc}"/>`,
-
-  angular:(hx,hy,hs,dc,mc,lc,s)=>
-    `<polygon points="${hx},${hy-hs} ${hx+hs*.92},${hy-hs*.12} ${hx+hs*.72},${hy+hs*.82} ${hx-hs*.72},${hy+hs*.82} ${hx-hs*.92},${hy-hs*.12}" fill="${dc}"/>` +
-    `<polygon points="${hx},${hy-hs*.86} ${hx+hs*.8},${hy-hs*.06} ${hx+hs*.6},${hy+hs*.72} ${hx-hs*.6},${hy+hs*.72} ${hx-hs*.8},${hy-hs*.06}" fill="${mc}"/>`,
-
-  skull:(hx,hy,hs,dc,mc,lc,s)=>
-    `<ellipse cx="${hx}" cy="${hy-hs*.1}" rx="${hs*.88}" ry="${hs*1.02}" fill="${dc}"/` +
-    `<ellipse cx="${hx}" cy="${hy-hs*.15}" rx="${hs*.78}" ry="${hs*.94}" fill="${mc}"/>` +
-    `<rect x="${hx-hs*.58}" y="${hy+hs*.56}" width="${hs*1.16}" height="${hs*.46}" rx="${hs*.04}" fill="${dc}"/>`,
-
-  wide:(hx,hy,hs,dc,mc,lc,s)=>
-    `<ellipse cx="${hx}" cy="${hy+hs*.12}" rx="${hs*1.28}" ry="${hs*.76}" fill="${dc}"/` +
-    `<ellipse cx="${hx}" cy="${hy}" rx="${hs*1.18}" ry="${hs*.7}" fill="${mc}"/>`,
-
-  crown(hx,hy,hs,dc,mc,lc,s){
-    let o=`<circle cx="${hx}" cy="${hy}" r="${hs*1.06}" fill="${dc}"/><circle cx="${hx}" cy="${hy}" r="${hs}" fill="${mc}"/>`;
-    const cpts=[-0.65,-0.3,0,0.3,0.65].map((p,i)=>`${hx+p*hs},${hy-hs*(i%2===0?1.12:0.72)}`).join(' ');
-    o+=`<polyline points="${cpts}" fill="none" stroke="${lc}" stroke-width="${hs*.075}" stroke-linecap="round" stroke-linejoin="round" opacity=".92"/>`;
-    o+=`<polygon points="${hx},${hy-hs*1.22} ${hx+hs*.1},${hy-hs*1.08} ${hx},${hy-hs*.98} ${hx-hs*.1},${hy-hs*1.08}" fill="${MSC.fcs}" opacity=".9"/>`;
-    return o;
-  },
-
-  mask:(hx,hy,hs,dc,mc,lc,s)=>
-    `<polygon points="${hx-hs},${hy-hs*.52} ${hx},${hy-hs} ${hx+hs},${hy-hs*.52} ${hx+hs},${hy+hs*.82} ${hx},${hy+hs} ${hx-hs},${hy+hs*.82}" fill="${dc}"/>` +
-    `<polygon points="${hx-hs*.88},${hy-hs*.44} ${hx},${hy-hs*.88} ${hx+hs*.88},${hy-hs*.44} ${hx+hs*.88},${hy+hs*.74} ${hx},${hy+hs*.92} ${hx-hs*.88},${hy+hs*.74}" fill="${mc}"/>` +
-    `<rect x="${hx-hs*.68}" y="${hy-hs*.18}" width="${hs*1.36}" height="${hs*.22}" rx="${hs*.08}" fill="${dc}" opacity=".6"/>` +
-    `<rect x="${hx-hs*.62}" y="${hy-hs*.16}" width="${hs*1.24}" height="${hs*.18}" rx="${hs*.06}" fill="${lc}" opacity="${.3+s.agi/100*.4}"/>`,
-
-  gem:(hx,hy,hs,dc,mc,lc,s)=>
-    `<polygon points="${hx},${hy-hs*.92} ${hx+hs*.82},${hy} ${hx+hs*.52},${hy+hs*.58} ${hx-hs*.52},${hy+hs*.58} ${hx-hs*.82},${hy}" fill="${dc}"/>` +
-    `<polygon points="${hx},${hy-hs*.75} ${hx+hs*.65},${hy} ${hx+hs*.4},${hy+hs*.43} ${hx-hs*.4},${hy+hs*.43} ${hx-hs*.65},${hy}" fill="${mc}"/>` +
-    `<polygon points="${hx},${hy-hs*.75} ${hx+hs*.65},${hy} ${hx},${hy+hs*.05}" fill="${lc}" opacity=".28"/>`,
-
-  round:(hx,hy,hs,dc,mc,lc,s)=>
-    `<ellipse cx="${hx}" cy="${hy}" rx="${hs*.92}" ry="${hs*1.02}" fill="${dc}"/` +
-    `<ellipse cx="${hx}" cy="${hy}" rx="${hs*.82}" ry="${hs*.92}" fill="${mc}"/>`,
-};
-
-const EYES = {
-  cyclopean(hx,ey,er,ec,pc,s){
-    let o=`<circle cx="${hx}" cy="${ey}" r="${er*2.6}" fill="${ec}"/>`;
-    o+=`<ellipse cx="${hx}" cy="${ey}" rx="${er*.82}" ry="${er*2.05}" fill="${pc}"/>`;
-    o+=`<circle cx="${hx-er*.72}" cy="${ey-er*.72}" r="${er*.58}" fill="#ffffff" opacity=".85"/>`;
-    const nr=6+Math.floor(s.fcs/18);
-    for(let i=0;i<nr;i++){const a=i*Math.PI*2/nr;o+=`<line x1="${hx+Math.cos(a)*er*1.25}" y1="${ey+Math.sin(a)*er*1.25}" x2="${hx+Math.cos(a)*er*2.45}" y2="${ey+Math.sin(a)*er*2.45}" stroke="${pc}" stroke-width=".9" opacity=".5"/>`;}
-    return o;
-  },
-
-  slit(hx,ey,er,ec,pc,s){
-    let o='';
-    const tilt=5+s.agi/100*18;
-    for(const sd of[-1,1]){const ex=hx+sd*er*2.25;
-      o+=`<ellipse cx="${ex}" cy="${ey}" rx="${er*1.55}" ry="${er*.72}" fill="${ec}" transform="rotate(${sd*-tilt},${ex},${ey})"/>`;
-      o+=`<ellipse cx="${ex}" cy="${ey}" rx="${er*.3}" ry="${er*.64}" fill="${pc}"/>`;
-      o+=`<circle cx="${ex-er*.5}" cy="${ey-er*.2}" r="${er*.22}" fill="#fff" opacity=".6"/>`;
-    }
-    return o;
-  },
-
-  star(hx,ey,er,ec,pc,s){
-    let o='';
-    const np=4+Math.floor(s.sup/22);
-    for(const sd of[-1,1]){const ex=hx+sd*er*2.25;
-      o+=`<circle cx="${ex}" cy="${ey}" r="${er*1.35}" fill="${ec}"/>`;
-      const pts=Array.from({length:np*2},(_,i)=>{const a=i*Math.PI/np-Math.PI/2,rr=i%2===0?er*1.15:er*.52;return`${ex+Math.cos(a)*rr},${ey+Math.sin(a)*rr}`;}).join(' ');
-      o+=`<polygon points="${pts}" fill="${pc}"/>`;
-      o+=`<circle cx="${ex-er*.4}" cy="${ey-er*.4}" r="${er*.3}" fill="#fff" opacity=".6"/>`;
-    }
-    return o;
-  },
-
-  hollow(hx,ey,er,ec,pc,s){
-    let o='';
-    for(const sd of[-1,1]){const ex=hx+sd*er*2.25;
-      o+=`<circle cx="${ex}" cy="${ey}" r="${er*1.35}" fill="none" stroke="${ec}" stroke-width="${er*.52}"/>`;
-      o+=`<circle cx="${ex}" cy="${ey}" r="${er*.42}" fill="${ec}"/>`;
-      if(s.stm>80)o+=`<circle cx="${ex}" cy="${ey}" r="${er*1.55}" fill="none" stroke="${ec}" stroke-width="${er*.15}" opacity=".3"/>`;
-    }
-    return o;
-  },
-
-  insect(hx,ey,er,ec,pc,s){
-    let o='';
-    for(const sd of[-1,1]){const ex=hx+sd*er*2.1,hr2=er*.42;
-      for(let di=0;di<7;di++){const hang=di*Math.PI/3;o+=`<circle cx="${ex+Math.cos(hang)*hr2}" cy="${ey+Math.sin(hang)*hr2}" r="${hr2*.5}" fill="${ec}"/>`;}
-      o+=`<circle cx="${ex}" cy="${ey}" r="${hr2*.48}" fill="${pc}"/>`;
-      o+=`<circle cx="${ex-hr2*.5}" cy="${ey-hr2*.5}" r="${hr2*.25}" fill="#fff" opacity=".5"/>`;
-    }
-    return o;
-  },
-
-  round(hx,ey,er,ec,pc,s){
-    let o='';
-    for(const sd of[-1,1]){const ex=hx+sd*er*2.25;
-      o+=`<circle cx="${ex}" cy="${ey}" r="${er*1.25}" fill="${ec}"/>`;
-      o+=`<circle cx="${ex}" cy="${ey}" r="${er*.68}" fill="${pc}"/>`;
-      o+=`<circle cx="${ex-er*.3}" cy="${ey-er*.3}" r="${er*.34}" fill="#ffffff" opacity=".72"/>`;
-    }
-    return o;
-  },
-};
-
-function drawHorns(hx,hy,hs,s,dc,lc){
-  if(s.atk<=15)return'';
-  const n=s.atk>85?4:s.atk>65?3:s.atk>38?2:1;
-  const hh=hs*(.18+s.atk/100*.32),hw=hs*.1,hBase=hy-hs*.88;
-  const pos={1:[0],2:[-.48,.48],3:[-.62,0,.62],4:[-.75,-.28,.28,.75]}[n];
-  return pos.map(p=>{const hpx=hx+p*hs,lean=p*.28;
-    return `<polygon points="${hpx-hw},${hBase} ${hpx+hw},${hBase} ${hpx+lean*hh},${hBase-hh}" fill="${dc}"/` +
-           `<polygon points="${hpx-hw*.5},${hBase} ${hpx+hw*.5},${hBase} ${hpx+lean*hh*.72},${hBase-hh*.78}" fill="${lc}" opacity=".48"/>`;
-  }).join('');
+function getCoreArchetype(s){
+  const dom=mDom(s),sc=mSec(s);
+  const map={
+    atk:{stm:'BERSERKER',fcs:'ASSASSIN',agi:'STRIKER',sup:'WARLORD',atk:'DESTROYER'},
+    stm:{atk:'TANK',fcs:'SENTINEL',agi:'IRONFOOT',sup:'GUARDIAN',stm:'FORTRESS'},
+    fcs:{atk:'SNIPER',stm:'SCHOLAR',agi:'PHANTOM',sup:'ORACLE',fcs:'ENLIGHTENED'},
+    agi:{atk:'DUELIST',stm:'RUNNER',fcs:'TRICKSTER',sup:'HERALD',agi:'BLUR'},
+    sup:{atk:'PALADIN',stm:'MENDER',fcs:'PROPHET',agi:'BARD',sup:'ASCENDANT'},
+  };
+  return{label:map[dom]?.[sc]||'WANDERER',color:MSC[dom]};
 }
 
-function drawWings(cx,cy,r,s,dc,sc){
-  if(s.agi<=38)return'';
-  const ww=r*(.85+s.agi/100*.95),wh=r*(.65+s.agi/100*.65); let o='';
-  for(const sd of[-1,1]){const wx=cx+sd*r*.52;
-    o+=`<polygon points="${wx},${cy} ${wx+sd*ww},${cy-wh*.52} ${wx+sd*ww*.78},${cy+wh*.58}" fill="${dc}" opacity=".88"/>`;
-    o+=`<polygon points="${wx},${cy} ${wx+sd*ww*.82},${cy-wh*.3} ${wx+sd*ww*.58},${cy+wh*.42}" fill="${sc}" opacity=".32"/>`;
-    if(s.agi>65){const mx=wx+sd*ww*.55,my=cy-wh*.22;o+=`<line x1="${wx}" y1="${cy}" x2="${mx}" y2="${my}" stroke="${sc}" stroke-width="${r*.02}" opacity=".5" stroke-linecap="round"/>`;o+=`<line x1="${wx}" y1="${cy}" x2="${wx+sd*ww*.38}" y2="${cy+wh*.32}" stroke="${sc}" stroke-width="${r*.015}" opacity=".4" stroke-linecap="round"/>`;}}
-  return o;
+function getTier(s){
+  const t=mTot(s);
+  if(t>=451)return{name:'LEGENDARY',color:'#ffd700',glow:8,scale:1.15};
+  if(t>=351)return{name:'EPIC',color:'#ff8800',glow:6,scale:1.1};
+  if(t>=251)return{name:'RARE',color:'#00e5ff',glow:4,scale:1.05};
+  if(t>=151)return{name:'ELITE',color:'#a855f7',glow:2,scale:1.02};
+  return{name:'NORMAL',color:'#7a7a9a',glow:0,scale:1};
 }
 
-function drawAura(cx,cy,size,s,mc){
-  if(s.sup<=18)return'';
-  const au=s.sup/100; let o='';
-  o+=`<circle cx="${cx}" cy="${cy}" r="${size*.44}" fill="none" stroke="${MSC.sup}" stroke-width="${1+au*3.2}" opacity="${.1+au*.32}"/>`;
-  if(s.sup>45){o+=`<circle cx="${cx}" cy="${cy}" r="${size*.47}" fill="none" stroke="${MSL.sup}" stroke-width="${.5+au}" opacity="${au*.2}"/>`;}
-  const np=Math.floor(s.sup/18);
-  for(let i=0;i<np;i++){const a=(i/np)*Math.PI*2;
-    o+=`<circle cx="${cx+Math.cos(a)*size*.44}" cy="${cy+Math.sin(a)*size*.44}" r="${size*.02}" fill="${MSL.sup}" opacity=".8"/>`;
+function drawTierEffects(s,cx,cy,size,showTier){
+  let out='';
+  if(!showTier)return out;
+  const tier=getTier(s);
+  if(tier.glow>0){
+    out+='<circle cx="'+cx+'" cy="'+cy+'" r="'+size*0.5+'" fill="none" stroke="'+tier.color+'" stroke-width="'+(tier.glow/4)+'" opacity="0.12"/>';
   }
-  if(s.sup>60)o+=`<circle cx="${cx}" cy="${cy}" r="${size*.38}" fill="none" stroke="${mc}" stroke-width="${.5}" opacity="${au*.2}"/>`;
-  return o;
-}
-
-function drawStreaks(cx,cy,size,s,lc){
-  if(s.agi<=55)return'';
-  const n=1+Math.floor(s.agi/22); let o='';
-  for(let i=0;i<n;i++){const a=(i/n)*Math.PI+.18;
-    o+=`<line x1="${cx+Math.cos(a)*size*.3}" y1="${cy+Math.sin(a)*size*.3}" x2="${cx+Math.cos(a)*size*.48}" y2="${cy+Math.sin(a)*size*.48}" stroke="${lc}" stroke-width="${size*.014}" opacity=".52" stroke-linecap="round"/>`;
+  if(tier.name==='LEGENDARY'){
+    out+='<ellipse cx="'+cx+'" cy="'+(cy-size*0.55)+'" rx="'+size*0.25+'" ry="'+size*0.06+'" fill="none" stroke="'+tier.color+'" stroke-width="'+size*0.015+'" opacity="0.5"/>';
+    for(let i=0;i<6;i++){
+      const a=(i/6)*Math.PI*2,r0=size*0.52;
+      out+='<circle cx="'+(cx+Math.cos(a)*r0)+'" cy="'+(cy+Math.sin(a)*r0)+'" r="'+size*0.012+'" fill="'+tier.color+'" opacity="0.7"/>';
+    }
   }
-  return o;
-}
-
-function drawMouth(hx,hy,hs,s,dc,lc){
-  const my=hy+hs*.57;
-  if(s.atk>s.sup+15){
-    const mw=hs*.54;
-    let o=`<path d="M${hx-mw},${my} Q${hx},${my+hs*.3} ${hx+mw},${my}" fill="none" stroke="${dc}" stroke-width="${hs*.09}" stroke-linecap="round"/>`;
-    const nf=s.atk>72?2:1;
-    const fp=nf===1?[[0,.18]]:[[-.28,.2],[.28,.2]];
-    fp.forEach(([fx,fy])=>o+=`<polygon points="${hx+fx*hs-hs*.08},${my} ${hx+fx*hs+hs*.08},${my} ${hx+fx*hs},${my+fy*hs}" fill="#ffffff" opacity=".82"/>`);
-    return o;
+  if(tier.name==='EPIC'){
+    out+='<circle cx="'+cx+'" cy="'+cy+'" r="'+size*0.48+'" fill="none" stroke="'+tier.color+'" stroke-width="'+size*0.008+'" opacity="0.25" stroke-dasharray="'+size*0.05+' '+size*0.05+'"/>';
   }
-  if(s.sup>52){const mw=hs*.42;return`<path d="M${hx-mw},${my} Q${hx},${my+hs*.35} ${hx+mw},${my}" fill="none" stroke="${lc}" stroke-width="${hs*.075}" stroke-linecap="round"/>`;}
-  const mw=hs*.32;return`<line x1="${hx-mw}" y1="${my+hs*.04}" x2="${hx+mw}" y2="${my+hs*.04}" stroke="${lc}" stroke-width="${hs*.07}" stroke-linecap="round"/>`;
+  return out;
 }
 
-function drawGem(hx,hy,hs,s,headType){
-  if(s.fcs<=42||headType==='gem')return'';
-  const gr=hs*(.16+s.fcs/100*.08);
-  return `<polygon points="${hx},${hy-hs*.9} ${hx+gr},${hy-hs*.68} ${hx},${hy-hs*.54} ${hx-gr},${hy-hs*.68}" fill="${MSC.fcs}" opacity=".92"/>` +
-         `<polygon points="${hx},${hy-hs*.9} ${hx+gr},${hy-hs*.68} ${hx},${hy-hs*.72}" fill="#fff" opacity=".35"/>`;
+function getElement(s){
+  const entries=Object.entries(s).sort((a,b)=>b[1]-a[1]);
+  const dom=entries[0][0],sec=entries[1][0];
+  const pair=[dom,sec].sort().join('-');
+  const map={
+    'agi-atk':{name:'VOID',tint:'#8800ff'},
+    'agi-fcs':{name:'LIGHTNING',tint:'#ffff00'},
+    'agi-stm':{name:'WIND',tint:'#aaffaa'},
+    'agi-sup':{name:'AETHER',tint:'#ccffcc'},
+    'atk-fcs':{name:'FIRE',tint:'#ff4400'},
+    'atk-stm':{name:'EARTH',tint:'#44aa44'},
+    'atk-sup':{name:'CHAOS',tint:'#ff0088'},
+    'fcs-stm':{name:'ICE',tint:'#aaffff'},
+    'fcs-sup':{name:'ARCANE',tint:'#ff00ff'},
+    'stm-sup':{name:'WATER',tint:'#0088ff'},
+  };
+  return map[pair]||{name:'PHYSICAL',tint:'#aaaaaa'};
+}
+
+function tintColor(baseColor,tintColor,amount){
+  amount=amount===undefined?0.3:amount;
+  const parse=(hex)=>[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];
+  const[r1,g1,b1]=parse(baseColor);
+  const[r2,g2,b2]=parse(tintColor);
+  const r=Math.round(r1*(1-amount)+r2*amount);
+  const g=Math.round(g1*(1-amount)+g2*amount);
+  const b=Math.round(b1*(1-amount)+b2*amount);
+  const toHex=(v)=>v.toString(16).padStart(2,'0');
+  return '#'+toHex(r)+toHex(g)+toHex(b);
+}
+
+function getStance(s,size){
+  let ox=0,oy=0;
+  if(s.atk>s.stm&&s.atk>s.agi){ox=size*0.03;oy=size*0.01;}
+  else if(s.stm>s.atk&&s.stm>s.agi){oy=size*0.02;}
+  else if(s.agi>s.atk&&s.agi>s.stm){ox=size*0.02;oy=-size*0.01;}
+  else if(s.sup>50){oy=-size*0.02;}
+  return{ox,oy};
+}
+
+function drawWeapon(s,dom,sec,cx,cy,bw,bh,by,size,mc,dc,lc,showEquip){
+  let out='';
+  if(!showEquip)return out;
+  const arch=getCoreArchetype(s).label;
+  const wy=by+bh*0.6;
+
+  if(['BERSERKER','DESTROYER','WARLORD','STRIKER','TANK','FORTRESS','PALADIN','GUARDIAN','IRONFOOT','SENTINEL'].indexOf(arch)>-1){
+    const wx=cx+bw*0.8,len=size*0.25;
+    if(s.atk>60){
+      out+='<line x1="'+wx+'" y1="'+wy+'" x2="'+(wx+len)+'" y2="'+(wy-len*0.8)+'" stroke="'+dc+'" stroke-width="'+size*0.04+'" stroke-linecap="round"/>';
+      out+='<line x1="'+wx+'" y1="'+wy+'" x2="'+(wx+len*0.8)+'" y2="'+(wy-len*0.6)+'" stroke="'+lc+'" stroke-width="'+size*0.015+'" stroke-linecap="round"/>';
+    }else{
+      out+='<line x1="'+wx+'" y1="'+wy+'" x2="'+(wx+len*0.8)+'" y2="'+(wy-len*0.5)+'" stroke="'+dc+'" stroke-width="'+size*0.03+'" stroke-linecap="round"/>';
+    }
+    out+='<circle cx="'+wx+'" cy="'+wy+'" r="'+size*0.03+'" fill="'+mc+'"/>';
+  }else if(['ASSASSIN','DUELIST','PHANTOM','BLUR','TRICKSTER'].indexOf(arch)>-1){
+    const wx=cx+bw*0.7,len=size*0.15;
+    out+='<line x1="'+wx+'" y1="'+wy+'" x2="'+(wx+len)+'" y2="'+(wy-len*0.5)+'" stroke="'+dc+'" stroke-width="'+size*0.02+'" stroke-linecap="round"/>';
+    out+='<line x1="'+(wx-len*0.3)+'" y1="'+(wy+len*0.2)+'" x2="'+(wx+len*0.5)+'" y2="'+(wy-len*0.3)+'" stroke="'+dc+'" stroke-width="'+size*0.015+'" stroke-linecap="round"/>';
+  }else if(arch==='SNIPER'){
+    const wx=cx+bw*0.9,len=size*0.2;
+    out+='<path d="M'+wx+','+(wy-len)+' Q'+(wx+len)+','+wy+' '+wx+','+(wy+len)+'" fill="none" stroke="'+dc+'" stroke-width="'+size*0.025+'"/>';
+    out+='<line x1="'+wx+'" y1="'+(wy-len)+'" x2="'+wx+'" y2="'+(wy+len)+'" stroke="'+lc+'" stroke-width="'+size*0.01+'"/>';
+  }else if(['SCHOLAR','ENLIGHTENED','ORACLE','PROPHET','ASCENDANT','MENDER'].indexOf(arch)>-1){
+    const wx=cx+bw*0.8,len=size*0.3;
+    out+='<line x1="'+wx+'" y1="'+wy+'" x2="'+(wx+len*0.2)+'" y2="'+(wy-len)+'" stroke="'+dc+'" stroke-width="'+size*0.025+'" stroke-linecap="round"/>';
+    out+='<circle cx="'+(wx+len*0.2)+'" cy="'+(wy-len)+'" r="'+size*0.04+'" fill="'+MSC['fcs']+'"/>';
+  }else{
+    const wx=cx+bw*0.8,len=size*0.12;
+    out+='<line x1="'+wx+'" y1="'+wy+'" x2="'+(wx+len)+'" y2="'+(wy-len*0.4)+'" stroke="'+dc+'" stroke-width="'+size*0.02+'" stroke-linecap="round"/>';
+  }
+  if(s.stm>60&&['TANK','FORTRESS','GUARDIAN','PALADIN','SENTINEL','IRONFOOT'].indexOf(arch)>-1){
+    const sx=cx-bw*0.9,sy=wy,sr=size*0.1;
+    out+='<path d="M'+sx+','+(sy-sr)+' Q'+(sx+sr*1.2)+','+(sy-sr*0.5)+' '+(sx+sr)+','+(sy+sr)+' Q'+sx+','+(sy+sr*1.2)+' '+(sx-sr)+','+(sy+sr)+' Q'+(sx-sr*1.2)+','+(sy-sr*0.5)+' '+sx+','+(sy-sr)+'" fill="'+dc+'" stroke="'+mc+'" stroke-width="'+size*0.01+'"/>';
+  }
+  return out;
+}
+
+function drawArmor(s,dom,sec,cx,cy,bw,bh,by,size,mc,dc,lc,showEquip){
+  let out='';
+  if(!showEquip)return out;
+  if(s.stm>50&&s.agi<50){
+    const ax=cx,ay=by+bh*0.4,aw=bw*1.1,ah=bh*0.6;
+    out+='<rect x="'+(ax-aw/2)+'" y="'+(ay-ah/2)+'" width="'+aw+'" height="'+ah+'" rx="'+size*0.02+'" fill="'+dc+'" opacity=".5"/>';
+    out+='<rect x="'+(ax-aw*0.4)+'" y="'+(ay-ah*0.3)+'" width="'+(aw*0.8)+'" height="'+(ah*0.6)+'" rx="'+size*0.01+'" fill="'+mc+'" opacity=".3"/>';
+  }else if(s.sup>50){
+    const ax=cx,ay=by+bh*0.3,aw=bw*1.3,ah=bh*1.4;
+    out+='<path d="M'+(ax-aw/2)+','+ay+' Q'+ax+','+(ay+ah*0.2)+' '+(ax+aw/2)+','+ay+' L'+(ax+aw*0.6)+','+(ay+ah)+' Q'+ax+','+(ay+ah*1.2)+' '+(ax-aw*0.6)+','+(ay+ah)+' Z" fill="'+dc+'" opacity=".4"/>';
+    out+='<path d="M'+(ax-aw*0.3)+','+ay+' Q'+ax+','+(ay+ah*0.3)+' '+(ax+aw*0.3)+','+ay+' L'+(ax+aw*0.35)+','+(ay+ah*0.8)+' Q'+ax+','+(ay+ah)+' '+(ax-aw*0.35)+','+(ay+ah*0.8)+' Z" fill="'+mc+'" opacity=".3"/>';
+  }else if(s.agi>50){
+    const ax=cx,ay=by+bh*0.5,aw=bw*0.9,ah=bh*0.4;
+    out+='<rect x="'+(ax-aw/2)+'" y="'+(ay-ah/2)+'" width="'+aw+'" height="'+ah+'" rx="'+size*0.03+'" fill="'+dc+'" opacity=".4"/>';
+    const wwy=by+bh*0.3;
+    for(let side of[-1,1]){
+      const wx=cx+side*(bw*0.5);
+      out+='<rect x="'+(wx-size*0.02)+'" y="'+(wwy-size*0.03)+'" width="'+size*0.04+'" height="'+size*0.1+'" fill="'+mc+'" opacity=".5"/>';
+    }
+  }else{
+    const ax=cx,ay=by+bh*0.5,aw=bw,ah=bh*0.5;
+    out+='<rect x="'+(ax-aw/2)+'" y="'+(ay-ah/2)+'" width="'+aw+'" height="'+ah+'" rx="'+size*0.02+'" fill="'+dc+'" opacity=".3"/>';
+  }
+  if(s.stm>60||s.atk>70){
+    const spSize=size*0.06,spY=by+bh*0.2;
+    for(let side of[-1,1]){
+      const spX=cx+side*(bw*0.6);
+      out+='<circle cx="'+spX+'" cy="'+spY+'" r="'+spSize+'" fill="'+dc+'" opacity=".6"/>';
+      out+='<circle cx="'+spX+'" cy="'+spY+'" r="'+(spSize*0.6)+'" fill="'+mc+'" opacity=".4"/>';
+    }
+  }
+  return out;
+}
+
+function drawAccessory(s,dom,sec,cx,cy,bw,bh,by,size,mc,dc,lc,hs,hx,hy,showEquip){
+  let out='';
+  if(!showEquip)return out;
+  if(s.fcs>60){
+    const cr=hs*1.1,cy2=hy-hs*0.9;
+    out+='<path d="M'+(hx-cr)+','+cy2+' L'+(hx-cr*0.5)+','+(cy2-cr*0.3)+' L'+hx+','+(cy2-cr*0.15)+' L'+(hx+cr*0.5)+','+(cy2-cr*0.3)+' L'+(hx+cr)+','+cy2+' Z" fill="'+MSC['fcs']+'" opacity=".8"/>';
+    out+='<circle cx="'+hx+'" cy="'+(cy2-cr*0.2)+'" r="'+size*0.02+'" fill="'+MSL['fcs']+'"/>';
+  }
+  if(s.sup>50){
+    const nx=cx,ny=hy+hs*0.8;
+    out+='<circle cx="'+nx+'" cy="'+ny+'" r="'+size*0.025+'" fill="'+MSC['sup']+'" opacity=".9"/>';
+    out+='<line x1="'+nx+'" y1="'+(ny-size*0.025)+'" x2="'+nx+'" y2="'+(hy+hs*0.3)+'" stroke="'+MSC['sup']+'" stroke-width="'+size*0.01+'" opacity=".6"/>';
+  }
+  const tier=getTier(s);
+  if(tier.name==='LEGENDARY'||tier.name==='EPIC'){
+    const cpx=cx,cpy=by+bh*0.2,cw=bw*1.4,ch=bh*1.8;
+    out+='<path d="M'+(cpx-cw*0.3)+','+cpy+' Q'+cpx+','+(cpy+ch*0.1)+' '+(cpx+cw*0.3)+','+cpy+' L'+(cpx+cw*0.5)+','+(cpy+ch)+' Q'+cpx+','+(cpy+ch*1.2)+' '+(cpx-cw*0.5)+','+(cpy+ch)+' Z" fill="'+dc+'" opacity=".3"/>';
+    out+='<path d="M'+(cpx-cw*0.2)+','+cpy+' Q'+cpx+','+(cpy+ch*0.15)+' '+(cpx+cw*0.2)+','+cpy+' L'+(cpx+cw*0.3)+','+(cpy+ch*0.7)+' Q'+cpx+','+(cpy+ch*0.85)+' '+(cpx-cw*0.3)+','+(cpy+ch*0.7)+' Z" fill="'+mc+'" opacity=".2"/>';
+  }
+  return out;
+}
+
+function drawMaterial(s,dom,cx,cy,bw,bh,by,size,mc,dc){
+  let out='';
+  if(s.stm>70){
+    const scaleR=size*0.015;
+    for(let i=0;i<5;i++){
+      const sx=cx+(Math.sin(i*2.5)-0.5)*bw*0.8;
+      const sy=by+bh*0.3+(Math.cos(i*1.7))*bh*0.4;
+      out+='<circle cx="'+sx+'" cy="'+sy+'" r="'+scaleR+'" fill="'+dc+'" opacity=".3"/>';
+    }
+  }else if(s.atk>70){
+    const furY=by;
+    for(let i=0;i<6;i++){
+      const fx=cx+(i-2.5)*size*0.04;
+      out+='<line x1="'+fx+'" y1="'+furY+'" x2="'+(fx+size*0.02)+'" y2="'+(furY-size*0.06)+'" stroke="'+dc+'" stroke-width="'+size*0.008+'" opacity=".4"/>';
+    }
+  }else if(s.sup>70){
+    for(let i=0;i<4;i++){
+      const mx=cx+(Math.sin(i*3.1)-0.5)*bw*1.2;
+      const my=by+(Math.cos(i*2.3))*bh*1.2;
+      out+='<circle cx="'+mx+'" cy="'+my+'" r="'+size*0.03+'" fill="'+MSC['sup']+'" opacity=".1"/>';
+    }
+  }
+  return out;
 }
 
 function selectBody(s,seed){
@@ -428,6 +280,7 @@ function selectBody(s,seed){
   }
   return choices[0];
 }
+
 function selectHead(s){
   if(s.fcs>=80)return'alien';
   if(s.atk>=78)return'angular';
@@ -438,53 +291,12 @@ function selectHead(s){
   if(s.atk>=48)return'wide';
   return'round';
 }
-function selectEyes(s){
-  const d=mDom(s);
-  if(d==='fcs')return'cyclopean';
-  if(s.agi>=68)return'slit';
-  if(s.sup>=68)return'star';
-  if(s.stm>=68)return'hollow';
-  if(s.fcs>=48&&s.agi>=48)return'insect';
-  return'round';
-}
-
-function drawMonster(svg, s, size, seed){
-  const cx=size/2, cy=size/2;
-  const scale=0.68+(mTot(s)/500)*0.32;
-  const r=Math.round(size*0.27*scale);
-  const d=mDom(s), sc=mSec(s);
-  const mc=MSC[d], dc=MSD[d], lc=MSL[d];
-
-  const bodyType=selectBody(s,seed);
-  const bodyCY=cy+size*.06;
-  const hs=Math.round(size*(.17+s.stm/100*.09)*scale);
-  const hx=cx, hy=bodyCY-hs*.9;
-  const headType=selectHead(s);
-  const eyeType=selectEyes(s);
-
-  const ec=s.fcs>62?lc:(s.sup>62?MSL.sup:(s.agi>62?MSL.agi:'#dde8ff'));
-  const pc='#040510';
-  const er=Math.max(hs*.12, hs*.1+s.fcs/100*hs*.1);
-  const ey=hy-hs*.1;
-
-  let out=`<rect width="${size}" height="${size}" rx="${Math.round(size*.15)}" fill="#0d0d18"/>`;
-  out+=drawAura(cx,cy,size,s,mc);
-  out+=BODIES[bodyType](cx,bodyCY,r,mc,dc,lc,s);
-  out+=drawWings(cx,bodyCY,r,s,dc,MSC[sc]);
-  out+=HEADS[headType](hx,hy,hs,dc,mc,lc,s);
-  out+=drawHorns(hx,hy,hs,s,dc,lc);
-  out+=drawGem(hx,hy,hs,s,headType);
-  out+=EYES[eyeType](hx,ey,er,ec,pc,s);
-  out+=drawMouth(hx,hy,hs,s,dc,lc);
-  out+=drawStreaks(cx,cy,size,s,lc);
-  svg.innerHTML=out;
-}
 
 function mAnatomy(s,seed){
-  return {
+  return{
     body:selectBody(s,seed),
     head:selectHead(s),
-    eyes:selectEyes(s),
+    eyes:'generative',
     horns:s.atk>15?(s.atk>85?'4':s.atk>65?'3':s.atk>38?'2':'1'):'none',
     wings:s.agi>38?(s.agi>65?'streaked':'basic'):'none',
     aura:s.sup>18?(s.sup>60?'intense':s.sup>45?'glowing':'faint'):'none',
@@ -494,35 +306,224 @@ function mAnatomy(s,seed){
   };
 }
 
-function buildMonsterWidget(s, size, seed){
-  const arc=mArchetype(s), name=mName(s), trs=mTraits(s);
+function drawMonster(svg,s,size,showEquipOrSeed,showTier){
+  size=size||120;
+  var showEquip=false,useTier=false,seed='';
+  if(typeof showEquipOrSeed==='string'){
+    seed=showEquipOrSeed;
+  }else if(typeof showEquipOrSeed==='boolean'){
+    showEquip=showEquipOrSeed;
+  }else if(typeof showEquipOrSeed==='object'&&showEquipOrSeed!==null){
+    var opts=showEquipOrSeed||{};
+    seed=opts.seed||'';
+    showEquip=opts.showEquip!==undefined?opts.showEquip:false;
+    useTier=opts.showTier!==undefined?opts.showTier:false;
+  }
+  if(typeof showTier==='boolean')useTier=showTier;
+
+  var dom=mDom(s),sec=mSec(s);
+  var total=mTot(s);
+  var bodyScale=0.7+(total/500)*0.3;
+  var element=getElement(s);
+
+  var mc=tintColor(MSC[dom],element.tint,0.2);
+  var sc=tintColor(MSC[sec],element.tint,0.15);
+  var dc=tintColor(MSD[dom],element.tint,0.25);
+  var lc=tintColor(MSL[dom],element.tint,0.1);
+
+  var stance=getStance(s,size);
+  var cx=size/2+stance.ox;
+  var cy=size/2+stance.oy;
+
+  var out='<rect width="'+size+'" height="'+size+'" rx="'+(size*0.15)+'" fill="#0d0d18"/>';
+  out+=drawTierEffects(s,cx,cy,size,useTier);
+
+  var bw=Math.round(size*0.28*bodyScale*getTier(s).scale);
+  var bh=Math.round(size*0.28*bodyScale*getTier(s).scale);
+  var bx=cx-bw/2,by=cy-bh/2+size*0.05;
+
+    if(dom==='atk'){
+    out+='<polygon points="'+cx+','+(by-bh*0.3)+' '+(bx+bw*1.2)+','+(by+bh*0.4)+' '+(bx+bw)+','+(by+bh*1.3)+' '+bx+','+(by+bh*1.3)+' '+(bx-bw*0.2)+','+(by+bh*0.4)+'" fill="'+dc+'"/>';
+    out+='<polygon points="'+cx+','+(by-bh*0.2)+' '+(bx+bw)+','+(by+bh*0.4)+' '+(bx+bw*0.8)+','+(by+bh*1.2)+' '+(bx+bw*0.2)+','+(by+bh*1.2)+' '+bx+','+(by+bh*0.4)+'" fill="'+mc+'"/>';
+  }else if(dom==='stm'){
+    var r=bw*0.9;
+    out+='<circle cx="'+cx+'" cy="'+(by+bh*0.6)+'" r="'+(r*1.1)+'" fill="'+dc+'"/>';
+    out+='<circle cx="'+cx+'" cy="'+(by+bh*0.5)+'" r="'+r+'" fill="'+mc+'"/>';
+  }else if(dom==='fcs'){
+    var hh=bh*0.9;
+    out+='<polygon points="'+cx+','+by+' '+(cx+bw)+','+(by+hh*0.5)+' '+(cx+bw*0.7)+','+(by+hh*1.1)+' '+(cx-bw*0.7)+','+(by+hh*1.1)+' '+(cx-bw)+','+(by+hh*0.5)+'" fill="'+dc+'"/>';
+    out+='<polygon points="'+cx+','+(by+hh*0.1)+' '+(cx+bw*0.8)+','+(by+hh*0.55)+' '+(cx+bw*0.55)+','+(by+hh)+' '+(cx-bw*0.55)+','+(by+hh)+' '+(cx-bw*0.8)+','+(by+hh*0.55)+'" fill="'+mc+'"/>';
+  }else if(dom==='agi'){
+    out+='<ellipse cx="'+(cx+size*0.05)+'" cy="'+(by+bh*0.7)+'" rx="'+(bw*1.2)+'" ry="'+(bh*0.7)+'" fill="'+dc+'"/>';
+    out+='<ellipse cx="'+cx+'" cy="'+(by+bh*0.6)+'" rx="'+(bw*1.1)+'" ry="'+(bh*0.6)+'" fill="'+mc+'"/>';
+  }else{
+    out+='<ellipse cx="'+cx+'" cy="'+(by+bh*0.7)+'" rx="'+(bw*0.9)+'" ry="'+(bh*1.1)+'" fill="'+dc+'"/>';
+    out+='<ellipse cx="'+cx+'" cy="'+(by+bh*0.6)+'" rx="'+(bw*0.8)+'" ry="'+bh+'" fill="'+mc+'"/>';
+  }
+
+  out+=drawArmor(s,dom,sec,cx,cy,bw,bh,by,size,mc,dc,lc,showEquip);
+  out+=drawMaterial(s,dom,cx,cy,bw,bh,by,size,mc,dc);
+
+    var hs=size*(0.18+s.stm/100*0.08)*bodyScale*getTier(s).scale;
+  var hx=cx,hy=by-hs*0.3;
+
+  if(s.fcs>70){
+    out+='<polygon points="'+hx+','+(hy-hs)+' '+(hx+hs)+','+hy+' '+hx+','+(hy+hs*0.5)+' '+(hx-hs)+','+hy+'" fill="'+dc+'"/>';
+    out+='<polygon points="'+hx+','+(hy-hs*0.8)+' '+(hx+hs*0.8)+','+hy+' '+hx+','+(hy+hs*0.35)+' '+(hx-hs*0.8)+','+hy+'" fill="'+mc+'"/>';
+  }else if(s.stm>70){
+    out+='<circle cx="'+hx+'" cy="'+hy+'" r="'+(hs*1.05)+'" fill="'+dc+'"/>';
+    out+='<circle cx="'+hx+'" cy="'+hy+'" r="'+hs+'" fill="'+mc+'"/>';
+  }else{
+    out+='<ellipse cx="'+hx+'" cy="'+hy+'" rx="'+(hs*0.9)+'" ry="'+hs+'" fill="'+dc+'"/>';
+    out+='<ellipse cx="'+hx+'" cy="'+hy+'" rx="'+(hs*0.8)+'" ry="'+(hs*0.9)+'" fill="'+mc+'"/>';
+  }
+
+    var er=Math.max(size*0.025,size*0.025+s.fcs/100*size*0.025);
+  var ey=hy-hs*0.1;
+  var ex=hs*0.35;
+  var eyeColor=s.fcs>60?lc:(s.sup>60?tintColor(MSL['sup'],element.tint,0.1):'#ffffff');
+  var pupilColor='#000a14';
+
+  if(dom==='fcs'){
+    out+='<circle cx="'+hx+'" cy="'+ey+'" r="'+(er*2.5)+'" fill="'+eyeColor+'"/>';
+    out+='<ellipse cx="'+hx+'" cy="'+ey+'" rx="'+(er*0.8)+'" ry="'+(er*2)+'" fill="'+pupilColor+'"/>';
+    out+='<circle cx="'+(hx-er*0.7)+'" cy="'+(ey-er*0.7)+'" r="'+(er*0.6)+'" fill="#ffffff" opacity=".8"/>';
+    for(var i=0;i<8;i++){
+      var a=i*Math.PI/4;
+      var r0=er*1.2,r1=er*2.3;
+      out+='<line x1="'+(hx+Math.cos(a)*r0)+'" y1="'+(ey+Math.sin(a)*r0)+'" x2="'+(hx+Math.cos(a)*r1)+'" y2="'+(ey+Math.sin(a)*r1)+'" stroke="'+dc+'" stroke-width="0.8" opacity=".6"/>';
+    }
+  }else{
+    for(var side2 of[-1,1]){
+      var ex2=hx+side2*ex;
+      if(s.agi>70){
+        out+='<ellipse cx="'+ex2+'" cy="'+ey+'" rx="'+(er*1.6)+'" ry="'+(er*0.8)+'" fill="'+eyeColor+'" transform="rotate('+(side2*-15)+','+ex2+','+ey+')"/>';
+        out+='<ellipse cx="'+ex2+'" cy="'+ey+'" rx="'+(er*0.6)+'" ry="'+(er*0.6)+'" fill="'+pupilColor+'"/>';
+      }else if(s.sup>70){
+        out+='<circle cx="'+ex2+'" cy="'+ey+'" r="'+(er*1.4)+'" fill="'+eyeColor+'"/>';
+        out+='<polygon points="'+ex2+','+(ey-er)+' '+(ex2+er*0.35)+','+(ey-er*0.35)+' '+(ex2+er)+','+ey+' '+(ex2+er*0.35)+','+(ey+er*0.35)+' '+ex2+','+(ey+er)+' '+(ex2-er*0.35)+','+(ey+er*0.35)+' '+(ex2-er)+','+ey+' '+(ex2-er*0.35)+','+(ey-er*0.35)+'" fill="'+tintColor(MSL['sup'],element.tint,0.1)+'"/>';
+      }else{
+        out+='<circle cx="'+ex2+'" cy="'+ey+'" r="'+(er*1.3)+'" fill="'+eyeColor+'"/>';
+        out+='<circle cx="'+ex2+'" cy="'+ey+'" r="'+(er*0.7)+'" fill="'+pupilColor+'"/>';
+        out+='<circle cx="'+(ex2-er*0.3)+'" cy="'+(ey-er*0.3)+'" r="'+(er*0.35)+'" fill="#ffffff" opacity=".7"/>';
+      }
+    }
+  }
+
+    if(s.atk>20){
+    var hornH=size*(0.04+s.atk/100*0.1);
+    var hornW=size*0.04;
+    var hBase=hy-hs*0.75;
+    var hCount=s.atk>75?3:s.atk>45?2:1;
+    var hPositions=hCount===1?[0]:hCount===2?[-1,1]:[-1.5,0,1.5];
+    for(var p of hPositions){
+      var hpx=hx+p*hs*0.45;
+      var lean=p*0.25;
+      out+='<polygon points="'+(hpx-hornW)+','+hBase+' '+(hpx+hornW)+','+hBase+' '+(hpx+lean*hornH)+','+(hBase-hornH)+'" fill="'+dc+'"/>';
+      out+='<polygon points="'+(hpx-hornW*0.5)+','+hBase+' '+(hpx+hornW*0.5)+','+hBase+' '+(hpx+lean*hornH*0.7)+','+(hBase-hornH*0.75)+'" fill="'+lc+'" opacity=".5"/>';
+    }
+  }else{
+    var earH=size*0.07;
+    for(var side3 of[-1,1]){
+      var epx=hx+side3*hs*0.8;
+      out+='<polygon points="'+(epx-size*0.04)+','+(hy-hs*0.5)+' '+(epx+size*0.04)+','+(hy-hs*0.5)+' '+(epx+side3*size*0.02)+','+(hy-hs*0.5-earH)+'" fill="'+mc+'"/>';
+    }
+  }
+
+    if(s.agi>40){
+    var wingW=size*(0.1+s.agi/100*0.18);
+    var wingH=size*(0.08+s.agi/100*0.1);
+    var wy=by+bh*0.3;
+    for(var side4 of[-1,1]){
+      var wx=cx+side4*(bw*0.5);
+      out+='<polygon points="'+wx+','+wy+' '+(wx+side4*wingW)+','+(wy-wingH*0.6)+' '+(wx+side4*wingW*0.7)+','+(wy+wingH)+'" fill="'+dc+'" opacity=".9"/>';
+      out+='<polygon points="'+wx+','+wy+' '+(wx+side4*wingW*0.8)+','+(wy-wingH*0.4)+' '+(wx+side4*wingW*0.55)+','+(wy+wingH*0.8)+'" fill="'+sc+'" opacity=".5"/>';
+    }
+  }else{
+    var aw=size*0.08,ah=size*0.05;
+    for(var side5 of[-1,1]){
+      var ax=cx+side5*(bw*0.55);
+      out+='<rect x="'+(ax-aw/2)+'" y="'+(by+bh*0.3)+'" width="'+aw+'" height="'+ah+'" rx="'+(ah/2)+'" fill="'+dc+'"/>';
+    }
+  }
+
+    if(s.stm>30){
+    var tw=size*0.05,tl=size*(0.1+s.stm/100*0.14);
+    var tx=cx,ty=by+bh*1.1;
+    if(s.stm>70){
+      out+='<polygon points="'+(tx-tw)+','+ty+' '+(tx+tw)+','+ty+' '+(tx+tw*0.5)+','+(ty+tl)+' '+(tx-tw*0.5)+','+(ty+tl)+'" fill="'+dc+'"/>';
+      out+='<polygon points="'+tx+','+(ty+tl*0.6)+' '+(tx+tw*1.8)+','+(ty+tl*0.3)+' '+(tx+tw*0.3)+','+(ty+tl)+'" fill="'+mc+'" opacity=".7"/>';
+      out+='<polygon points="'+tx+','+(ty+tl*0.6)+' '+(tx-tw*1.8)+','+(ty+tl*0.3)+' '+(tx-tw*0.3)+','+(ty+tl)+'" fill="'+mc+'" opacity=".7"/>';
+    }else{
+      out+='<ellipse cx="'+tx+'" cy="'+(ty+tl*0.5)+'" rx="'+(tw*0.8)+'" ry="'+(tl*0.5)+'" fill="'+dc+'" opacity=".7"/>';
+    }
+  }
+
+    if(s.sup>20){
+    var aura=s.sup/100;
+    out+='<circle cx="'+cx+'" cy="'+cy+'" r="'+size*0.44+'" fill="none" stroke="'+tintColor(MSC['sup'],element.tint,0.1)+'" stroke-width="'+(1+aura*3)+'" opacity="'+(0.1+aura*0.3)+'"/>';
+    if(s.sup>50){
+      out+='<circle cx="'+cx+'" cy="'+cy+'" r="'+size*0.47+'" fill="none" stroke="'+tintColor(MSL['sup'],element.tint,0.1)+'" stroke-width="'+(0.5+aura)+'" opacity="'+(aura*0.2)+'"/>';
+    }
+    var nSparkles=Math.floor(s.sup/25);
+    for(var i2=0;i2<nSparkles;i2++){
+      var a2=(i2/nSparkles)*Math.PI*2+0.5;
+      var sr2=size*0.42;
+      out+='<circle cx="'+(cx+Math.cos(a2)*sr2)+'" cy="'+(cy+Math.sin(a2)*sr2)+'" r="'+size*0.018+'" fill="'+tintColor(MSL['sup'],element.tint,0.1)+'" opacity=".8"/>';
+    }
+  }
+
+    var mouthY=hy+hs*0.55;
+  if(s.atk>s.sup+20){
+    var mw=hs*0.55;
+    out+='<path d="M'+(hx-mw)+','+mouthY+' Q'+hx+','+(mouthY+hs*0.3)+' '+(hx+mw)+','+mouthY+'" fill="none" stroke="'+dc+'" stroke-width="'+size*0.025+'" stroke-linecap="round"/>';
+    out+='<polygon points="'+(hx-mw*0.4)+','+mouthY+' '+(hx-mw*0.2)+','+mouthY+' '+(hx-mw*0.3)+','+(mouthY+hs*0.22)+'" fill="#ffffff" opacity=".8"/>';
+    out+='<polygon points="'+(hx+mw*0.2)+','+mouthY+' '+(hx+mw*0.4)+','+mouthY+' '+(hx+mw*0.3)+','+(mouthY+hs*0.22)+'" fill="#ffffff" opacity=".8"/>';
+  }else if(s.sup>50){
+    var mw=hs*0.4;
+    out+='<path d="M'+(hx-mw)+','+mouthY+' Q'+hx+','+(mouthY+hs*0.35)+' '+(hx+mw)+','+mouthY+'" fill="none" stroke="'+lc+'" stroke-width="'+size*0.02+'" stroke-linecap="round"/>';
+  }else{
+    var mw=hs*0.3;
+    out+='<line x1="'+(hx-mw)+'" y1="'+(mouthY+hs*0.05)+'" x2="'+(hx+mw)+'" y2="'+(mouthY+hs*0.05)+'" stroke="'+lc+'" stroke-width="'+size*0.02+'" stroke-linecap="round"/>';
+  }
+
+    if(s.fcs>50&&dom!=='fcs'){
+    var gr=size*0.03;
+    out+='<polygon points="'+hx+','+(hy-hs*0.85)+' '+(hx+gr)+','+(hy-hs*0.65)+' '+hx+','+(hy-hs*0.55)+' '+(hx-gr)+','+(hy-hs*0.65)+'" fill="'+tintColor(MSC['fcs'],element.tint,0.1)+'" opacity=".9"/>';
+  }
+
+  out+=drawAccessory(s,dom,sec,cx,cy,bw,bh,by,size,mc,dc,lc,hs,hx,hy,showEquip);
+  out+=drawWeapon(s,dom,sec,cx,cy,bw,bh,by,size,mc,dc,lc,showEquip);
+
+  svg.innerHTML=out;
+}
+
+function buildMonsterWidget(s,size,seed){
+  const arc=mArchetype(s),name=mName(s),trs=mTraits(s);
   const wrap=document.createElement('div');
   wrap.className='monster-widget';
   wrap.style.cssText='position:relative;flex-shrink:0;cursor:default;display:inline-block';
 
   const svgNS='http://www.w3.org/2000/svg';
   const svg=document.createElementNS(svgNS,'svg');
-  svg.setAttribute('width',size); svg.setAttribute('height',size);
-  svg.setAttribute('viewBox',`0 0 ${size} ${size}`);
+  svg.setAttribute('width',size);svg.setAttribute('height',size);
+  svg.setAttribute('viewBox','0 0 '+size+' '+size);
   drawMonster(svg,s,size,seed);
 
   const tip=document.createElement('div');
   tip.className='monster-tip';
-  tip.style.cssText=`position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);
-    background:#12121a;border:1px solid #2a2a3e;border-radius:10px;padding:9px 13px;
-    font-size:11px;font-family:monospace;white-space:nowrap;pointer-events:none;
-    opacity:0;transition:opacity .18s;z-index:9999;text-align:center;min-width:140px`;
-  const tHtml=trs.map(t=>`<span style="display:inline-block;font-size:9px;padding:1px 6px;border-radius:6px;margin:1px;background:${t.c}22;color:${t.c};border:1px solid ${t.c}44">${t.t}</span>`).join('');
+  tip.style.cssText='position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);background:#12121a;border:1px solid #2a2a3e;border-radius:10px;padding:9px 13px;font-size:11px;font-family:monospace;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .18s;z-index:9999;text-align:center;min-width:140px';
+  const tHtml=trs.map(t=>'<span style="display:inline-block;font-size:9px;padding:1px 6px;border-radius:6px;margin:1px;background:'+t.c+'22;color:'+t.c+';border:1px solid '+t.c+'44">'+t.t+'</span>').join('');
   const anatomy=mAnatomy(s,seed);
-  const aHtml=Object.entries(anatomy).map(([k,v])=>`<span style="display:inline-block;font-size:8px;padding:1px 5px;border-radius:4px;margin:1px;background:#222233;color:#88aabb">${k}:${v}</span>`).join('');
-  tip.innerHTML=`<div style="font-size:13px;font-weight:800;letter-spacing:1.5px;color:${arc.c};margin-bottom:2px">${name}</div>`+
-                `<div style="font-size:10px;opacity:.82;color:${arc.c};margin-bottom:5px">${arc.l}</div>`+
-                `<div>${tHtml}</div>`+
-                `<div style="margin-top:4px;border-top:1px solid #2a2a3e;padding-top:4px">${aHtml}</div>`;
+  const aHtml=Object.entries(anatomy).map(([k,v])=>'<span style="display:inline-block;font-size:8px;padding:1px 5px;border-radius:4px;margin:1px;background:#222233;color:#88aabb">'+k+':'+v+'</span>').join('');
+  tip.innerHTML='<div style="font-size:13px;font-weight:800;letter-spacing:1.5px;color:'+arc.c+';margin-bottom:2px">'+name+'</div>'+
+                '<div style="font-size:10px;opacity:.82;color:'+arc.c+';margin-bottom:5px">'+arc.l+'</div>'+
+                '<div>'+tHtml+'</div>'+
+                '<div style="margin-top:4px;border-top:1px solid #2a2a3e;padding-top:4px">'+aHtml+'</div>';
 
   wrap.appendChild(svg);
   wrap.appendChild(tip);
-  wrap.addEventListener('mouseenter',()=>tip.style.opacity='1');
-  wrap.addEventListener('mouseleave',()=>tip.style.opacity='0');
+  wrap.addEventListener('mouseenter',function(){tip.style.opacity='1';});
+  wrap.addEventListener('mouseleave',function(){tip.style.opacity='0';});
   return wrap;
 }

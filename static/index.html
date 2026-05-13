@@ -1676,6 +1676,8 @@ function launchConfetti(x,y){
         var traits=mTraits(s);
         var tHtml=traits.map(function(t){return '<span style="background:'+t.c+'22;color:'+t.c+';border:1px solid '+t.c+'44">'+t.t+'</span>';}).join('');
         var aHtml=Object.entries(anat).map(function(p){return '<span style="background:#222233;color:#88aabb">'+p[0]+': '+p[1]+'</span>';}).join('');
+        var tier=getTier(s);
+        var elem=getElement(s);
         var svgNS='http://www.w3.org/2000/svg';
         var svg=document.createElementNS(svgNS,'svg');
         svg.setAttribute('width',200); svg.setAttribute('height',200);
@@ -1686,6 +1688,10 @@ function launchConfetti(x,y){
         wrap.innerHTML=svgHtml+
             '<div style="font-size:20px;font-weight:800;letter-spacing:2px;color:'+arch.c+'">'+mName(s)+'</div>'+
             '<div style="font-size:13px;color:'+arch.c+'">'+arch.l+'</div>'+
+            '<div style="display:flex;gap:8px;justify-content:center;margin-top:6px">'+
+            '<span style="font-size:10px;padding:2px 10px;border-radius:8px;background:'+tier.color+'22;color:'+tier.color+';border:1px solid '+tier.color+'44;font-weight:700">'+tier.name+'</span>'+
+            '<span style="font-size:10px;padding:2px 10px;border-radius:8px;background:'+elem.tint+'22;color:'+elem.tint+';border:1px solid '+elem.tint+'44;font-weight:700;text-transform:uppercase">'+elem.name+'</span>'+
+            '</div>'+
             '<div class="monster-modal-traits">'+tHtml+'</div>'+
             '<div class="monster-modal-traits">'+aHtml+'</div>';
         document.getElementById('monster-modal').classList.add('active');
