@@ -2185,15 +2185,17 @@ function launchConfetti(x,y){
         var label=document.getElementById('progressLabel');
         progress.classList.add('visible');
         
-        var entries = dates.map(d=>{
+        var entries = dates.map(function(d, idx){
             var leaveDescMap2=getLeaveDescMap();
             var leaveDesc=leaveDescMap2[pLeaveType] || (pLeaveType ? pLeaveType + ' Leave' : 'Leave');
+            var isLastDay = idx === dates.length - 1;
+            var dayStatus = (pSt === 'done' && !isLastDay) ? 'in_progress' : pSt;
             var entry = {
                 date: d,
                 name: pName.toLowerCase().trim(),
                 module: pSt==='leave'?'':pMod.toLowerCase().trim(),
                 description: pSt==='leave'?leaveDesc:desc.toLowerCase().trim().replace(/,/g, ';'),
-                status: pSt
+                status: dayStatus
             };
             if(pSt==='leave'){
                 entry.leave_type = pLeaveType||'AL';
