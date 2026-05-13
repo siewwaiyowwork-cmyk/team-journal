@@ -31,9 +31,10 @@
         .ov-header,.detail-header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--surface2)}
         .ov-monster{width:40px;height:40px;border-radius:8px;background:#0d0d18;flex-shrink:0;transition:transform .15s}
         .ov-monster:hover{transform:scale(1.15)}
-.ov-monster{width:40px;height:40px;border-radius:8px;background:#0d0d18;flex-shrink:0;cursor:pointer;transition:transform .15s}
-.ov-monster:hover{transform:scale(1.1)}
-.ov-rank{font-size:.9em;font-weight:700;padding:3px 10px;border-radius:8px;background:var(--bg);color:var(--text-dim);min-width:32px;text-align:center}
+        .ov-monster-wrap{width:40px;height:40px;border-radius:8px;background:#0d0d18;flex-shrink:0;cursor:pointer;transition:transform .15s}
+        .ov-monster-wrap:hover{transform:scale(1.1)}
+        .ov-monster-wrap .ov-monster{width:100%;height:100%;background:transparent;pointer-events:none}
+        .ov-rank{font-size:.9em;font-weight:700;padding:3px 10px;border-radius:8px;background:var(--bg);color:var(--text-dim);min-width:32px;text-align:center}
 .ov-rank.g1{background:var(--gold);color:#fff}.ov-rank.g2{background:var(--silver);color:#fff}.ov-rank.g3{background:var(--bronze);color:#fff}
         .ov-name{font-size:1.15em;font-weight:700;flex:1}
         .badge{padding:3px 10px;border-radius:8px;font-weight:700;font-size:.85em}
@@ -59,8 +60,21 @@
         .overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
         .detail-view{display:none}.detail-view.active{display:block}
         .overview-section.hidden{display:none}
+        .monster-modal{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center}
+        .monster-modal.active{display:flex}
+        .monster-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);cursor:pointer}
+        .monster-modal-content{position:relative;z-index:1;background:#12121a;border:1px solid #2a2a3e;border-radius:16px;padding:24px;max-width:500px;width:90vw;text-align:center}
+        .monster-modal-close{position:absolute;top:8px;right:12px;background:none;border:none;color:var(--text-dim);font-size:1.8em;cursor:pointer}
+        .monster-modal-close:hover{color:#fff}
+        .monster-modal-body{display:flex;flex-direction:column;align-items:center;gap:12px}
+        .monster-modal-svg{margin:0 auto;border-radius:12px;background:#0d0d18}
+        .monster-modal-traits{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+        .monster-modal-traits span{font-size:.75em;padding:3px 10px;border-radius:8px}
         .detail-header-big{display:flex;align-items:center;gap:16px;padding:30px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#0a0a1a,#1a1a3a)}
         .detail-avatar{width:60px;height:60px;border-radius:8px;background:#0d0d18;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .detail-avatar-wrap{width:60px;height:60px;border-radius:8px;background:#0d0d18;cursor:pointer;transition:transform .15s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .detail-avatar-wrap:hover{transform:scale(1.1)}
+        .detail-avatar-wrap .detail-avatar{background:transparent;pointer-events:none}
         .detail-title h2{font-size:1.8em;font-weight:700;margin:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.detail-title .detail-sub{color:var(--text-dim);font-size:.9em}
         .detail-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
         .ach-badge{font-size:.72em;padding:4px 10px;border-radius:20px;font-weight:700}
@@ -378,6 +392,10 @@
         /* more task-status-pill classes removed - now dynamic */
         .task-empty-state{text-align:center;padding:20px;color:var(--text-dim);font-style:italic;font-size:.9em}
         .task-loading{text-align:center;padding:20px;color:var(--text-dim);font-size:.85em}
+        .task-sort-bar{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--surface2);font-size:.8em;font-family:'JetBrains Mono',monospace}
+        .task-sort-bar button{padding:4px 10px;border-radius:6px;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;transition:.15s;font-family:'Syne',sans-serif;font-size:.85em}
+        .task-sort-bar button:hover{border-color:var(--accent);color:var(--accent)}
+        .task-sort-bar button.active{background:rgba(0,229,255,.12);border-color:var(--accent);color:var(--accent);font-weight:600}
         .task-edit-btn:hover{border-color:var(--accent);color:var(--accent)}
 
         .missing-progress-card{background:linear-gradient(135deg,rgba(255,145,0,.12),rgba(255,23,68,.08));border:1px solid rgba(255,145,0,.3);border-radius:16px;padding:18px 22px;margin:20px 0;display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
@@ -465,6 +483,33 @@
                 <div id="leaderboard-container"></div>
             </div>
             
+            <div class="chart-box-full" id="team-done-section" style="margin-top:16px">
+                <div class="chart-title" style="cursor:pointer" onclick="toggleTeamDone()">✅ Team Done Tasks <span class="info-icon" data-tooltip="Lists all tasks marked as Done by the entire team during the current dashboard period. Default range is the last 90 working days, excluding weekends and public holidays. Paginated — use Prev / Next to browse." style="font-size:1.1em;margin-left:4px">ℹ</span> <span class="badge" style="font-size:.6em" id="teamDoneCount">Loading...</span> <span id="teamDoneToggle">▼</span></div>
+                <div id="team-done-content" style="display:none">
+                    <div class="task-loading">Loading team done tasks...</div>
+                    <div class="task-sort-bar" id="teamDoneSortBar" style="display:none">
+                        <button data-sort="date" class="active" onclick="sortTeamDone('date')">📅 Date</button>
+                        <button data-sort="name" onclick="sortTeamDone('name')">👤 Name</button>
+                        <button data-sort="module" onclick="sortTeamDone('module')">📦 Module</button>
+                        <button data-sort="description" onclick="sortTeamDone('description')">📝 Description</button>
+                    </div>
+                    <div class="task-content" style="display:none"></div>
+                    <div class="task-pagination" style="display:none;align-items:center;justify-content:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);margin-top:8px">
+                        <button class="pg-prev" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">← Prev</button>
+                        <span class="pg-info" style="font-size:.85em;color:var(--text-dim);font-family:'JetBrains Mono',monospace"></span>
+                        <button class="pg-next" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">Next →</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chart-box-full" id="team-achievements-section" style="margin-top:16px">
+                <div class="chart-title" style="cursor:pointer" onclick="toggleTeamAchievements()">🏆 Team Badges Earned <span class="info-icon" data-tooltip="Badge achievements earned by team members during the current dashboard period. Fire Starter, Task Closer, and Perfect Week are awarded based on streaks, done tasks, and attendance. Click to expand.">ℹ</span> <span id="teamAchievementsToggle">▼</span></div>
+                <div id="team-achievements-content" style="display:none">
+                    <div class="task-loading">Loading team badges...</div>
+                    <div class="task-content" style="display:none"></div>
+                </div>
+            </div>
+            
             <div id="velocityChart" style="display:none"></div>
             
             <section id="on-leave">
@@ -492,6 +537,15 @@
             <button class="back-btn" onclick="showOverview()">&larr; Back to Team</button>
             <div id="detail-content"></div>
         </div>
+
+        <div id="monster-modal" class="monster-modal">
+            <div class="monster-modal-backdrop" onclick="closeMonsterModal()"></div>
+            <div class="monster-modal-content">
+                <button class="monster-modal-close" onclick="closeMonsterModal()">×</button>
+                <div id="monster-modal-body"></div>
+            </div>
+        </div>
+
     </div>
 
     <div class="panel-overlay" id="panelOverlay">
@@ -1454,6 +1508,8 @@ function launchConfetti(x,y){
         `;
         
         renderOverviewGrid(data.members);
+        loadTeamDonePage(0);
+        renderTeamAchievements(data);
     }
 
     function getBadgeClass(specificity){
@@ -1468,7 +1524,12 @@ function launchConfetti(x,y){
         var todayStr=new Date().toISOString().split("T")[0];
         const grid = document.getElementById('overviewGrid');
         var fireCards=[];
-        grid.innerHTML = members.map((m,i)=>{
+        var sortedMembers = [...members].sort(function(a,b){
+            var la=getLevel(window.yearlyDoneMap[a.name]||0).level;
+            var lb=getLevel(window.yearlyDoneMap[b.name]||0).level;
+            return lb-la;
+        });
+        grid.innerHTML = sortedMembers.map((m,i)=>{
             const levelInfo=getLevel(window.yearlyDoneMap[m.name]||0);
             const level=levelInfo.level;
             const levelTitle=levelInfo.title;
@@ -1565,8 +1626,13 @@ function launchConfetti(x,y){
             return `
                 <div class="overview-card" onclick="showDetail('${m.name}')">
                     <div class="ov-header">
-                        <svg class="ov-monster" width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" data-stats='${JSON.stringify(monsterStats)}' data-seed="${m.name}" data-monster="${m.name.replace(/[^a-zA-Z]/g,'')}-${rank}"></svg>
-                        <div class="ov-name">${m.name}${(m.recent && m.recent.length > 0 && m.recent[0].date === todayStr) ? '<span class="active-dot"></span>' : ''}</div>${levelHtml}
+                        <div class="ov-monster-wrap" data-stats='${JSON.stringify(monsterStats)}' data-seed="${m.name}">
+                            <svg class="ov-monster" width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" data-stats='${JSON.stringify(monsterStats)}' data-seed="${m.name}" data-monster="${m.name.replace(/[^a-zA-Z]/g,'')}-${rank}"></svg>
+                        </div>
+                        <div style="flex:1">
+                            <div class="ov-name">${m.name}${(m.recent && m.recent.length > 0 && m.recent[0].date === todayStr) ? '<span class="active-dot"></span>' : ''}</div>
+                            <div style="font-size:.72em;color:var(--text-dim);font-family:'JetBrains Mono',monospace;letter-spacing:.5px;opacity:.7">${mName(monsterStats)}</div>
+                        </div>${levelHtml}
                     </div>
                     <div class="ov-body" id="card-${m.name.replace(/[^a-zA-Z]/g,'')}">
                         <div class="ov-row"><span class="lab">Updates</span><span class="val">${m.total} tasks</span></div>
@@ -1590,13 +1656,44 @@ function launchConfetti(x,y){
                 if(el) addFireParticles(el);
             });
         },100);
-        document.querySelectorAll('.ov-monster').forEach(function(svg){
-            var stats = JSON.parse(svg.getAttribute('data-stats'));
-            var seed = svg.getAttribute('data-seed') || '';
-            drawMonster(svg, stats, 40, seed);
-            var arch = mGetArchetype(stats);
-            svg.setAttribute('title', arch.label + ': ' + mGetName(stats));
+        document.querySelectorAll('.ov-monster-wrap').forEach(function(wrap){
+            var stats = JSON.parse(wrap.getAttribute('data-stats'));
+            var seed = wrap.getAttribute('data-seed') || '';
+            var svg = wrap.querySelector('svg');
+            if(svg) drawMonster(svg, stats, 40, seed);
+            var arch = mArchetype(stats);
+            var anat = mAnatomy(stats, seed);
+            wrap.addEventListener('click', function(e){
+                e.stopPropagation();
+                openMonsterModal(stats, seed, arch, anat);
+            });
         });
+    }
+
+    function openMonsterModal(s,seed,arch,anat){
+        var wrap=document.getElementById('monster-modal-body');
+        if(!wrap) return;
+        var traits=mTraits(s);
+        var tHtml=traits.map(function(t){return '<span style="background:'+t.c+'22;color:'+t.c+';border:1px solid '+t.c+'44">'+t.t+'</span>';}).join('');
+        var aHtml=Object.entries(anat).map(function(p){return '<span style="background:#222233;color:#88aabb">'+p[0]+': '+p[1]+'</span>';}).join('');
+        var svgNS='http://www.w3.org/2000/svg';
+        var svg=document.createElementNS(svgNS,'svg');
+        svg.setAttribute('width',200); svg.setAttribute('height',200);
+        svg.setAttribute('viewBox','0 0 200 200');
+        svg.className='monster-modal-svg';
+        drawMonster(svg,s,200,seed);
+        var svgHtml='<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" class="monster-modal-svg">'+svg.innerHTML+'</svg>';
+        wrap.innerHTML=svgHtml+
+            '<div style="font-size:20px;font-weight:800;letter-spacing:2px;color:'+arch.c+'">'+mName(s)+'</div>'+
+            '<div style="font-size:13px;color:'+arch.c+'">'+arch.l+'</div>'+
+            '<div class="monster-modal-traits">'+tHtml+'</div>'+
+            '<div class="monster-modal-traits">'+aHtml+'</div>';
+        document.getElementById('monster-modal').classList.add('active');
+        document.body.style.overflow='hidden';
+    }
+    function closeMonsterModal(){
+        document.getElementById('monster-modal').classList.remove('active');
+        document.body.style.overflow='';
     }
 
     // ── PANEL ──────────────────────────────────────────────
@@ -1838,7 +1935,182 @@ function launchConfetti(x,y){
                 console.error(e);
                 showToast('Failed to load detail view', 'err');
                 showOverview();
+        });
+    }
+
+    var teamDoneTotal = 0, teamDoneOffset = 0, teamDonePageSize = 30;
+    function loadTeamDonePage(offset) {
+        var url = new URL(window.location.origin + '/api/updates');
+        url.searchParams.set('status', 'done');
+        url.searchParams.set('limit', String(teamDonePageSize));
+        url.searchParams.set('offset', String(offset));
+        url.searchParams.set('from_date', window.currentRange ? window.currentRange.from : '');
+        fetch(url)
+            .then(function(r){return r.json();})
+            .then(function(data){
+                teamDoneTotal = data.total || 0;
+                teamDoneOffset = offset;
+                window._teamDoneCache = data.updates || [];
+                document.getElementById('teamDoneCount').textContent = teamDoneTotal + ' tasks';
+                renderTeamDoneData(window._teamDoneCache);
+                updateTeamDonePagination();
+            })
+            .catch(function(e){console.error(e);});
+    }
+    function updateTeamDonePagination() {
+        var pag = document.querySelector('#team-done-content .task-pagination');
+        var info = pag.querySelector('.pg-info');
+        var prev = pag.querySelector('.pg-prev');
+        var next = pag.querySelector('.pg-next');
+        if (teamDoneTotal <= teamDonePageSize) { pag.style.display = 'none'; return; }
+        pag.style.display = 'flex';
+        var currentPage = Math.floor(teamDoneOffset / teamDonePageSize) + 1;
+        var totalPages = Math.ceil(teamDoneTotal / teamDonePageSize);
+        info.textContent = currentPage + ' / ' + totalPages + ' (' + teamDoneTotal + ')';
+        prev.disabled = teamDoneOffset <= 0;
+        next.disabled = teamDoneOffset + teamDonePageSize >= teamDoneTotal;
+        prev.onclick = function(){ if(teamDoneOffset > 0) loadTeamDonePage(teamDoneOffset - teamDonePageSize); };
+        next.onclick = function(){ if(teamDoneOffset + teamDonePageSize < teamDoneTotal) loadTeamDonePage(teamDoneOffset + teamDonePageSize); };
+    }
+    function renderTeamDoneData(updates, sortBy) {
+        sortBy = sortBy || window._teamDoneSort || 'date';
+        var container = document.getElementById('team-done-content');
+        var content = container.querySelector('.task-content');
+        var loading = container.querySelector('.task-loading');
+        var sortBar = document.getElementById('teamDoneSortBar');
+        loading.style.display = 'none';
+        content.style.display = '';
+        if (!updates || updates.length === 0) {
+            content.innerHTML = '<div class="task-empty-state">No done tasks found in this period.</div>';
+            if (sortBar) sortBar.style.display = 'none';
+            return;
+        }
+        if (sortBar) {
+            sortBar.style.display = 'flex';
+            sortBar.querySelectorAll('button').forEach(function(btn){
+                if (btn.getAttribute('data-sort') === sortBy) btn.classList.add('active');
+                else btn.classList.remove('active');
             });
+        }
+        var sorted = updates.slice();
+        if (sortBy === 'name') {
+            sorted.sort(function(a,b){ return a.name.localeCompare(b.name); });
+        } else if (sortBy === 'module') {
+            sorted.sort(function(a,b){ var ma=(a.module||''), mb=(b.module||''); return ma.localeCompare(mb) || a.name.localeCompare(b.name); });
+        } else if (sortBy === 'description') {
+            sorted.sort(function(a,b){ var da=(a.description||''), db=(b.description||''); return da.localeCompare(db); });
+        } else {
+            sorted.sort(function(a,b){ return new Date(b.date)-new Date(a.date) || a.name.localeCompare(b.name); });
+        }
+        var htmlOut = '';
+        var lastWeek = -1;
+        var weekToggle = 0;
+        var currentDate = '';
+        sorted.forEach(function(u){
+            var wk = getISOWeek(u.date);
+            if(wk !== lastWeek){ weekToggle = 1 - weekToggle; lastWeek = wk; }
+            var weekClass = weekToggle ? 'task-week-alt' : '';
+            var dateStr = u.date !== currentDate ? '<span class="task-date-inline">' + formatDateShort(u.date) + '</span>' : '<span class="task-date-inline"></span>';
+            if (u.date !== currentDate) currentDate = u.date;
+            var moduleBadge = u.module ? '<span class="task-module-badge">' + u.module + '</span>' : '';
+            var nameBadge = '<span class="task-module-badge" style="background:rgba(0,229,255,.15);color:var(--accent);border-color:var(--accent)">' + u.name + '</span>';
+            htmlOut += '<div class="task-entry ' + weekClass + '">' + dateStr + nameBadge + moduleBadge + '<span class="task-desc">' + (u.description || 'No description') + '</span><span class="task-status-pill done">✓</span></div>';
+        });
+        content.innerHTML = htmlOut;
+    }
+    function sortTeamDone(key){
+        window._teamDoneSort = key;
+        if (window._teamDoneCache) renderTeamDoneData(window._teamDoneCache, key);
+    }
+    function toggleTeamDone(){
+        var content = document.getElementById('team-done-content');
+        var toggle = document.getElementById('teamDoneToggle');
+        if(content.style.display === 'none'){
+            content.style.display = '';
+            toggle.textContent = '▲';
+        } else {
+            content.style.display = 'none';
+            toggle.textContent = '▼';
+        }
+    }
+    
+    function toggleTeamAchievements(){
+        var content = document.getElementById('team-achievements-content');
+        var toggle = document.getElementById('teamAchievementsToggle');
+        if(content.style.display === 'none'){
+            content.style.display = '';
+            toggle.textContent = '▲';
+        } else {
+            content.style.display = 'none';
+            toggle.textContent = '▼';
+        }
+    }
+    
+    function renderTeamAchievements(data){
+        var container = document.getElementById('team-achievements-content');
+        var content = container.querySelector('.task-content');
+        var loading = container.querySelector('.task-loading');
+        loading.style.display = 'none';
+        content.style.display = '';
+        
+        if (!data || !data.members || data.members.length === 0) {
+            content.innerHTML = '<div class="task-empty-state">No achievement data available.</div>';
+            return;
+        }
+        
+        var badgesHtml = '';
+        var members = data.members;
+        members.forEach(function(m){
+            var mBadges = '';
+            var mHasBadge = false;
+            
+            if (m.streak >= 7) { mBadges += '<span class="ach-badge fire">🔥 Fire Starter</span>'; mHasBadge = true; }
+            if (m.streak >= 20) { mBadges += '<span class="ach-badge marathon">🏃 Marathon Runner</span>'; mHasBadge = true; }
+            if (m.perfectWeek) { mBadges += '<span class="ach-badge perfectweek">📅 Perfect Week</span>'; mHasBadge = true; }
+            if (m.done >= 10) { mBadges += '<span class="ach-badge closer">✅ Task Closer</span>'; mHasBadge = true; }
+            if (m.total >= 100) { mBadges += '<span class="ach-badge centurion">💯 Centurion</span>'; mHasBadge = true; }
+            if (m.attendance_pct >= 90) { mBadges += '<span class="ach-badge workaholic">💪 Workaholic</span>'; mHasBadge = true; }
+            if (m.leave_days === 0 && m.total > 0) { mBadges += '<span class="ach-badge perfectatt">📆 Perfect Attendance</span>'; mHasBadge = true; }
+            if (m.module_count >= 3) { mBadges += '<span class="ach-badge allrounder">🌟 All-Rounder</span>'; mHasBadge = true; }
+            if (m.weekend_days > 0) { mBadges += '<span class="ach-badge nightowl">🌑 Night Owl (' + m.weekend_days + ')</span>'; mHasBadge = true; }
+            if (m.bug_count >= 20) { mBadges += '<span class="ach-badge bugslayer">🗡️ Bug Slayer (' + m.bug_count + ')</span>'; mHasBadge = true; }
+            if (m.total === 1) { mBadges += '<span class="ach-badge freshstart">🌱 Fresh Start</span>'; mHasBadge = true; }
+            
+            if (mHasBadge) {
+                var safeId = m.name.replace(/[^a-zA-Z]/g, '').toLowerCase();
+                var monsterSvgId = 'ach-monster-' + safeId;
+                var monsterStats = window._monsterCache && window._monsterCache[m.name] ? window._monsterCache[m.name] : { atk: Math.min(100, Math.round(m.completion_rate || 0)), stm: Math.min(100, Math.round(m.attendance_pct || 0)), fcs: Math.min(100, Math.round((m.specific || 0) / 10)), agi: Math.max(0, Math.round(100 - ((m.ip_done_ratio || 0) * 10))), sup: Math.min(100, Math.round(m.support_pct || 0)) };
+                badgesHtml += '<div class="task-entry" style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)">' +
+                    '<div class="ov-monster-wrap" style="width:36px;height:36px;border-radius:6px" id="' + monsterSvgId + '-wrap" data-seed="' + m.name + '" data-stats="' + JSON.stringify(monsterStats).replace(/"/g, '&quot;') + '">' +
+                    '<svg class="ov-monster" id="' + monsterSvgId + '" width="36" height="36" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" data-seed="' + m.name + '" data-stats="' + JSON.stringify(monsterStats).replace(/"/g, '&quot;') + '"></svg>' +
+                    '</div>' +
+                    '<div style="flex:1;min-width:0">' +
+                    '<div style="font-weight:700;font-size:.95em;margin-bottom:4px">' + m.name + '<span class="badge" style="margin-left:6px;font-size:.7em">' + (m.badge || 'F') + '</span></div>' +
+                    '<div class="detail-badges">' + mBadges + '</div>' +
+                    '</div>' +
+                    '</div>';
+                setTimeout(function(){
+                    var wrap = document.getElementById(monsterSvgId + '-wrap');
+                    if (wrap) {
+                        var svg = wrap.querySelector('svg');
+                        var seed = wrap.getAttribute('data-seed') || '';
+                        if (svg) drawMonster(svg, monsterStats, 36, seed);
+                        wrap.addEventListener('click', function(e){
+                            e.stopPropagation();
+                            var arch = mArchetype(monsterStats);
+                            var anat = mAnatomy(monsterStats, seed);
+                            openMonsterModal(monsterStats, seed, arch, anat);
+                        });
+                    }
+                }, 100);
+            }
+        });
+        
+        if (!badgesHtml) {
+            content.innerHTML = '<div class="task-empty-state">No team achievements yet — keep completing tasks!</div>';
+        } else {
+            content.innerHTML = badgesHtml;
+        }
     }
     
     function showOverview(){
@@ -2218,9 +2490,12 @@ function launchConfetti(x,y){
         const html = `
             <div class="detail-card">
                 <div class="detail-header-big">
-                    <svg class="detail-avatar" id="${monsterSvgId}" width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" data-stats='${JSON.stringify(monsterStats)}' data-seed="${name}"></svg>
+                    <div class="detail-avatar-wrap" data-stats='${JSON.stringify(monsterStats)}' data-seed="${name}">
+                        <svg class="detail-avatar" id="${monsterSvgId}" width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" data-stats='${JSON.stringify(monsterStats)}' data-seed="${name}"></svg>
+                    </div>
                     <div class="detail-title">
                         <h2>${name} ${dLevelHtml}</h2>
+                        <div style="font-size:.75em;color:var(--text-dim);font-family:'JetBrains Mono',monospace;letter-spacing:.5px;opacity:.7;margin-top:-4px;margin-bottom:4px">${mName(monsterStats)}</div>
                         <div class="detail-sub">Last 90 working days · ${updates.length} entries · ${doneCount} Done · ${streak}-day streak ${rank !== '--' ? '· Rank #' + rank : ''}</div>
                         <div class="detail-badges">${badgesHtml}</div>
                     </div>
@@ -2274,9 +2549,29 @@ function launchConfetti(x,y){
                 <div class="yeardone-milestone" id="yeardoneMilestone" style="display:none"></div>
                 <h3 class="section-title" style="font-size:.85em;margin-bottom:10px">Completed Tasks <span class="badge" style="margin-left:8px">0</span></h3>
                 <div class="task-loading">Loading yearly achievements...</div>
+                <div class="task-sort-bar" id="yearDoneSortBar" style="display:none">
+                    <button data-sort="date" class="active" onclick="sortDetail('yeardone','date')">📅 Date</button>
+                    <button data-sort="module" onclick="sortDetail('yeardone','module')">📦 Module</button>
+                    <button data-sort="description" onclick="sortDetail('yeardone','description')">📝 Description</button>
+                </div>
                 <div class="task-content" style="display:none"></div>
             </div>
-            <div class="detail-tasklist"><h3 class="section-title">Yearly Tasks</h3><div class="task-loading">Loading yearly tasks...</div><div class="task-content" style="display:none"></div><div class="task-pagination" style="display:none;align-items:center;justify-content:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);margin-top:8px"><button class="pg-prev" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">← Prev</button><span class="pg-info" style="font-size:.85em;color:var(--text-dim);font-family:'JetBrains Mono',monospace"></span><button class="pg-next" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">Next →</button></div></div>
+            <div class="detail-tasklist">
+                <h3 class="section-title">Yearly Tasks</h3>
+                <div class="task-loading">Loading yearly tasks...</div>
+                <div class="task-sort-bar" id="tasklistSortBar" style="display:none">
+                    <button data-sort="date" class="active" onclick="sortDetail('tasklist','date')">📅 Date</button>
+                    <button data-sort="module" onclick="sortDetail('tasklist','module')">📦 Module</button>
+                    <button data-sort="description" onclick="sortDetail('tasklist','description')">📝 Description</button>
+                    <button data-sort="status" onclick="sortDetail('tasklist','status')">🔖 Status</button>
+                </div>
+                <div class="task-content" style="display:none"></div>
+                <div class="task-pagination" style="display:none;align-items:center;justify-content:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);margin-top:8px">
+                    <button class="pg-prev" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">← Prev</button>
+                    <span class="pg-info" style="font-size:.85em;color:var(--text-dim);font-family:'JetBrains Mono',monospace"></span>
+                    <button class="pg-next" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">Next →</button>
+                </div>
+            </div>
             <div class="collab-section" id="collaboratorsSection">
                 <div class="collab-title">👥 Who I Work With</div>
                 <div class="collab-grid" id="collabGrid"></div>
@@ -2288,12 +2583,17 @@ function launchConfetti(x,y){
         
         // Draw detail monster
         setTimeout(function(){
-            var dSvg = document.getElementById(monsterSvgId);
-            if(dSvg){
-                var seed = dSvg.getAttribute('data-seed') || '';
-                drawMonster(dSvg, monsterStats, 60, seed);
-                var dArch = mGetArchetype(monsterStats);
-                dSvg.setAttribute('title', dArch.label + ': ' + mGetName(monsterStats));
+            var dWrap = document.querySelector('.detail-avatar-wrap[data-seed="'+name+'"]');
+            if(dWrap){
+                var dSvg = dWrap.querySelector('svg');
+                var seed = dWrap.getAttribute('data-seed') || '';
+                if(dSvg) drawMonster(dSvg, monsterStats, 60, seed);
+                var dArch = mArchetype(monsterStats);
+                var dAnat = mAnatomy(monsterStats, seed);
+                dWrap.addEventListener('click', function(e){
+                    e.stopPropagation();
+                    openMonsterModal(monsterStats, seed, dArch, dAnat);
+                });
             }
         }, 10);
         
@@ -2388,55 +2688,6 @@ function launchConfetti(x,y){
                     renderTaskError('yeardone', 'Could not load yearly accomplishments');
                 });
         })();
-
-        function renderTaskData(updates, section, isYearDone) {
-            const container = document.querySelector('.detail-' + section);
-            if (!container) return;
-            const content = container.querySelector('.task-content');
-            content.style.display = '';
-            container.querySelector('.task-loading').style.display = 'none';
-            
-            if (updates.length === 0) {
-                content.innerHTML = isYearDone
-                    ? '<div class="task-empty-state">No Done tasks yet this year — keep completing and updating! Your accomplishments will appear here.</div>'
-                    : '<div class="task-empty-state">No tasks found for this member. Start logging daily progress!</div>';
-                return;
-            }
-            
-            const grouped = {};
-            updates.forEach(u => {
-                if (!grouped[u.date]) grouped[u.date] = [];
-                grouped[u.date].push(u);
-            });
-            
-            const dates = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
-            let htmlOut = '';
-            let lastWeek = -1;
-            let weekToggle = 0;
-            dates.forEach(date => {
-                const wk = getISOWeek(date);
-                if (wk !== lastWeek) { weekToggle = 1 - weekToggle; lastWeek = wk; }
-                const weekClass = weekToggle ? 'task-week-alt' : '';
-                grouped[date].forEach((u, i) => {
-                    const dateStr = i === 0 ? `<span class="task-date-inline">${formatDateShort(date)}</span>` : '<span class="task-date-inline"></span>';
-                    const moduleBadge = u.module ? `<span class="task-module-badge">${u.module}</span>` : '';
-                    const ss = getStatusStyle(u.status);
-                    const statusPill = isYearDone
-                        ? `<span class="task-status-pill done">✓</span>`
-                        : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
-                    const editBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
-                    const delBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
-                    htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${editBtn}${delBtn}</div>`;
-                });
-            });
-            content.innerHTML = htmlOut;
-        }
-
-        function renderTaskError(section, message) {
-            const container = document.querySelector('.detail-' + section);
-            if (!container) return;
-            container.querySelector('.task-loading').textContent = message;
-        }
 
         renderCollaborators(name, topModules);
         
@@ -2657,6 +2908,106 @@ function launchConfetti(x,y){
         }catch(e){
             showToast('Delete failed','err');
         }
+    }
+
+    function renderTaskData(updates, section, isYearDone, sortBy) {
+        sortBy = sortBy || window['_detailSort_' + section] || 'date';
+        var sortBar = document.getElementById(section === 'yeardone' ? 'yearDoneSortBar' : 'tasklistSortBar');
+        if (sortBar) {
+            sortBar.querySelectorAll('button').forEach(function(btn){
+                if (btn.getAttribute('data-sort') === sortBy) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+        }
+        const container = document.querySelector('.detail-' + section);
+        if (!container) return;
+        const content = container.querySelector('.task-content');
+        content.style.display = '';
+        container.querySelector('.task-loading').style.display = 'none';
+
+        if (!updates || updates.length === 0) {
+            content.innerHTML = isYearDone
+                ? '<div class="task-empty-state">No Done tasks yet this year — keep completing and updating! Your accomplishments will appear here.</div>'
+                : '<div class="task-empty-state">No tasks found for this member. Start logging daily progress!</div>';
+            if (sortBar) sortBar.style.display = 'none';
+            return;
+        }
+        if (sortBar) sortBar.style.display = 'flex';
+
+        // Store raw cache for re-sorting without re-fetch
+        window['_detailCache_' + section] = updates;
+        window['_detailIsYearDone_' + section] = isYearDone;
+
+        var sorted = updates.slice();
+        if (sortBy === 'module') {
+            sorted.sort(function(a,b){ var ma=(a.module||''), mb=(b.module||''); return ma.localeCompare(mb) || new Date(b.date)-new Date(a.date); });
+        } else if (sortBy === 'description') {
+            sorted.sort(function(a,b){ var da=(a.description||''), db=(b.description||''); return da.localeCompare(db) || new Date(b.date)-new Date(a.date); });
+        } else if (sortBy === 'status') {
+            sorted.sort(function(a,b){ var sa=(a.status||''), sb=(b.status||''); return sa.localeCompare(sb) || new Date(b.date)-new Date(a.date); });
+        } else {
+            sorted.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+        }
+
+        let htmlOut = '';
+        let lastWeek = -1;
+        let weekToggle = 0;
+
+        if (sortBy !== 'date') {
+            // Non-date sort: iterate sorted directly, show inline date per row
+            sorted.forEach(function(u){
+                var wk = getISOWeek(u.date);
+                if (wk !== lastWeek) { weekToggle = 1 - weekToggle; lastWeek = wk; }
+                var weekClass = weekToggle ? 'task-week-alt' : '';
+                const dateStr = `<span class="task-date-inline">${formatDateShort(u.date)}</span>`;
+                const moduleBadge = u.module ? `<span class="task-module-badge">${u.module}</span>` : '';
+                const ss = getStatusStyle(u.status);
+                const statusPill = isYearDone
+                    ? '<span class="task-status-pill done">✓</span>'
+                    : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
+                const editBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
+                const delBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
+                htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${editBtn}${delBtn}</div>`;
+            });
+        } else {
+            // Date sort: group by date for cleaner display
+            const grouped = {};
+            sorted.forEach(function(u){
+                if (!grouped[u.date]) grouped[u.date] = [];
+                grouped[u.date].push(u);
+            });
+            const dates = Object.keys(grouped).sort(function(a,b){ return new Date(b)-new Date(a); });
+            dates.forEach(function(date){
+                const wk = getISOWeek(date);
+                if (wk !== lastWeek) { weekToggle = 1 - weekToggle; lastWeek = wk; }
+                const weekClass = weekToggle ? 'task-week-alt' : '';
+                grouped[date].forEach(function(u, i){
+                    const dateStr = i === 0 ? `<span class="task-date-inline">${formatDateShort(date)}</span>` : '<span class="task-date-inline"></span>';
+                    const moduleBadge = u.module ? `<span class="task-module-badge">${u.module}</span>` : '';
+                    const ss = getStatusStyle(u.status);
+                    const statusPill = isYearDone
+                        ? '<span class="task-status-pill done">✓</span>'
+                        : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
+                    const editBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
+                    const delBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
+                    htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${editBtn}${delBtn}</div>`;
+                });
+            });
+        }
+        content.innerHTML = htmlOut;
+    }
+
+    function sortDetail(section, key){
+        window['_detailSort_' + section] = key;
+        var cache = window['_detailCache_' + section];
+        var isYearDone = window['_detailIsYearDone_' + section];
+        if (cache) renderTaskData(cache, section, isYearDone, key);
+    }
+
+    function renderTaskError(section, message) {
+        const container = document.querySelector('.detail-' + section);
+        if (!container) return;
+        container.querySelector('.task-loading').textContent = message;
     }
 
     function renderCollaborators(name, modules){
