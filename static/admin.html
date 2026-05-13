@@ -116,6 +116,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div class="nav-item" data-section="updates" onclick="showSection('updates')">
         <span class="nav-icon">📝</span>Updates
       </div>
+      <div class="nav-item" data-section="bulk_import" onclick="showSection('bulk_import')">
+        <span class="nav-icon">📤</span>Bulk Import
+      </div>
     </nav>
     <button class="logout-btn" onclick="doLogout()">Logout</button>
   </aside>
@@ -267,6 +270,45 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
 
+    <div id="section-bulk_import" class="section">
+      <h2 class="section-title">Bulk Import</h2>
+      <p style="color:var(--text-dim);margin:-12px 0 20px;font-size:.88em">Upload a CSV to replace all updates for a specific member. Existing records for that member will be deleted first.</p>
+
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;font-size:.85em;color:var(--text-dim)">
+        <strong style="color:var(--text)">CSV Format Requirements</strong>
+        <ul style="margin:8px 0 0;padding-left:18px;line-height:1.6">
+          <li><b>Required columns:</b> <code>date,name,module,description,status</code></li>
+          <li><b>Optional column:</b> <code>leave_type</code> (only needed for leave status)</li>
+          <li><b>date:</b> YYYY-MM-DD format</li>
+          <li><b>name:</b> Must match the selected member exactly</li>
+          <li><b>status:</b> Acceptable values: <code>in_progress</code>, <code>done</code>, <code>leave</code>, <code>blocked</code>, <code>vague</code></li>
+          <li>All rows for other members will be rejected</li>
+        </ul>
+        <div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.75em;color:var(--text-dim);white-space:pre-wrap">date,name,module,description,status,leave_type
+2026-05-13,ain,san,Implemented new feature,done,
+2026-05-12,ain,myd,Team standup meeting,in_progress,
+2026-05-11,ain,dnp,Annual Leave,leave,AL</div>
+        <p style="margin-top:8px;font-size:.75em;color:var(--orange)">Warning: This will permanently delete all existing updates for the selected member before importing the new records.</p>
+      </div>
+      <div class="form-row" style="align-items:flex-end">
+        <select id="bulkImportMember" class="form-select" style="max-width:220px">
+          <option value="">Select member...</option>
+        </select>
+        <input type="file" id="bulkImportFile" class="form-input" accept=".csv" style="max-width:300px;padding:8px 14px" onchange="previewBulkImport()">
+        <button class="btn-sm" id="bulkImportPreviewBtn" style="display:none" onclick="previewBulkImport()">Preview</button>
+        <button class="btn-sm success" id="bulkImportBtn" style="display:none" onclick="executeBulkImport()">Import</button>
+      </div>
+      <div id="bulkImportPreview" style="margin-top:16px;display:none">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Row</th><th>Date</th><th>Name</th><th>Module</th><th>Description</th><th>Status</th><th>Leave Type</th></tr></thead>
+            <tbody id="bulkImportPreviewTable"></tbody>
+          </table>
+        </div>
+        <p id="bulkImportSummary" style="color:var(--text-dim);font-size:.85em;margin-top:8px"></p>
+      </div>
+    </div>
+
     <div id="section-updates" class="section">
       <h2 class="section-title">Recent Updates</h2>
       <div class="form-row" style="margin-bottom:16px">
@@ -344,6 +386,7 @@ function showSection(name) {
   if (name === 'holidays') loadHolidays();
   if (name === 'members') loadMembers();
   if (name === 'updates') loadUpdates();
+  if (name === 'bulk_import') loadBulkImportMembers();
 }
 
 function apiUrl(path) {
@@ -765,6 +808,89 @@ async function deleteUpdate(id) {
     await apiDelete('/api/admin/updates/' + id);
     loadUpdates();
     showToast('Update deleted', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadBulkImportMembers() {
+  try {
+    const d = await apiGet('/api/admin/members');
+    const sel = document.getElementById('bulkImportMember');
+    sel.innerHTML = '<option value="">Select member...</option>' + d.members.map(m => '<option value="' + m.name + '">' + m.name + '</option>').join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) throw new Error('CSV must have header and at least 1 data row');
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+  const required = ['date', 'name', 'module', 'description', 'status'];
+  const missing = required.filter(r => !headers.includes(r));
+  if (missing.length) throw new Error('Missing columns: ' + missing.join(', '));
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',');
+    const row = {};
+    headers.forEach((h, idx) => row[h] = (values[idx] || '').trim());
+    rows.push(row);
+  }
+  return rows;
+}
+
+async function previewBulkImport() {
+  const file = document.getElementById('bulkImportFile').files[0];
+  const member = document.getElementById('bulkImportMember').value;
+  if (!file) { showToast('Please select a CSV file', 'error'); return; }
+  if (!member) { showToast('Please select a member', 'error'); return; }
+
+  try {
+    const text = await file.text();
+    const rows = parseCSV(text);
+
+    const previewBody = document.getElementById('bulkImportPreviewTable');
+    previewBody.innerHTML = rows.slice(0, 20).map((r, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${r.date}</td>
+      <td>${r.name}</td>
+      <td>${r.module}</td>
+      <td>${r.description}</td>
+      <td>${r.status}</td>
+      <td>${r.leave_type || '-'}</td>
+    </tr>`).join('');
+
+    document.getElementById('bulkImportSummary').textContent =
+      `Found ${rows.length} rows. ` + (rows.length > 20 ? 'Showing first 20.' : '') +
+      ` All existing updates for "${member}" will be DELETED and replaced with these records.`;
+    document.getElementById('bulkImportPreview').style.display = 'block';
+    document.getElementById('bulkImportBtn').style.display = '';
+    window._bulkImportRows = rows;
+    window._bulkImportMember = member;
+  } catch (e) {
+    showToast(e.message, 'error');
+    document.getElementById('bulkImportPreview').style.display = 'none';
+    document.getElementById('bulkImportBtn').style.display = 'none';
+  }
+}
+
+async function executeBulkImport() {
+  const rows = window._bulkImportRows;
+  const member = window._bulkImportMember;
+  if (!rows || !member) { showToast('No data to import', 'error'); return; }
+  if (!confirm('This will DELETE all existing updates for "' + member + '" and insert ' + rows.length + ' new records. Continue?')) return;
+
+  try {
+    const form = new FormData();
+    form.append('member_name', member);
+    form.append('file', document.getElementById('bulkImportFile').files[0]);
+
+    const r = await fetch(apiUrl('/api/admin/bulk-import'), { method: 'POST', body: form });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Import failed');
+    const data = await r.json();
+    showToast('Imported ' + data.imported + ' records for ' + member, 'success');
+    document.getElementById('bulkImportFile').value = '';
+    document.getElementById('bulkImportPreview').style.display = 'none';
+    document.getElementById('bulkImportBtn').style.display = 'none';
+    loadUpdates();
   } catch (e) { showToast(e.message, 'error'); }
 }
 

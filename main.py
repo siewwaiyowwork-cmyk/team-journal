@@ -11,6 +11,9 @@ import shutil
 import tempfile
 import random
 
+import io
+import csv
+
 app = FastAPI(title="Scoreboard API")
 
 app.add_middleware(
@@ -2982,6 +2985,88 @@ def admin_delete_update(update_id: int, admin_token: str = Query(...)):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+@app.post("/api/admin/bulk-import")
+async def admin_bulk_import(
+    admin_token: str = Query(...),
+    file: UploadFile = File(...),
+    member_name: str = Form(...),
+    preview_only: bool = Form(False)
+):
+    require_admin(admin_token)
+
+    if not member_name:
+        raise HTTPException(status_code=400, detail="member_name is required")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="No file content")
+
+    text = content.decode('utf-8')
+    reader = csv.DictReader(io.StringIO(text))
+
+    required = {'date', 'name', 'module', 'description', 'status'}
+    headers = set(reader.fieldnames or [])
+    missing = required - headers
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing columns: {', '.join(missing)}")
+
+    rows = []
+    for idx, row in enumerate(reader, start=2):
+        date_str = row.get('date', '').strip()
+        name = row.get('name', '').strip()
+        module = row.get('module', '').strip()
+        description = row.get('description', '').strip()
+        status = row.get('status', '').strip().lower()
+        leave_type = row.get('leave_type', '').strip().upper() or None
+
+        if not date_str or not name:
+            raise HTTPException(status_code=400, detail=f"Row {idx}: date and name are required")
+
+        if name.lower() != member_name.lower():
+            raise HTTPException(status_code=400, detail=f"Row {idx}: name '{name}' does not match selected member '{member_name}'")
+
+        status_map = {
+            'in prog': 'in_progress', 'in progress': 'in_progress',
+            'done': 'done', 'leave': 'leave',
+            'blocked': 'blocked', 'vague': 'vague'
+        }
+        normalized_status = status_map.get(status, status)
+        if normalized_status not in {'in_progress', 'done', 'leave', 'blocked', 'vague'}:
+            raise HTTPException(status_code=400, detail=f"Row {idx}: invalid status '{status}'")
+
+        rows.append({
+            'date': date_str,
+            'name': name.lower(),
+            'module': module.lower(),
+            'description': description,
+            'status': normalized_status,
+            'leave_type': leave_type if normalized_status == 'leave' else None
+        })
+
+    if preview_only:
+        return {"ok": True, "preview": True, "count": len(rows), "rows": rows[:20]}
+
+    conn = get_db()
+    try:
+        conn.execute("BEGIN")
+        conn.execute("DELETE FROM updates WHERE name = ?", (member_name.lower(),))
+        for r in rows:
+            conn.execute(
+                "INSERT INTO updates (date, name, module, description, status, leave_type) VALUES (?, ?, ?, ?, ?, ?)",
+                (r['date'], r['name'], r['module'], r['description'], r['status'], r['leave_type'])
+            )
+        conn.execute("COMMIT")
+        return {"ok": True, "deleted_old": True, "imported": len(rows)}
+    except Exception as e:
+        try:
+            conn.execute("ROLLBACK")
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
 
 @app.get("/api/admin/dashboard")
 def admin_dashboard(admin_token: str = Query(...)):
