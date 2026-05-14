@@ -2285,7 +2285,7 @@ function launchConfetti(x,y){
                 showToast(pName+' - '+dates.length+' day'+(dates.length!==1?'s':'')+' submitted!');
                 showCelebration(pName, '\u2705', '+1 Strike!');
                 if(stayOpen){
-                    setTimeout(function(){resetPanel();initDashboard();},2000);
+                    setTimeout(function(){resetForNext();initDashboard();},2000);
                 }else{
                     setTimeout(function(){showFunFact();},3000);
                     setTimeout(function(){rollStreak();},6000);
@@ -2324,6 +2324,24 @@ function launchConfetti(x,y){
         document.getElementById('rangePreview').classList.remove('visible');
         document.getElementById('submitProgress').classList.remove('visible');
         setMode('single');
+    }
+
+    function resetForNext(){
+        // Preserve name and date, only clear task-specific fields
+        pMod='';pSt='';pLeaveType='';
+        document.querySelectorAll('.mod-chip,.st-btn').forEach(e=>e.classList.remove('sel'));
+        document.querySelectorAll('#leaveTypeWrap .mod-chip').forEach(e=>e.classList.remove('sel'));
+        ['pDesc','pRemarks','pCustomMod','pCustomLeave'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('leaveTypeGroup').style.display='none';
+        document.getElementById('modGroup').style.display='block';
+        document.getElementById('descGroup').style.display='block';
+        document.getElementById('pWBar').style.width='0%';
+        document.getElementById('pWC').textContent='0 words';
+        document.getElementById('pWStatus').textContent='';
+        document.getElementById('pSubmitBtn').textContent='Submit Update ->';
+        document.getElementById('rangePreview').classList.remove('visible');
+        document.getElementById('submitProgress').classList.remove('visible');
+        validate();
     }
     function showToast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(type==='err'?' err':'');setTimeout(function(){t.classList.add('show');},10);setTimeout(function(){t.classList.remove('show');},4000);}
 
