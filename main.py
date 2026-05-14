@@ -101,7 +101,8 @@ def init_db():
         ('activity_coma', '0.3', 'Activity threshold for COMA status'),
         ('activity_ghost', '0.1', 'Activity threshold for GHOST status'),
         ('earlybird_hour', '9', 'Hour threshold for Early Bird badge (before this hour)'),
-        ('nightowl_hour', '22', 'Hour threshold for Night Owl badge (at or after this hour)');
+        ('nightowl_hour', '22', 'Hour threshold for Night Owl badge (at or after this hour)'),
+        ('import_export_enabled', '1', 'Enable import/export features');
 
         INSERT OR IGNORE INTO statuses (code, label, color, counts_toward_stats) VALUES
         ('in_progress', 'In Progress', '#f0ad4e', 1),
@@ -263,6 +264,9 @@ def get_config_float(key: str, default: float = 0.0) -> float:
         return float(get_config(key, str(default)))
     except ValueError:
         return default
+
+def is_import_export_enabled() -> bool:
+    return get_config_int('import_export_enabled', 1) == 1
 
 def get_all_configs():
     conn = get_db()
@@ -456,7 +460,11 @@ def public_statuses():
 
 @app.get("/api/config")
 def public_config():
-    return {"config": get_all_configs()}
+    configs = get_all_configs()
+    has_ie = any(c['key'] == 'import_export_enabled' for c in configs)
+    if not has_ie:
+        configs.append({"key": "import_export_enabled", "value": "1", "description": "Enable import/export features"})
+    return {"config": configs}
 
 @app.get("/api/leave_types")
 def public_leave_types():
@@ -3790,6 +3798,8 @@ async def admin_bulk_import(
     preview_only: bool = Form(False)
 ):
     require_admin(admin_token)
+    if not is_import_export_enabled():
+        raise HTTPException(status_code=403, detail="Import/export is disabled")
 
     if not member_name:
         raise HTTPException(status_code=400, detail="member_name is required")
@@ -3884,6 +3894,8 @@ async def admin_bulk_import(
 def export_updates(
     name: str = Query(...)
 ):
+    if not is_import_export_enabled():
+        raise HTTPException(status_code=403, detail="Import/export is disabled")
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
     conn = get_db()
@@ -3911,6 +3923,8 @@ async def import_updates(
     file: UploadFile = File(...),
     member_name: str = Query(...)
 ):
+    if not is_import_export_enabled():
+        raise HTTPException(status_code=403, detail="Import/export is disabled")
     if not member_name:
         raise HTTPException(status_code=400, detail="member_name is required")
 
