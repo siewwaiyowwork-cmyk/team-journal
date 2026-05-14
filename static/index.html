@@ -2279,6 +2279,9 @@ function launchConfetti(x,y){
             const result = await res.json();
             fill.style.width='100%';
             if(result.ok){
+                if(result.warnings && result.warnings.length > 0){
+                    result.warnings.forEach(function(w){ showToast(w, 'warn'); });
+                }
                 showToast(pName+' - '+dates.length+' day'+(dates.length!==1?'s':'')+' submitted!');
                 showCelebration(pName, '\u2705', '+1 Strike!');
                 if(stayOpen){

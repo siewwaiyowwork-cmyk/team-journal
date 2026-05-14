@@ -480,13 +480,25 @@ def on_startup():
 
 def migrate_lowercase():
     conn = get_db()
-    conn.execute("UPDATE updates SET module = lower(module) WHERE module != lower(module)")
-    conn.execute("UPDATE updates SET name = lower(name) WHERE name != lower(name)")
-    conn.execute("UPDATE updates SET description = lower(description) WHERE description != lower(description)")
-    conn.execute("UPDATE members SET name = lower(name) WHERE name != lower(name)")
-    conn.execute("UPDATE holidays SET name = lower(name) WHERE name != lower(name)")
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("UPDATE updates SET module = lower(module) WHERE module != lower(module)")
+        conn.execute("UPDATE updates SET name = lower(name) WHERE name != lower(name)")
+        # Delete older duplicates before lowercasing description to avoid UNIQUE conflict
+        conn.execute('''
+            DELETE FROM updates WHERE id IN (
+                SELECT u1.id FROM updates u1
+                JOIN updates u2 ON u1.date = u2.date AND u1.name = u2.name
+                    AND lower(u1.description) = lower(u2.description) AND u1.id < u2.id
+            )
+        ''')
+        conn.execute("UPDATE updates SET description = lower(description) WHERE description != lower(description)")
+        conn.execute("UPDATE members SET name = lower(name) WHERE name != lower(name)")
+        conn.execute("UPDATE holidays SET name = lower(name) WHERE name != lower(name)")
+        conn.commit()
+    except Exception as e:
+        print(f"migrate_lowercase warning: {e}")
+    finally:
+        conn.close()
 
 def business_days_ago(n, conn=None):
     from datetime import datetime, timedelta
@@ -601,6 +613,7 @@ def submit(payload: dict):
     entries = payload.get('entries', [payload])
     conn = get_db()
     cursor = conn.cursor()
+    warnings = []
     for e in entries:
         date = e.get('date', datetime.now().strftime('%Y-%m-%d'))
         status = e.get('status', 'in_progress')
@@ -610,15 +623,36 @@ def submit(payload: dict):
         desc_lc = str(e.get('description','')).lower().strip()
         remarks = str(e.get('remarks','')).strip()
         
+        if status == 'done':
+            existing = cursor.execute(
+                "SELECT id, date FROM updates WHERE name = ? AND lower(description) = ? AND status = 'done' AND date != ? ORDER BY date DESC, id DESC LIMIT 1",
+                (name_lc, desc_lc, date)
+            ).fetchone()
+            if existing:
+                old_id, old_date = existing
+                cursor.execute(
+                    "UPDATE updates SET status = 'in_progress' WHERE id = ?",
+                    (old_id,)
+                )
+                warnings.append(f"Previous done task from {old_date} moved to in_progress")
+        
         cursor.execute('''
             INSERT INTO updates (date, name, module, description, status, leave_type, remarks)
             VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(date, name, description) DO UPDATE SET
+                module = excluded.module,
+                status = excluded.status,
+                leave_type = excluded.leave_type,
+                remarks = excluded.remarks
         ''', (
             date, name_lc, module_lc, desc_lc, status, leave_type, remarks
         ))
     conn.commit()
     conn.close()
-    return {"ok": True, "count": len(entries)}
+    result = {"ok": True, "count": len(entries)}
+    if warnings:
+        result["warnings"] = warnings
+    return result
 
 @app.get("/api/members")
 def get_members():
