@@ -3325,7 +3325,10 @@ function launchConfetti(x,y){
         
         var formHtml = '<div class="edit-form" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-top:4px">'+
             '<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap">'+
-                '<input type="text" class="edit-module" value="' + currentModule + '" placeholder="Module" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8em;width:100px">'+
+                '<select class="edit-module" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8em;min-width:100px">'+
+                    '<option value="">-- Module --</option>'+
+                    (APP_CONFIG.modules.length ? APP_CONFIG.modules.map(function(mod){return '<option value="'+mod.code+'"' + (currentModule===mod.code?' selected':'') + '>'+mod.code+'</option>';}).join('') : '')+
+                '</select>'+
                 '<select class="edit-status" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8em">'+
                     (APP_CONFIG.statuses.length ? APP_CONFIG.statuses.map(function(st){return '<option value="'+st.code+'"' + (currentStatus===st.code?' selected':'') + '>'+st.label+'</option>';}).join('') :
                     '<option value="in_progress"' + (currentStatus==='in_progress'?' selected':'') + '>In Progress</option>'+
