@@ -717,6 +717,11 @@ def get_summary(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None
 ):
+    cache_key = f"summary:{from_date}:{to_date}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     statuses = get_working_statuses()
     conn = get_db()
 
@@ -750,7 +755,7 @@ def get_summary(
         GROUP BY name
         ORDER BY total DESC
     ''', (done_s, ip_s, blocked_s, leave_s, vague_s, vague_s, leave_s, from_date, to_date)).fetchall()
-    
+
     total_workdays = conn.execute('''
         WITH RECURSIVE dates(d) AS (
             SELECT ?
@@ -761,59 +766,79 @@ def get_summary(
         WHERE strftime('%w', d) NOT IN ('0','6')
         AND d NOT IN (SELECT date FROM holidays)
     ''', (from_date, to_date)).fetchone()[0]
-    
-    members = []
-    for r in rows:
-        d = dict(r)
-        d['attendance_pct'] = round((d['total'] / max(total_workdays, 1)) * 100, 1) if total_workdays else 0
-        d['specificity'] = round((d['specific'] / max(d['total'] - d['leave_days'], 1)) * 100, 1) if (d['total'] - d['leave_days']) > 0 else 0
-        d['badge'] = 'S' if d['specificity'] >= get_config_int('specificity_s', 95) else 'A' if d['specificity'] >= get_config_int('specificity_a', 85) else 'B' if d['specificity'] >= get_config_int('specificity_b', 70) else 'C' if d['specificity'] >= get_config_int('specificity_c', 50) else 'F'
-        
-        actionable_total = d['done'] + d['in_progress'] + d['blocked']
-        d['completion_rate'] = round((d['done'] / max(actionable_total, 1)) * 100, 1) if actionable_total > 0 else 0
-        d['ip_done_ratio'] = round((d['in_progress'] / max(d['done'], 1)) * 10) / 10 if d['done'] > 0 else (d['in_progress'] if d['in_progress'] > 0 else 0)
-        
-        recent = conn.execute('''
-            SELECT date, description, status FROM updates
-            WHERE name = ? AND date BETWEEN ? AND ?
-            ORDER BY date DESC
-            LIMIT 5
-        ''', (d['name'], from_date, to_date)).fetchall()
-        d['recent'] = [dict(x) for x in recent]
-        
-        modules = conn.execute('''
-            SELECT module, COUNT(*) as cnt FROM updates
-            WHERE name = ? AND date BETWEEN ? AND ? AND module != '' AND status != ?
-            GROUP BY module ORDER by cnt DESC LIMIT 4
-        ''', (d['name'], from_date, to_date, leave_s)).fetchall()
-        d['modules'] = [dict(x) for x in modules]
-        
-        support_count = conn.execute('''
-            SELECT COUNT(*) FROM updates
-            WHERE name = ? AND date BETWEEN ? AND ? AND status != ?
-            AND module = 'support'
-        ''', (d['name'], from_date, to_date, leave_s)).fetchone()[0]
-        
-        total_work_count = conn.execute('''
-            SELECT COUNT(*) FROM updates
-            WHERE name = ? AND date BETWEEN ? AND ? AND status != ?
-        ''', (d['name'], from_date, to_date, leave_s)).fetchone()[0]
-        
-        d['support_pct'] = round((support_count / max(total_work_count, 1)) * 100, 1) if total_work_count > 0 else 0
-        d['support_count'] = support_count
-        d['total_work_count'] = total_work_count
-        
-        badges = conn.execute('''
-            SELECT 
+
+    member_names = [r['name'] for r in rows]
+
+    recent_by_member = {}
+    if member_names:
+        placeholders = ','.join('?' * len(member_names))
+        recent_rows = conn.execute(f'''
+            SELECT name, date, description, status FROM (
+                SELECT name, date, description, status,
+                    ROW_NUMBER() OVER (PARTITION BY name ORDER BY date DESC) as rn
+                FROM updates
+                WHERE name IN ({placeholders}) AND date BETWEEN ? AND ?
+            ) WHERE rn <= 5
+        ''', (*member_names, from_date, to_date)).fetchall()
+        for r in recent_rows:
+            recent_by_member.setdefault(r['name'], []).append(dict(r))
+
+    modules_by_member = {}
+    if member_names:
+        placeholders = ','.join('?' * len(member_names))
+        module_rows = conn.execute(f'''
+            SELECT name, module, cnt FROM (
+                SELECT name, module, COUNT(*) as cnt,
+                    ROW_NUMBER() OVER (PARTITION BY name ORDER BY COUNT(*) DESC) as rn
+                FROM updates
+                WHERE name IN ({placeholders}) AND date BETWEEN ? AND ? AND module != '' AND status != ?
+                GROUP BY name, module
+            ) WHERE rn <= 4
+        ''', (*member_names, from_date, to_date, leave_s)).fetchall()
+        for r in module_rows:
+            modules_by_member.setdefault(r['name'], []).append({'module': r['module'], 'cnt': r['cnt']})
+
+    support_by_member = {}
+    if member_names:
+        placeholders = ','.join('?' * len(member_names))
+        support_rows = conn.execute(f'''
+            SELECT name, COUNT(*) as cnt FROM updates
+            WHERE name IN ({placeholders}) AND date BETWEEN ? AND ? AND status != ? AND module = 'support'
+            GROUP BY name
+        ''', (*member_names, from_date, to_date, leave_s)).fetchall()
+        for r in support_rows:
+            support_by_member[r['name']] = r['cnt']
+
+    work_count_by_member = {}
+    if member_names:
+        placeholders = ','.join('?' * len(member_names))
+        work_rows = conn.execute(f'''
+            SELECT name, COUNT(*) as cnt FROM updates
+            WHERE name IN ({placeholders}) AND date BETWEEN ? AND ? AND status != ?
+            GROUP BY name
+        ''', (*member_names, from_date, to_date, leave_s)).fetchall()
+        for r in work_rows:
+            work_count_by_member[r['name']] = r['cnt']
+
+    badges_by_member = {}
+    if member_names:
+        placeholders = ','.join('?' * len(member_names))
+        badge_rows = conn.execute(f'''
+            SELECT name,
                 SUM(CASE WHEN status != ? AND status != ? THEN 1 ELSE 0 END) as ok,
                 SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as vg,
                 SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as lv
             FROM updates
-            WHERE name = ? AND date BETWEEN ? AND ?
-        ''', (leave_s, vague_s, vague_s, leave_s, d['name'], from_date, to_date)).fetchone()
-        d['badges'] = dict(badges) if badges else {'ok':0,'vg':0,'lv':0}
-        
-        activity = conn.execute('''
+            WHERE name IN ({placeholders}) AND date BETWEEN ? AND ?
+            GROUP BY name
+        ''', (leave_s, vague_s, vague_s, leave_s, *member_names, from_date, to_date)).fetchall()
+        for r in badge_rows:
+            badges_by_member[r['name']] = dict(r)
+
+    activity_by_member = {}
+    if member_names:
+        placeholders = ','.join('?' * len(member_names))
+        activity_rows = conn.execute(f'''
             WITH calendar_days AS (
                 SELECT date('now', '-' || n || ' days') as cal_date,
                        strftime('%w', date('now', '-' || n || ' days')) as dow
@@ -833,19 +858,23 @@ def get_summary(
                 ORDER BY cal_date DESC
                 LIMIT 10
             )
-            SELECT wd.cal_date as date,
+            SELECT u.name, wd.cal_date as date,
                    CASE WHEN COUNT(u.id) > 0 THEN 'ok' ELSE 'missing' END as status
             FROM working_days wd
-            LEFT JOIN updates u ON u.name = ? AND u.date = wd.cal_date
-            GROUP BY wd.cal_date
+            LEFT JOIN updates u ON u.name IN ({placeholders}) AND u.date = wd.cal_date
+            GROUP BY wd.cal_date, u.name
             ORDER BY wd.cal_date DESC
-        ''', (d['name'],)).fetchall()
-        d['activity'] = [{'date': r[0], 'status': r[1]} for r in activity]
-        
-        peak_hour = conn.execute('''
-            SELECT strftime('%H', created_at) as hour, COUNT(*) as cnt
+        ''', (*member_names,)).fetchall()
+        for r in activity_rows:
+            activity_by_member.setdefault(r['name'], []).append({'date': r['date'], 'status': r['status']})
+
+    personality_by_member = {}
+    if member_names:
+        placeholders = ','.join('?' * len(member_names))
+        peak_rows = conn.execute(f'''
+            SELECT name, strftime('%H', created_at) as hour, COUNT(*) as cnt
             FROM updates
-            WHERE name = ? AND date >= (
+            WHERE name IN ({placeholders}) AND date >= (
                 SELECT cal_date FROM (
                     SELECT date('now', '-' || n || ' days') as cal_date,
                            strftime('%w', date('now', '-' || n || ' days')) as dow
@@ -862,51 +891,79 @@ def get_summary(
                 ORDER BY cal_date DESC
                 LIMIT 1 OFFSET 9
             )
-            GROUP BY strftime('%H', created_at)
-            ORDER BY cnt DESC
-            LIMIT 1
-        ''', (d['name'],)).fetchone()
-        d['hourly_personality'] = None
-        if peak_hour:
-            h = int(peak_hour[0])
-            personalities = [
-                {'emoji': '🌑', 'label': 'Midnight Hacker',    'color': '#8b5cf6'},
-                {'emoji': '🌌', 'label': 'Night Phantom',      'color': '#6366f1'},
-                {'emoji': '🌌', 'label': 'Night Phantom',      'color': '#6366f1'},
-                {'emoji': '🐔', 'label': 'Pre-Dawn Rooster',   'color': 'var(--yellow)'},
-                {'emoji': '🐔', 'label': 'Pre-Dawn Rooster',   'color': 'var(--yellow)'},
-                {'emoji': '☕', 'label': 'Dawn Sipper',        'color': '#f59e0b'},
-                {'emoji': '☕', 'label': 'Dawn Sipper',        'color': '#f59e0b'},
-                {'emoji': '🌅', 'label': 'Morning Starter',    'color': 'var(--green)'},
-                {'emoji': '🚀', 'label': 'Morning Accelerator','color': '#10b981'},
-                {'emoji': '🔥', 'label': 'Early Burner',       'color': '#ef4444'},
-                {'emoji': '⚡', 'label': 'Midday Spark',       'color': 'var(--orange)'},
-                {'emoji': '🍱', 'label': 'Lunch Cruncher',     'color': '#ec4899'},
-                {'emoji': '🍱', 'label': 'Lunch Cruncher',     'color': '#ec4899'},
-                {'emoji': '🎯', 'label': 'Afternoon Archer',   'color': 'var(--accent)'},
-                {'emoji': '🎯', 'label': 'Afternoon Archer',   'color': 'var(--accent)'},
-                {'emoji': '🌆', 'label': 'Dusk Drifter',       'color': '#f97316'},
-                {'emoji': '🌆', 'label': 'Dusk Drifter',       'color': '#f97316'},
-                {'emoji': '⏰', 'label': 'Evening Grinder',    'color': '#eab308'},
-                {'emoji': '⏰', 'label': 'Evening Grinder',    'color': '#eab308'},
-                {'emoji': '🌙', 'label': 'Night Starter',      'color': '#3b82f6'},
-                {'emoji': '🌙', 'label': 'Night Starter',      'color': '#3b82f6'},
-                {'emoji': '🦉', 'label': 'Deep Night Owl',     'color': '#8b5cf6'},
-                {'emoji': '🦉', 'label': 'Deep Night Owl',     'color': '#8b5cf6'},
-                {'emoji': '🌠', 'label': 'Late Night Stargazer','color': '#a855f7'},
-            ]
-            d['hourly_personality'] = personalities[h]
-        
+            GROUP BY name, strftime('%H', created_at)
+        ''', (*member_names,)).fetchall()
+        peak_map = {}
+        for r in peak_rows:
+            name = r['name']
+            hour = int(r['hour'])
+            cnt = r['cnt']
+            if name not in peak_map or cnt > peak_map[name][1]:
+                peak_map[name] = (hour, cnt)
+        personalities = [
+            {'emoji': '🌑', 'label': 'Midnight Hacker',    'color': '#8b5cf6'},
+            {'emoji': '🌌', 'label': 'Night Phantom',      'color': '#6366f1'},
+            {'emoji': '🌌', 'label': 'Night Phantom',      'color': '#6366f1'},
+            {'emoji': '🐔', 'label': 'Pre-Dawn Rooster',   'color': 'var(--yellow)'},
+            {'emoji': '🐔', 'label': 'Pre-Dawn Rooster',   'color': 'var(--yellow)'},
+            {'emoji': '☕', 'label': 'Dawn Sipper',        'color': '#f59e0b'},
+            {'emoji': '☕', 'label': 'Dawn Sipper',        'color': '#f59e0b'},
+            {'emoji': '🌅', 'label': 'Morning Starter',    'color': 'var(--green)'},
+            {'emoji': '🚀', 'label': 'Morning Accelerator','color': '#10b981'},
+            {'emoji': '🔥', 'label': 'Early Burner',       'color': '#ef4444'},
+            {'emoji': '⚡', 'label': 'Midday Spark',       'color': 'var(--orange)'},
+            {'emoji': '🍱', 'label': 'Lunch Cruncher',     'color': '#ec4899'},
+            {'emoji': '🍱', 'label': 'Lunch Cruncher',     'color': '#ec4899'},
+            {'emoji': '🎯', 'label': 'Afternoon Archer',   'color': 'var(--accent)'},
+            {'emoji': '🎯', 'label': 'Afternoon Archer',   'color': 'var(--accent)'},
+            {'emoji': '🌆', 'label': 'Dusk Drifter',       'color': '#f97316'},
+            {'emoji': '🌆', 'label': 'Dusk Drifter',       'color': '#f97316'},
+            {'emoji': '⏰', 'label': 'Evening Grinder',    'color': '#eab308'},
+            {'emoji': '⏰', 'label': 'Evening Grinder',    'color': '#eab308'},
+            {'emoji': '🌙', 'label': 'Night Starter',      'color': '#3b82f6'},
+            {'emoji': '🌙', 'label': 'Night Starter',      'color': '#3b82f6'},
+            {'emoji': '🦉', 'label': 'Deep Night Owl',     'color': '#8b5cf6'},
+            {'emoji': '🦉', 'label': 'Deep Night Owl',     'color': '#8b5cf6'},
+            {'emoji': '🌠', 'label': 'Late Night Stargazer','color': '#a855f7'},
+        ]
+        for name, (hour, _) in peak_map.items():
+            personality_by_member[name] = personalities[hour]
+
+    members = []
+    for r in rows:
+        d = dict(r)
+        d['attendance_pct'] = round((d['total'] / max(total_workdays, 1)) * 100, 1) if total_workdays else 0
+        d['specificity'] = round((d['specific'] / max(d['total'] - d['leave_days'], 1)) * 100, 1) if (d['total'] - d['leave_days']) > 0 else 0
+        d['badge'] = 'S' if d['specificity'] >= get_config_int('specificity_s', 95) else 'A' if d['specificity'] >= get_config_int('specificity_a', 85) else 'B' if d['specificity'] >= get_config_int('specificity_b', 70) else 'C' if d['specificity'] >= get_config_int('specificity_c', 50) else 'F'
+
+        actionable_total = d['done'] + d['in_progress'] + d['blocked']
+        d['completion_rate'] = round((d['done'] / max(actionable_total, 1)) * 100, 1) if actionable_total > 0 else 0
+        d['ip_done_ratio'] = round((d['in_progress'] / max(d['done'], 1)) * 10) / 10 if d['done'] > 0 else (d['in_progress'] if d['in_progress'] > 0 else 0)
+
+        d['recent'] = recent_by_member.get(d['name'], [])
+        d['modules'] = modules_by_member.get(d['name'], [])
+
+        support_count = support_by_member.get(d['name'], 0)
+        total_work_count = work_count_by_member.get(d['name'], 0)
+        d['support_pct'] = round((support_count / max(total_work_count, 1)) * 100, 1) if total_work_count > 0 else 0
+        d['support_count'] = support_count
+        d['total_work_count'] = total_work_count
+
+        d['badges'] = badges_by_member.get(d['name'], {'ok':0,'vg':0,'lv':0})
+        d['activity'] = activity_by_member.get(d['name'], [])
+        d['hourly_personality'] = personality_by_member.get(d['name'])
+
         members.append(d)
-    
+
     conn.close()
 
-
-    
-    return {
+    result = {
         "range": {"from": from_date, "to": to_date, "workdays": total_workdays},
         "members": members
     }
+    set_cached(cache_key, result)
+    return result
+
 
 @app.get("/api/module-done")
 def get_module_done(
