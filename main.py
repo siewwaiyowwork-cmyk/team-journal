@@ -10,6 +10,7 @@ import os
 import shutil
 import tempfile
 import random
+import re
 
 import io
 import csv
@@ -353,6 +354,30 @@ def validate_module(module: str) -> bool:
     finally:
         conn.close()
 
+def validate_date(date_str: str) -> str:
+    if not date_str or not isinstance(date_str, str):
+        raise ValueError("Date is required")
+    date_str = date_str.strip()
+    if re.match(r'^(\d{4})-(\d{2})-(\d{2})$', date_str):
+        try:
+            datetime.strptime(date_str, '%Y-%m-%d')
+            return date_str
+        except ValueError:
+            raise ValueError(f"Invalid date: {date_str}")
+    if re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', date_str):
+        try:
+            dt = datetime.strptime(date_str, '%m/%d/%Y')
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            raise ValueError(f"Invalid date: {date_str}")
+    if re.match(r'^(\d{1,2})/(\d{1,2})/(\d{2})$', date_str):
+        try:
+            dt = datetime.strptime(date_str, '%m/%d/%y')
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            raise ValueError(f"Invalid date: {date_str}")
+    raise ValueError(f"Invalid date format: {date_str}. Use YYYY-MM-DD or M/D/YYYY")
+
 # Level helper functions
 def get_levels():
     conn = get_db()
@@ -636,12 +661,27 @@ def submit(payload: dict):
     warnings = []
     for e in entries:
         date = e.get('date', datetime.now().strftime('%Y-%m-%d'))
+        try:
+            date = validate_date(date)
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
         status = e.get('status', 'in_progress')
         leave_type = e.get('leave_type', None)
         name_lc = str(e.get('name','')).lower().strip()
         module_lc = str(e.get('module','')).lower().strip()
         desc_lc = str(e.get('description','')).lower().strip()
         remarks = str(e.get('remarks','')).strip()
+        
+        if not module_lc:
+            raise HTTPException(status_code=400, detail="Module is required")
+        if not validate_module(module_lc):
+            raise HTTPException(status_code=400, detail=f"Invalid module: '{module_lc}'")
+        
+        if not desc_lc:
+            raise HTTPException(status_code=400, detail="Description is required")
+        
+        if not validate_status(status):
+            raise HTTPException(status_code=400, detail=f"Invalid status: '{status}'")
         
         if status == 'done':
             existing = cursor.execute(
@@ -3770,9 +3810,23 @@ async def admin_bulk_import(
     rows = []
     for idx, row in enumerate(reader, start=2):
         date_str = row.get('date', '').strip()
+        try:
+            date_str = validate_date(date_str)
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=f"Row {idx}: {str(ve)}")
+        
         name = row.get('name', '').strip()
         module = row.get('module', '').strip()
         description = row.get('description', '').strip()
+        
+        if not module:
+            raise HTTPException(status_code=400, detail=f"Row {idx}: module is required")
+        if not validate_module(module.lower()):
+            raise HTTPException(status_code=400, detail=f"Row {idx}: invalid module '{module}'")
+        
+        if not description:
+            raise HTTPException(status_code=400, detail=f"Row {idx}: description is required")
+        
         status = row.get('status', '').strip().lower()
         leave_type = row.get('leave_type', '').strip().upper() or None
         remarks = row.get('remarks', '').strip()
@@ -3876,9 +3930,23 @@ async def import_updates(
     rows = []
     for idx, row in enumerate(reader, start=2):
         date_str = row.get('date', '').strip()
+        try:
+            date_str = validate_date(date_str)
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=f"Row {idx}: {str(ve)}")
+        
         name = row.get('name', '').strip()
         module = row.get('module', '').strip()
         description = row.get('description', '').strip()
+        
+        if not module:
+            raise HTTPException(status_code=400, detail=f"Row {idx}: module is required")
+        if not validate_module(module.lower()):
+            raise HTTPException(status_code=400, detail=f"Row {idx}: invalid module '{module}'")
+        
+        if not description:
+            raise HTTPException(status_code=400, detail=f"Row {idx}: description is required")
+        
         status = row.get('status', '').strip().lower()
         leave_type = row.get('leave_type', '').strip().upper() or None
         remarks = row.get('remarks', '').strip()
