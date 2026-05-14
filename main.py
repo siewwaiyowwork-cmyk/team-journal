@@ -902,7 +902,7 @@ def get_module_done(
     rows = conn.execute('''
         SELECT name, module, COUNT(*) as count
         FROM updates
-        WHERE date BETWEEN ? AND ? AND module != ''
+        WHERE date BETWEEN ? AND ? AND module != '' AND status = 'done'
         GROUP BY name, module
         ORDER BY name, count DESC
     ''', (from_date, to_date)).fetchall()
