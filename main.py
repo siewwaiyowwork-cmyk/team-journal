@@ -685,7 +685,6 @@ def get_summary(
         from_date = business_days_ago(summary_days, conn)
     if not to_date:
         to_date = datetime.now().strftime('%Y-%m-%d')
-    cutoff_90 = business_days_ago(summary_days, conn)
 
     def get_status_code(role):
         res = conn.execute("SELECT code FROM statuses WHERE code = ?", (role,)).fetchone()
@@ -806,20 +805,57 @@ def get_summary(
         peak_hour = conn.execute('''
             SELECT strftime('%H', created_at) as hour, COUNT(*) as cnt
             FROM updates
-            WHERE name = ? AND date >= ?
+            WHERE name = ? AND date >= (
+                SELECT cal_date FROM (
+                    SELECT date('now', '-' || n || ' days') as cal_date,
+                           strftime('%w', date('now', '-' || n || ' days')) as dow
+                    FROM (
+                        SELECT 0 as n UNION SELECT 1 UNION SELECT 2
+                        UNION SELECT 3 UNION SELECT 4 UNION SELECT 5
+                        UNION SELECT 6 UNION SELECT 7 UNION SELECT 8
+                        UNION SELECT 9 UNION SELECT 10 UNION SELECT 11
+                        UNION SELECT 12 UNION SELECT 13 UNION SELECT 14
+                    )
+                )
+                WHERE dow NOT IN ('0', '6')
+                AND cal_date NOT IN (SELECT date FROM holidays)
+                ORDER BY cal_date DESC
+                LIMIT 1 OFFSET 9
+            )
             GROUP BY strftime('%H', created_at)
             ORDER BY cnt DESC
             LIMIT 1
-        ''', (d['name'], cutoff_90)).fetchone()
+        ''', (d['name'],)).fetchone()
         d['hourly_personality'] = None
         if peak_hour:
             h = int(peak_hour[0])
-            if h < 8:
-                d['hourly_personality'] = {'emoji': '🐔', 'label': 'Early Bird', 'color': 'var(--yellow)'}
-            elif h >= 22 or h <= 3:
-                d['hourly_personality'] = {'emoji': '🌙', 'label': 'Night Owl', 'color': 'var(--accent)'}
-            elif h >= 18:
-                d['hourly_personality'] = {'emoji': '⏰', 'label': 'Late Worker', 'color': 'var(--orange)'}
+            personalities = [
+                {'emoji': '🌑', 'label': 'Midnight Hacker',    'color': '#8b5cf6'},
+                {'emoji': '🌌', 'label': 'Night Phantom',      'color': '#6366f1'},
+                {'emoji': '🌌', 'label': 'Night Phantom',      'color': '#6366f1'},
+                {'emoji': '🐔', 'label': 'Pre-Dawn Rooster',   'color': 'var(--yellow)'},
+                {'emoji': '🐔', 'label': 'Pre-Dawn Rooster',   'color': 'var(--yellow)'},
+                {'emoji': '☕', 'label': 'Dawn Sipper',        'color': '#f59e0b'},
+                {'emoji': '☕', 'label': 'Dawn Sipper',        'color': '#f59e0b'},
+                {'emoji': '🌅', 'label': 'Morning Starter',    'color': 'var(--green)'},
+                {'emoji': '🚀', 'label': 'Morning Accelerator','color': '#10b981'},
+                {'emoji': '🔥', 'label': 'Early Burner',       'color': '#ef4444'},
+                {'emoji': '⚡', 'label': 'Midday Spark',       'color': 'var(--orange)'},
+                {'emoji': '🍱', 'label': 'Lunch Cruncher',     'color': '#ec4899'},
+                {'emoji': '🍱', 'label': 'Lunch Cruncher',     'color': '#ec4899'},
+                {'emoji': '🎯', 'label': 'Afternoon Archer',   'color': 'var(--accent)'},
+                {'emoji': '🎯', 'label': 'Afternoon Archer',   'color': 'var(--accent)'},
+                {'emoji': '🌆', 'label': 'Dusk Drifter',       'color': '#f97316'},
+                {'emoji': '🌆', 'label': 'Dusk Drifter',       'color': '#f97316'},
+                {'emoji': '⏰', 'label': 'Evening Grinder',    'color': '#eab308'},
+                {'emoji': '⏰', 'label': 'Evening Grinder',    'color': '#eab308'},
+                {'emoji': '🌙', 'label': 'Night Starter',      'color': '#3b82f6'},
+                {'emoji': '🌙', 'label': 'Night Starter',      'color': '#3b82f6'},
+                {'emoji': '🦉', 'label': 'Deep Night Owl',     'color': '#8b5cf6'},
+                {'emoji': '🦉', 'label': 'Deep Night Owl',     'color': '#8b5cf6'},
+                {'emoji': '🌠', 'label': 'Late Night Stargazer','color': '#a855f7'},
+            ]
+            d['hourly_personality'] = personalities[h]
         
         members.append(d)
     
