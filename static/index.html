@@ -23,6 +23,8 @@
         .stat-box .stat-num{font-size:1.8em;font-weight:700;color:var(--accent)}
         .stat-box .stat-label{font-size:.85em;color:var(--text-dim);margin-top:4px}
         .header-actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+        input::-webkit-inner-spin-button,input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+        input[type=number]{-moz-appearance:textfield}
         .btn-submit{background:var(--accent);color:#0a0a0f;border:none;border-radius:10px;padding:10px 22px;font-family:'Syne',sans-serif;font-weight:700;font-size:.9em;cursor:pointer;transition:.2s}.btn-submit:hover{background:#33eeff;transform:translateY(-1px)}
         .back-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Syne',sans-serif;font-weight:600;cursor:pointer;transition:.2s;margin-bottom:20px}
         .back-btn:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
@@ -2988,11 +2990,12 @@ function launchConfetti(x,y){
                     <div class="yeardone-subtitle">Every completed task is a victory — celebrate your wins!</div>
                 </div>
                 <div class="yeardone-milestone" id="yeardoneMilestone" style="display:none"></div>
-                <div class="task-pagination" id="yeardonePagination" style="display:none;align-items:center;justify-content:center;gap:12px;padding:8px 0">
-                    <button class="pg-prev" onclick="loadYeardonePage(yeardoneOffset - yeardonePageSize)" style="padding:4px 12px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Syne';cursor:pointer">← Prev</button>
-                    <span class="pg-info" style="font-size:.8em;color:var(--text-dim);font-family:'JetBrains Mono'">1 / 1</span>
-                    <button class="pg-next" onclick="loadYeardonePage(yeardoneOffset + yeardonePageSize)" style="padding:4px 12px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Syne';cursor:pointer">Next →</button>
-                </div>
+<div class="task-pagination" id="yeardonePagination" style="display:none;align-items:center;justify-content:center;gap:12px;padding:8px 0"> 
+  <button class="pg-prev" onclick="window._loadYeardonePage(window._yeardoneOffset - window._yeardonePageSize)" style="padding:4px 12px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Syne';cursor:pointer">← Prev</button>
+  <input type="number" class="pg-jump" min="1" value="1" style="width:48px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:'JetBrains Mono';font-size:.8em;text-align:center;-moz-appearance:textfield" onkeydown="if(event.key==='Enter'){var pg=parseInt(this.value)||1;var tp=Math.ceil(window._yeardoneTotal/window._yeardonePageSize);if(pg>=1&&pg<=tp)window._loadYeardonePage((pg-1)*window._yeardonePageSize);}">
+  <span class="pg-info" style="font-size:.8em;color:var(--text-dim);font-family:'JetBrains Mono'">1 / 1</span>
+  <button class="pg-next" onclick="window._loadYeardonePage(window._yeardoneOffset + window._yeardonePageSize)" style="padding:4px 12px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Syne';cursor:pointer">Next →</button>
+ </div>
                 <h3 class="section-title" style="font-size:.85em;margin-bottom:10px">Completed Tasks <span class="badge" style="margin-left:8px">0</span></h3>
                 <div class="task-loading">Loading yearly achievements...</div>
                 <div class="task-sort-bar" id="yearDoneSortBar" style="display:none">
@@ -3021,6 +3024,7 @@ function launchConfetti(x,y){
                 <div class="task-content" style="display:none"></div>
                 <div class="task-pagination" style="display:none;align-items:center;justify-content:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);margin-top:8px">
                     <button class="pg-prev" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">← Prev</button>
+                     <input type="number" class="pg-jump" min="1" value="1" style="width:48px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:'JetBrains Mono';font-size:.8em;text-align:center;-moz-appearance:textfield" onkeydown="if(event.key==='Enter'){var pg=parseInt(this.value)||1;var tp=Math.ceil(window._tasklistTotal/window._tasklistPageSize);if(pg>=1&&pg<=tp)window._loadTasklistPage((pg-1)*window._tasklistPageSize);}">
                     <span class="pg-info" style="font-size:.85em;color:var(--text-dim);font-family:'JetBrains Mono',monospace"></span>
                     <button class="pg-next" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">Next →</button>
                 </div>
@@ -3053,6 +3057,9 @@ function launchConfetti(x,y){
         // Render all yearly tasks with pagination (30 per page)
         var tasklistTotal = 0, tasklistOffset = 0, tasklistPageSize = 30;
         var yeardoneTotal = 0, yeardoneOffset = 0, yeardonePageSize = 50;
+        // Expose to window so inline handlers & module-scope functions can access them
+        window._tasklistTotal = tasklistTotal; window._tasklistOffset = tasklistOffset; window._tasklistPageSize = tasklistPageSize;
+        window._yeardoneTotal = yeardoneTotal; window._yeardoneOffset = yeardoneOffset; window._yeardonePageSize = yeardonePageSize;
 
         function loadYeardonePage(offset) {
             const yearUrl = new URL(window.location.origin + '/api/updates');
@@ -3067,6 +3074,8 @@ function launchConfetti(x,y){
                 .then(data => {
                     yeardoneTotal = data.total || 0;
                     yeardoneOffset = offset;
+                    window._yeardoneTotal = yeardoneTotal;
+                    window._yeardoneOffset = yeardoneOffset;
 
                     const container = document.querySelector('.detail-yeardone');
                     const badge = container?.querySelector('.section-title .badge');
@@ -3101,11 +3110,13 @@ function launchConfetti(x,y){
             const prev = pag.querySelector('.pg-prev');
             const next = pag.querySelector('.pg-next');
             const info = pag.querySelector('.pg-info');
+            const jump = pag.querySelector('.pg-jump');
             if (yeardoneTotal <= yeardonePageSize) { pag.style.display = 'none'; return; }
             pag.style.display = 'flex';
             const currentPage = Math.floor(yeardoneOffset / yeardonePageSize) + 1;
             const totalPages = Math.ceil(yeardoneTotal / yeardonePageSize);
             info.textContent = currentPage + ' / ' + totalPages + ' (' + yeardoneTotal + ')';
+            if (jump) jump.value = currentPage;
             prev.disabled = yeardoneOffset <= 0;
             prev.style.opacity = prev.disabled ? '0.5' : '1';
             prev.style.cursor = prev.disabled ? 'not-allowed' : 'pointer';
@@ -3126,6 +3137,8 @@ function launchConfetti(x,y){
                 .then(data => {
                     tasklistTotal = data.total || 0;
                     tasklistOffset = offset;
+                    window._tasklistTotal = tasklistTotal;
+                    window._tasklistOffset = tasklistOffset;
                     renderTaskData(data.updates, 'tasklist', false);
                     updatePaginationControls();
                 })
@@ -3143,11 +3156,13 @@ function launchConfetti(x,y){
             const prev = pag.querySelector('.pg-prev');
             const next = pag.querySelector('.pg-next');
             const info = pag.querySelector('.pg-info');
+            const jump = pag.querySelector('.pg-jump');
             if (tasklistTotal <= tasklistPageSize) { pag.style.display = 'none'; return; }
             pag.style.display = 'flex';
             const currentPage = Math.floor(tasklistOffset / tasklistPageSize) + 1;
             const totalPages = Math.ceil(tasklistTotal / tasklistPageSize);
             info.textContent = currentPage + ' / ' + totalPages + ' (' + tasklistTotal + ')';
+            if (jump) jump.value = currentPage;
             prev.disabled = tasklistOffset <= 0;
             prev.style.opacity = prev.disabled ? '0.5' : '1';
             prev.style.cursor = prev.disabled ? 'not-allowed' : 'pointer';
@@ -3157,6 +3172,10 @@ function launchConfetti(x,y){
         }
 
         loadTasklistPage(0);
+
+        // Expose pagination functions to window for inline handlers & module-scope code
+        window._loadYeardonePage = loadYeardonePage;
+        window._loadTasklistPage = loadTasklistPage;
 
         // Attach pagination listeners after DOM insertion
         setTimeout(function() {
@@ -3379,9 +3398,13 @@ function launchConfetti(x,y){
                 formEl.remove();
                 btnEl = row.querySelector('.task-edit-btn');
                 if(btnEl) btnEl.style.display = '';
-                // Refresh the detail view
-                var detailName = window.currentDetailName;
-                if(detailName) showDetail(detailName);
+                // Reload only the affected section at current page, preserving pagination
+                var section = row.closest('.detail-yeardone') ? 'yeardone' : (row.closest('.detail-tasklist') ? 'tasklist' : null);
+                if(section === 'yeardone'){
+                    window._loadYeardonePage(window._yeardoneOffset);
+                } else if(section === 'tasklist'){
+                    window._loadTasklistPage(window._tasklistOffset);
+                }
             } else {
                 showToast(data.detail || 'Save failed','err');
             }
