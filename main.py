@@ -98,19 +98,17 @@ def init_db():
         ('AL', 'Annual Leave', 'Standard annual leave entitlement', 1),
         ('MC', 'Medical Certificate', 'Sick leave with medical certificate', 1),
         ('EL', 'Emergency Leave', 'Unplanned emergency leave', 1);
+    """)
 
-        INSERT OR IGNORE INTO holidays (date, name) VALUES
-        ('2025-01-01', 'new year'),
-        ('2025-01-29', 'chinese new year'),
-        ('2025-03-31', 'hari raya aidilfitri'),
-        ('2025-04-01', 'hari raya holiday'),
-        ('2025-05-01', 'labour day'),
-        ('2025-05-12', 'wesak day'),
-        ('2025-06-02', 'hari raya haji'),
-        ('2025-08-31', 'national day'),
-        ('2025-09-16', 'malaysia day'),
-        ('2025-10-20', 'deepavali'),
-        ('2025-12-25', 'christmas'),
+    # Seed holidays only for years not already present in DB
+    existing_years = set()
+    try:
+        for row in conn.execute("SELECT DISTINCT SUBSTR(date, 1, 4) AS year FROM holidays"):
+            existing_years.add(str(row[0]))
+    except Exception:
+        pass
+
+    holiday_rows = [
         ('2026-01-01', 'new year'),
         ('2026-02-17', 'chinese new year'),
         ('2026-03-19', 'hari raya aidilfitri'),
@@ -121,8 +119,15 @@ def init_db():
         ('2026-08-31', 'national day'),
         ('2026-09-16', 'malaysia day'),
         ('2026-11-09', 'deepavali'),
-        ('2026-12-25', 'christmas');
+        ('2026-12-25', 'christmas'),
+    ]
 
+    for date_val, name_val in holiday_rows:
+        year = date_val[:4]
+        if year not in existing_years:
+            conn.execute("INSERT OR IGNORE INTO holidays (date, name) VALUES (?, ?)", (date_val, name_val))
+
+    conn.executescript("""
         INSERT OR IGNORE INTO modules (code, label, color) VALUES
         ('san', 'san', '#ccc'),
         ('myd', 'myd', '#ccc'),
