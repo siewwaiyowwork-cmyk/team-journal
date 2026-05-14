@@ -3093,6 +3093,109 @@ async def admin_bulk_import(
         conn.close()
 
 
+@app.get("/api/export")
+def export_updates(
+    name: str = Query(...)
+):
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT date, name, module, description, status, leave_type, remarks FROM updates WHERE name = ? ORDER BY date DESC",
+            (name.lower(),)
+        ).fetchall()
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["date", "name", "module", "description", "status", "leave_type", "remarks"])
+        for r in rows:
+            writer.writerow([r[0], r[1], r[2], r[3], r[4], r[5] or "", r[6] or ""])
+        return Response(content=output.getvalue(), media_type="text/csv", headers={
+            "Content-Disposition": f'attachment; filename="{name}_updates.csv"'
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.post("/api/import")
+async def import_updates(
+    file: UploadFile = File(...),
+    member_name: str = Query(...)
+):
+    if not member_name:
+        raise HTTPException(status_code=400, detail="member_name is required")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="No file content")
+
+    text = content.decode('utf-8')
+    reader = csv.DictReader(io.StringIO(text))
+
+    required = {'date', 'name', 'module', 'description', 'status'}
+    headers = set(reader.fieldnames or [])
+    missing = required - headers
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing columns: {', '.join(missing)}")
+
+    rows = []
+    for idx, row in enumerate(reader, start=2):
+        date_str = row.get('date', '').strip()
+        name = row.get('name', '').strip()
+        module = row.get('module', '').strip()
+        description = row.get('description', '').strip()
+        status = row.get('status', '').strip().lower()
+        leave_type = row.get('leave_type', '').strip().upper() or None
+        remarks = row.get('remarks', '').strip()
+
+        if not date_str or not name:
+            raise HTTPException(status_code=400, detail=f"Row {idx}: date and name are required")
+
+        if name.lower() != member_name.lower():
+            raise HTTPException(status_code=400, detail=f"Row {idx}: name '{name}' does not match member '{member_name}'")
+
+        status_map = {
+            'in prog': 'in_progress', 'in progress': 'in_progress',
+            'done': 'done', 'leave': 'leave',
+            'blocked': 'blocked', 'vague': 'vague'
+        }
+        normalized_status = status_map.get(status, status)
+        if normalized_status not in {'in_progress', 'done', 'leave', 'blocked', 'vague'}:
+            raise HTTPException(status_code=400, detail=f"Row {idx}: invalid status '{status}'")
+
+        rows.append({
+            'date': date_str,
+            'name': name.lower(),
+            'module': module.lower(),
+            'description': description,
+            'status': normalized_status,
+            'leave_type': leave_type if normalized_status == 'leave' else None,
+            'remarks': remarks
+        })
+
+    conn = get_db()
+    try:
+        conn.execute("BEGIN")
+        conn.execute("DELETE FROM updates WHERE name = ?", (member_name.lower(),))
+        for r in rows:
+            conn.execute(
+                "INSERT INTO updates (date, name, module, description, status, leave_type, remarks) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (r['date'], r['name'], r['module'], r['description'], r['status'], r['leave_type'], r['remarks'])
+            )
+        conn.execute("COMMIT")
+        return {"ok": True, "deleted_old": True, "imported": len(rows)}
+    except Exception as e:
+        try:
+            conn.execute("ROLLBACK")
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
 @app.get("/api/admin/export")
 def admin_export_updates(
     admin_token: str = Query(...),
