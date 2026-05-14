@@ -20,8 +20,11 @@ CREATE TABLE IF NOT EXISTS members (
 
 CREATE INDEX IF NOT EXISTS idx_updates_date ON updates(date);
 CREATE INDEX IF NOT EXISTS idx_updates_name ON updates(name);
-
-CREATE TABLE IF NOT EXISTS holidays (
+CREATE INDEX IF NOT EXISTS idx_updates_status ON updates(status);
+CREATE INDEX IF NOT EXISTS idx_updates_created_at ON updates(created_at);
+CREATE INDEX IF NOT EXISTS idx_updates_module ON updates(module);
+CREATE INDEX IF NOT EXISTS idx_updates_name_status ON updates(name, status);
+CREATE INDEX IF NOT EXISTS idx_updates_date_status ON updates(date, status);
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
     name TEXT NOT NULL,

@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin | Scoreboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a28;--surface3:#232336;--border:#2a2a3e;--text:#e0e0f0;--text-dim:#7a7a9a;--accent:#00e5ff;--green:#00e676;--red:#ff1744;--orange:#ff9100;--yellow:#ffd600}
+*{box-sizing:border-box}html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh}
+.container{display:flex;min-height:100vh}
+.sidebar{width:260px;background:var(--surface);border-right:1px solid var(--border);padding:0;display:flex;flex-direction:column}
+.sidebar-header{padding:24px 20px 16px;border-bottom:1px solid var(--border)}
+.sidebar-header h1{font-size:1.3em;font-weight:700;margin:0;background:linear-gradient(135deg,var(--accent),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-header .sub{font-size:.78em;color:var(--text-dim);margin-top:4px}
+.nav{padding:12px 0;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:12px 20px;cursor:pointer;transition:.2s;border-left:3px solid transparent;font-size:.88em;font-weight:600;color:var(--text-dim)}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{border-left-color:var(--accent);background:rgba(0,229,255,.08);color:var(--accent)}
+.nav-icon{font-size:1.2em;width:24px;text-align:center}
+.main{flex:1;padding:24px;overflow-y:auto}
+.section{display:none}.section.active{display:block}
+.section-title{font-size:1.4em;font-weight:700;margin:0 0 20px}
+.logout-btn{margin:12px 20px;padding:10px 16px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text-dim);font-family:'Syne',sans-serif;font-weight:600;font-size:.82em;cursor:pointer;transition:.2s}
+.logout-btn:hover{border-color:var(--red);color:var(--red)}
+.login-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:400px;text-align:center}
+.login-card h2{font-size:1.6em;font-weight:700;margin:0 0 8px}
+.login-card p{color:var(--text-dim);font-size:.9em;margin:0 0 24px}
+.login-input{width:100%;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Syne',sans-serif;font-size:.95em;margin-bottom:12px}
+.login-input:focus{outline:none;border-color:var(--accent)}
+.login-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--accent),var(--green));border:none;border-radius:10px;color:#0a0a0f;font-family:'Syne',sans-serif;font-weight:700;font-size:.95em;cursor:pointer;transition:.2s}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(0,229,255,.3)}
+.login-error{color:var(--red);font-size:.85em;margin-top:8px;display:none}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center}
+.stat-card .num{font-size:2em;font-weight:700;color:var(--accent);margin:0}
+.stat-card .lab{font-size:.82em;color:var(--text-dim);margin-top:4px}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;font-size:.85em}
+th{background:var(--surface2);padding:12px 16px;text-align:left;font-weight:600;font-size:.78em;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);border-bottom:1px solid var(--border)}
+td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.btn-sm{padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Syne',sans-serif;font-size:.78em;font-weight:600;cursor:pointer;transition:.2s}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm.danger:hover{border-color:var(--red);color:var(--red)}
+.btn-sm.success{background:rgba(0,230,118,.15);border-color:var(--green);color:var(--green)}
+.btn-sm.success:hover{background:rgba(0,230,118,.25)}
+.form-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.form-input{flex:1;min-width:200px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Syne',sans-serif;font-size:.85em}
+.form-input:focus{outline:none;border-color:var(--accent)}
+.form-select{flex:1;min-width:200px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer}
+.add-btn{padding:10px 20px;background:linear-gradient(135deg,var(--accent),var(--green));border:none;border-radius:10px;color:#0a0a0f;font-family:'Syne',sans-serif;font-weight:700;font-size:.85em;cursor:pointer;transition:.2s}
+.add-btn:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(0,229,255,.3)}
+.edit-form{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;display:none}
+.edit-form.active{display:block}
+.color-preview{display:inline-block;width:20px;height:20px;border-radius:6px;border:1px solid var(--border);vertical-align:middle;margin-right:8px}
+.toggle-wrap{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.toggle-btn{padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-family:'Syne',sans-serif;font-size:.82em;font-weight:600;cursor:pointer;transition:.2s}
+.toggle-btn.active{background:rgba(0,229,255,.15);border-color:var(--accent);color:var(--accent)}
+.empty-state{text-align:center;padding:40px;color:var(--text-dim);font-size:.9em}
+.back-link{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Syne',sans-serif;font-weight:600;font-size:.85em;text-decoration:none;margin-bottom:20px;transition:.2s}
+.back-link:hover{border-color:var(--accent);color:var(--accent)}
+.toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:.88em;font-weight:600;z-index:100;transform:translateY(100px);opacity:0;transition:.3s}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+</style>
+</head>
+<body>
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h2>Admin Access</h2>
+    <p>Enter admin password to manage system settings</p>
+    <input type="password" id="adminPassword" class="login-input" placeholder="Password" onkeypress="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Login</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+<div class="container" id="appContainer" style="display:none">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>Admin Panel</h1>
+      <div class="sub">Scoreboard Management</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" data-section="dashboard" onclick="showSection('dashboard')">
+        <span class="nav-icon">📊</span>Dashboard
+      </div>
+      <div class="nav-item" data-section="config" onclick="showSection('config')">
+        <span class="nav-icon">⚙️</span>Config
+      </div>
+      <div class="nav-item" data-section="statuses" onclick="showSection('statuses')">
+        <span class="nav-icon">🏷️</span>Statuses
+      </div>
+      <div class="nav-item" data-section="leave_types" onclick="showSection('leave_types')">
+        <span class="nav-icon">🌴</span>Leave Types
+      </div>
+       <div class="nav-item" data-section="levels" onclick="showSection('levels')">
+         <span class="nav-icon">🏆</span>Levels
+       </div>
+       <div class="nav-item" data-section="modules" onclick="showSection('modules')">
+         <span class="nav-icon">📦</span>Modules
+       </div>
+       <div class="nav-item" data-section="badge_rules" onclick="showSection('badge_rules')">
+         <span class="nav-icon">🎖️</span>Badge Rules
+       </div>
+      <div class="nav-item" data-section="holidays" onclick="showSection('holidays')">
+        <span class="nav-icon">📅</span>Holidays
+      </div>
+      <div class="nav-item" data-section="members" onclick="showSection('members')">
+        <span class="nav-icon">👥</span>Members
+      </div>
+      <div class="nav-item" data-section="updates" onclick="showSection('updates')">
+        <span class="nav-icon">📝</span>Updates
+      </div>
+    </nav>
+    <button class="logout-btn" onclick="doLogout()">Logout</button>
+  </aside>
+  <main class="main">
+    <a href="/" class="back-link">← Back to Scoreboard</a>
+
+    <div id="section-dashboard" class="section active">
+      <h2 class="section-title">Dashboard</h2>
+      <div class="card-grid" id="dashboardCards"></div>
+    </div>
+
+    <div id="section-config" class="section">
+      <h2 class="section-title">System Config</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Key</th><th>Value</th><th>Description</th><th>Actions</th></tr></thead>
+          <tbody id="configTable"></tbody>
+        </table>
+      </div>
+      <div class="edit-form" id="configEditForm">
+        <h3 style="margin:0 0 16px">Edit Config</h3>
+        <input type="hidden" id="editConfigKey">
+        <div class="form-row">
+          <input type="text" id="editConfigValue" class="form-input" placeholder="Value">
+        </div>
+        <div class="form-row">
+          <input type="text" id="editConfigDesc" class="form-input" placeholder="Description (optional)">
+        </div>
+        <div class="form-row">
+          <button class="add-btn" onclick="saveConfig()">Save</button>
+          <button class="btn-sm" onclick="hideEditForm('configEditForm')">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="section-statuses" class="section">
+      <h2 class="section-title">Statuses</h2>
+      <div class="form-row">
+        <input type="text" id="newStatusCode" class="form-input" placeholder="Code (e.g. review)">
+        <input type="text" id="newStatusLabel" class="form-input" placeholder="Label (e.g. In Review)">
+        <input type="color" id="newStatusColor" class="form-input" value="#00e5ff" style="max-width:80px;min-width:60px;padding:4px">
+        <button class="add-btn" onclick="addStatus()">Add Status</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Code</th><th>Label</th><th>Color</th><th>Active</th><th>Actions</th></tr></thead>
+          <tbody id="statusesTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="section-leave_types" class="section">
+      <h2 class="section-title">Leave Types</h2>
+      <div class="form-row">
+        <input type="text" id="newLeaveCode" class="form-input" placeholder="Code (e.g. WFH)">
+        <input type="text" id="newLeaveLabel" class="form-input" placeholder="Label (e.g. Work From Home)">
+        <input type="text" id="newLeaveDesc" class="form-input" placeholder="Description">
+        <button class="add-btn" onclick="addLeaveType()">Add Leave Type</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Code</th><th>Label</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead>
+          <tbody id="leaveTypesTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="section-levels" class="section">
+      <h2 class="section-title">Level Thresholds</h2>
+      <div class="form-row">
+        <input type="number" id="newLevelMinTasks" class="form-input" placeholder="Min Tasks">
+        <input type="text" id="newLevelLabel" class="form-input" placeholder="Label (e.g. Diamond)">
+        <input type="color" id="newLevelColor" class="form-input" value="#00e5ff" style="max-width:80px;min-width:60px;padding:4px">
+        <button class="add-btn" onclick="addLevel()">Add Level</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Min Tasks</th><th>Label</th><th>Color</th><th>Actions</th></tr></thead>
+          <tbody id="levelsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="section-modules" class="section">
+      <h2 class="section-title">Modules</h2>
+      <div class="form-row">
+        <input type="text" id="newModuleCode" class="form-input" placeholder="Code (e.g. san)">
+        <input type="text" id="newModuleLabel" class="form-input" placeholder="Label (e.g. SAN)">
+        <input type="color" id="newModuleColor" class="form-input" value="#cccccc" style="max-width:80px;min-width:60px;padding:4px">
+        <button class="add-btn" onclick="addModule()">Add Module</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Code</th><th>Label</th><th>Color</th><th>Active</th><th>Actions</th></tr></thead>
+          <tbody id="modulesTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="section-badge_rules" class="section">
+      <h2 class="section-title">Badge Rules</h2>
+      <div class="form-row" style="flex-direction:column; align-items:stretch;">
+        <div class="form-row">
+          <input type="text" id="newBadgeName" class="form-input" placeholder="Badge Name">
+          <select id="newBadgeResultType" class="form-select">
+            <option value="top">Top (Ranked)</option>
+            <option value="count">Count (Threshold)</option>
+            <option value="boolean">Boolean (Yes/No)</option>
+          </select>
+          <input type="text" id="newBadgeDesc" class="form-input" placeholder="Description (optional)">
+        </div>
+        <div class="form-row">
+          <textarea id="newBadgeSql" class="form-input" placeholder="SQL Query" style="font-family:'JetBrains Mono',monospace; height:120px; resize:vertical; flex:1; min-width:100%"></textarea>
+        </div>
+        <div class="form-row">
+          <button class="add-btn" onclick="addBadgeRule()">Add Rule</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Result Type</th><th style="max-width:400px">SQL Query</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead>
+          <tbody id="badgeRulesTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="section-holidays" class="section">
+      <h2 class="section-title">Holidays</h2>
+      <div class="form-row">
+        <input type="date" id="newHolidayDate" class="form-input">
+        <input type="text" id="newHolidayName" class="form-input" placeholder="Holiday Name">
+        <button class="add-btn" onclick="addHoliday()">Add Holiday</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Name</th><th>Actions</th></tr></thead>
+          <tbody id="holidaysTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="section-members" class="section">
+      <h2 class="section-title">Members</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Join Date</th><th>Active</th><th>Actions</th></tr></thead>
+          <tbody id="membersTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="section-updates" class="section">
+      <h2 class="section-title">Recent Updates</h2>
+      <div class="form-row" style="margin-bottom:16px">
+        <input type="text" id="filterUpdateName" class="form-input" placeholder="Filter by name..." oninput="loadUpdates()">
+        <select id="filterUpdateStatus" class="form-select" onchange="loadUpdates()">
+          <option value="">All Statuses</option>
+        </select>
+        <button class="btn-sm" onclick="loadUpdates()">Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Date</th><th>Name</th><th>Module</th><th>Status</th><th>Description</th><th>Actions</th></tr></thead>
+          <tbody id="updatesTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const getToken = () => sessionStorage.getItem('adminToken') || '';
+
+function checkAuth() {
+  // Clear stale token from old buggy version that stored 'admin_session'
+  const token = getToken();
+  if (token === 'admin_session') {
+    sessionStorage.removeItem('adminToken');
+  }
+  if (!getToken()) {
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('appContainer').style.display = 'none';
+  } else {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'flex';
+    showSection('dashboard');
+  }
+}
+
+async function doLogin() {
+  const pwd = document.getElementById('adminPassword').value.trim();
+  const errEl = document.getElementById('loginError');
+  try {
+    const r = await fetch('/api/admin/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pwd})});
+    if (!r.ok) throw new Error('Invalid password');
+    sessionStorage.setItem('adminToken', pwd);
+    errEl.style.display = 'none';
+    checkAuth();
+    showToast('Logged in successfully', 'success');
+  } catch (e) {
+    sessionStorage.removeItem('adminToken');
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('adminToken');
+  checkAuth();
+  showToast('Logged out', 'success');
+}
+
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  document.querySelector(`.nav-item[data-section="${name}"]`).classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'config') loadConfig();
+  if (name === 'statuses') loadStatuses();
+  if (name === 'leave_types') loadLeaveTypes();
+  if (name === 'levels') loadLevels();
+  if (name === 'modules') loadModules();
+  if (name === 'badge_rules') loadBadgeRules();
+  if (name === 'holidays') loadHolidays();
+  if (name === 'members') loadMembers();
+  if (name === 'updates') loadUpdates();
+}
+
+function apiUrl(path) {
+  return path + '?admin_token=' + encodeURIComponent(getToken());
+}
+
+async function apiGet(path) {
+  const r = await fetch(apiUrl(path));
+  if (!r.ok) throw new Error((await r.json()).detail || 'Request failed');
+  return r.json();
+}
+
+async function apiPost(path, body) {
+  const r = await fetch(apiUrl(path), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  if (!r.ok) throw new Error((await r.json()).detail || 'Request failed');
+  return r.json();
+}
+
+async function apiPut(path, body) {
+  const r = await fetch(apiUrl(path), {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  if (!r.ok) throw new Error((await r.json()).detail || 'Request failed');
+  return r.json();
+}
+
+async function apiDelete(path) {
+  const r = await fetch(apiUrl(path), {method:'DELETE'});
+  if (!r.ok) throw new Error((await r.json()).detail || 'Request failed');
+  return r.json();
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function loadDashboard() {
+  try {
+    const d = await apiGet('/api/admin/dashboard');
+    document.getElementById('dashboardCards').innerHTML = `
+      <div class="stat-card"><div class="num">${d.members}</div><div class="lab">Active Members</div></div>
+      <div class="stat-card"><div class="num">${d.updates}</div><div class="lab">Total Updates</div></div>
+      <div class="stat-card"><div class="num">${d.holidays}</div><div class="lab">Holidays</div></div>
+      <div class="stat-card"><div class="num">${d.today_updates}</div><div class="lab">Today Updates</div></div>`;
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadConfig() {
+  try {
+    const d = await apiGet('/api/admin/config');
+    document.getElementById('configTable').innerHTML = d.config.map(c => {
+      const isSecret = c.key === 'backup_secret' || c.key.includes('password') || c.key.includes('secret') || c.key.includes('token');
+      const displayValue = isSecret && c.value ? '•'.repeat(Math.min(c.value.length, 16)) : c.value;
+      return `
+      <tr>
+        <td><code style="font-family:'JetBrains Mono',monospace;background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:.85em">${c.key}</code></td>
+        <td>${displayValue}</td>
+        <td>${c.description || ''}</td>
+        <td><button class="btn-sm" onclick="showConfigEdit('${c.key}', '${c.value}', '${c.description || ''}', ${isSecret})">Edit</button></td>
+      </tr>`;
+    }).join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function showConfigEdit(key, value, desc, isSecret) {
+  document.getElementById('editConfigKey').value = key;
+  document.getElementById('editConfigValue').type = isSecret ? 'password' : 'text';
+  document.getElementById('editConfigValue').value = value;
+  document.getElementById('editConfigDesc').value = desc;
+  document.getElementById('configEditForm').classList.add('active');
+}
+
+function hideEditForm(id) { document.getElementById(id).classList.remove('active'); }
+
+async function saveConfig() {
+  const key = document.getElementById('editConfigKey').value;
+  const value = document.getElementById('editConfigValue').value;
+  const desc = document.getElementById('editConfigDesc').value;
+  try {
+    await apiPut('/api/admin/config/' + key, {value, description: desc});
+    hideEditForm('configEditForm');
+    loadConfig();
+    showToast('Config saved', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadStatuses() {
+  try {
+    const d = await apiGet('/api/admin/statuses');
+    document.getElementById('statusesTable').innerHTML = d.statuses.map(s => `
+      <tr>
+        <td><code style="font-family:'JetBrains Mono',monospace;background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:.85em">${s.code}</code></td>
+        <td>${s.label}</td>
+        <td>
+          <span class="color-preview" style="background:${s.color}"></span>
+          <input type="color" value="${s.color}" style="width:28px;height:28px;border:none;background:none;cursor:pointer" onchange="updateStatusColor('${s.code}', this.value)">
+        </td>
+        <td>${s.active ? 'Yes' : 'No'}</td>
+        <td>
+          <button class="btn-sm" onclick="toggleStatus('${s.code}', ${s.active ? 0 : 1})">${s.active ? 'Disable' : 'Enable'}</button>
+        </td>
+      </tr>`).join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function updateStatusColor(code, color) {
+  try {
+    await apiPut('/api/admin/statuses/' + code, {color});
+    showToast('Status color updated', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function toggleStatus(code, active) {
+  try {
+    await apiPut('/api/admin/statuses/' + code, {active: !!active});
+    loadStatuses();
+    showToast('Status updated', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function addStatus() {
+  const code = document.getElementById('newStatusCode').value.trim().toLowerCase();
+  const label = document.getElementById('newStatusLabel').value.trim();
+  const color = document.getElementById('newStatusColor').value;
+  if (!code || !label) { showToast('Code and label required', 'error'); return; }
+  try {
+    await apiPost('/api/admin/statuses', {code, label, color});
+    document.getElementById('newStatusCode').value = '';
+    document.getElementById('newStatusLabel').value = '';
+    loadStatuses();
+    showToast('Status added', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadLeaveTypes() {
+  try {
+    const d = await apiGet('/api/admin/leave_types');
+    document.getElementById('leaveTypesTable').innerHTML = d.leave_types.map(l => `
+      <tr>
+        <td><code style="font-family:'JetBrains Mono',monospace;background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:.85em">${l.code}</code></td>
+        <td>${l.label}</td>
+        <td>${l.description || ''}</td>
+        <td>${l.active ? 'Yes' : 'No'}</td>
+        <td>
+          <button class="btn-sm" onclick="toggleLeaveType('${l.code}', ${l.active ? 0 : 1})">${l.active ? 'Disable' : 'Enable'}</button>
+        </td>
+      </tr>`).join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function toggleLeaveType(code, active) {
+  try {
+    await apiPut('/api/admin/leave_types/' + code, {active: !!active});
+    loadLeaveTypes();
+    showToast('Leave type updated', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function addLeaveType() {
+  const code = document.getElementById('newLeaveCode').value.trim().toUpperCase();
+  const label = document.getElementById('newLeaveLabel').value.trim();
+  const description = document.getElementById('newLeaveDesc').value.trim();
+  if (!code || !label) { showToast('Code and label required', 'error'); return; }
+  try {
+    await apiPost('/api/admin/leave_types', {code, label, description});
+    document.getElementById('newLeaveCode').value = '';
+    document.getElementById('newLeaveLabel').value = '';
+    document.getElementById('newLeaveDesc').value = '';
+    loadLeaveTypes();
+    showToast('Leave type added', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadLevels() {
+  try {
+    const d = await apiGet('/api/admin/levels');
+    document.getElementById('levelsTable').innerHTML = d.levels.map(l => `
+      <tr>
+        <td>${l.min_tasks}</td>
+        <td>${l.label}</td>
+        <td>
+          <span class="color-preview" style="background:${l.color}"></span>
+          <input type="color" value="${l.color}" style="width:28px;height:28px;border:none;background:none;cursor:pointer" onchange="updateLevelColor(${l.id}, this.value)">
+        </td>
+        <td><button class="btn-sm danger" onclick="deleteLevel(${l.id})">Delete</button></td>
+      </tr>`).join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function updateLevelColor(id, color) {
+  try {
+    await apiPut('/api/admin/levels/' + id, {color});
+    showToast('Level color updated', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function addLevel() {
+  const min_tasks = parseInt(document.getElementById('newLevelMinTasks').value);
+  const label = document.getElementById('newLevelLabel').value.trim();
+  const color = document.getElementById('newLevelColor').value;
+  if (isNaN(min_tasks) || !label) { showToast('Min tasks and label required', 'error'); return; }
+  try {
+    await apiPost('/api/admin/levels', {min_tasks, label, color});
+    document.getElementById('newLevelMinTasks').value = '';
+    document.getElementById('newLevelLabel').value = '';
+    loadLevels();
+    showToast('Level added', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteLevel(id) {
+  if (!confirm('Delete this level?')) return;
+  try {
+    await apiPut('/api/admin/levels/' + id, {active: 0});
+    loadLevels();
+    showToast('Level disabled', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadBadgeRules() {
+  try {
+    const d = await apiGet('/api/admin/badge_rules');
+    document.getElementById('badgeRulesTable').innerHTML = d.badge_rules.map(b => `
+      <tr>
+        <td>${b.badge_name}</td>
+        <td>${b.result_type}</td>
+        <td style="max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          <code style="font-family:'JetBrains Mono',monospace;background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:.85em">${b.sql_query}</code>
+        </td>
+        <td>${b.description || '-'}</td>
+        <td>${b.active ? 'Yes' : 'No'}</td>
+        <td>
+          <button class="btn-sm" onclick="toggleBadgeRule(${b.id}, ${b.active ? 0 : 1})">${b.active ? 'Disable' : 'Enable'}</button>
+        </td>
+      </tr>`).join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function toggleBadgeRule(id, active) {
+  try {
+    await apiPut('/api/admin/badge_rules/' + id, {active: !!active});
+    loadBadgeRules();
+    showToast('Badge rule updated', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function addBadgeRule() {
+  const badge_name = document.getElementById('newBadgeName').value.trim();
+  const result_type = document.getElementById('newBadgeResultType').value;
+  const sql_query = document.getElementById('newBadgeSql').value.trim();
+  const description = document.getElementById('newBadgeDesc').value.trim() || null;
+  if (!badge_name || !result_type || !sql_query) { showToast('Name, result type and SQL query required', 'error'); return; }
+  try {
+    await apiPost('/api/admin/badge_rules', {badge_name, result_type, sql_query, description});
+    document.getElementById('newBadgeName').value = '';
+    document.getElementById('newBadgeResultType').value = 'top';
+    document.getElementById('newBadgeSql').value = '';
+    document.getElementById('newBadgeDesc').value = '';
+    loadBadgeRules();
+    showToast('Badge rule added', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadHolidays() {
+  try {
+    const d = await apiGet('/api/holidays');
+    document.getElementById('holidaysTable').innerHTML = d.holidays.map(h => `
+      <tr>
+        <td>${h.date}</td>
+        <td>${h.name}</td>
+        <td><button class="btn-sm danger" onclick="deleteHoliday(${h.id})">Delete</button></td>
+      </tr>`).join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function addHoliday() {
+  const date = document.getElementById('newHolidayDate').value;
+  const name = document.getElementById('newHolidayName').value.trim().toLowerCase();
+  if (!date || !name) { showToast('Date and name required', 'error'); return; }
+  try {
+    const form = new FormData();
+    form.append('date', date);
+    form.append('name', name);
+    const r = await fetch('/api/holidays', {method:'POST', body:form});
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed');
+    document.getElementById('newHolidayDate').value = '';
+    document.getElementById('newHolidayName').value = '';
+    loadHolidays();
+    showToast('Holiday added', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteHoliday(id) {
+  if (!confirm('Delete this holiday?')) return;
+  try {
+    await apiDelete('/api/holidays/' + id);
+    loadHolidays();
+    showToast('Holiday deleted', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadMembers() {
+  try {
+    const d = await apiGet('/api/admin/members');
+    document.getElementById('membersTable').innerHTML = d.members.map(m => `
+      <tr>
+        <td>${m.name}</td>
+        <td>${m.join_date || '-'}</td>
+        <td>${m.active ? 'Yes' : 'No'}</td>
+        <td>
+          <button class="btn-sm ${m.active ? 'danger' : 'success'}" onclick="toggleMember('${m.name}', ${m.active ? 0 : 1})">${m.active ? 'Disable' : 'Enable'}</button>
+          <button class="btn-sm danger" onclick="deleteMember('${m.name}')">Delete</button>
+        </td>
+      </tr>`).join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadModules() {
+  try {
+    const d = await apiGet('/api/admin/modules');
+    document.getElementById('modulesTable').innerHTML = d.modules.map(m => `
+      <tr>
+        <td><code style="font-family:'JetBrains Mono',monospace;background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:.85em">${m.code}</code></td>
+        <td>${m.label}</td>
+        <td><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:${m.color || '#ccc'};vertical-align:middle;margin-right:6px"></span>${m.color || '#ccc'}</td>
+        <td>${m.active ? '<span style="color:var(--green);font-weight:600">Yes</span>' : '<span style="color:var(--red)">No</span>'}</td>
+        <td>
+          <button class="btn-sm" onclick="toggleModule('${m.code}', ${!m.active})">${m.active ? 'Disable' : 'Enable'}</button>
+          <button class="btn-sm" onclick="deleteModule('${m.code}')" style="background:var(--red);color:#fff;margin-left:6px">Delete</button>
+        </td>
+      </tr>`).join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function addModule() {
+  const code = document.getElementById('newModuleCode').value.trim().toLowerCase();
+  const label = document.getElementById('newModuleLabel').value.trim();
+  const color = document.getElementById('newModuleColor').value;
+  if (!code || !label) { showToast('Code and label are required', 'error'); return; }
+  try {
+    await apiPost('/api/admin/modules', { code, label, color });
+    document.getElementById('newModuleCode').value = '';
+    document.getElementById('newModuleLabel').value = '';
+    loadModules();
+    showToast('Module added', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function toggleModule(code, active) {
+  try {
+    await apiPut('/api/admin/modules/' + code, { active });
+    loadModules();
+    showToast('Module updated', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteModule(code) {
+  if (!confirm('Delete module "' + code + '"? This cannot be undone.')) return;
+  try {
+    await apiDelete('/api/admin/modules/' + code);
+    loadModules();
+    showToast('Module deleted', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function toggleMember(name, active) {
+  try {
+    await apiPut('/api/admin/members/' + name, {active: !!active});
+    loadMembers();
+    showToast('Member updated', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteMember(name) {
+  if (!confirm('Delete member ' + name + '? This will also remove all their updates and leave records.')) return;
+  try {
+    await apiDelete('/api/admin/members/' + name);
+    loadMembers();
+    showToast('Member deleted', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadUpdates() {
+  try {
+    const nameFilter = document.getElementById('filterUpdateName').value.trim();
+    const statusFilter = document.getElementById('filterUpdateStatus').value;
+    let url = '/api/admin/updates';
+    if (nameFilter) url += '&name=' + encodeURIComponent(nameFilter);
+    if (statusFilter) url += '&status=' + encodeURIComponent(statusFilter);
+    const d = await apiGet(url);
+    document.getElementById('updatesTable').innerHTML = d.updates.map(u => `
+      <tr>
+        <td>${u.id}</td>
+        <td>${u.date}</td>
+        <td>${u.name}</td>
+        <td>${u.module || '-'}</td>
+        <td><span class="badge ${u.status}" style="text-transform:capitalize">${u.status.replace('_',' ')}</span></td>
+        <td>${u.description}</td>
+        <td><button class="btn-sm danger" onclick="deleteUpdate(${u.id})">Delete</button></td>
+      </tr>`).join('');
+    if (d.updates.length === 0) document.getElementById('updatesTable').innerHTML = '<tr><td colspan="7" class="empty-state">No updates found</td></tr>';
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteUpdate(id) {
+  if (!confirm('Delete this update?')) return;
+  try {
+    await apiDelete('/api/admin/updates/' + id);
+    loadUpdates();
+    showToast('Update deleted', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+checkAuth();
+</script>
+</body>
+</html>

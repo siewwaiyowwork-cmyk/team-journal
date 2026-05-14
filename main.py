@@ -13,6 +13,21 @@ import random
 
 import io
 import csv
+import time
+
+_CACHE = {}
+_CACHE_TTL_SECONDS = 300
+
+def get_cached(key):
+    now = time.time()
+    if key in _CACHE:
+        ts, data = _CACHE[key]
+        if now - ts < _CACHE_TTL_SECONDS:
+            return data
+    return None
+
+def set_cached(key, data):
+    _CACHE[key] = (time.time(), data)
 
 app = FastAPI(title="Scoreboard API")
 
@@ -1529,16 +1544,20 @@ def get_missing_progress():
 
 @app.get("/api/fun-facts")
 def get_fun_facts():
+    cache_key = 'fun-facts'
+    cached = get_cached(cache_key)
+    if cached is not None:
+        return cached
     today = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
     members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 ORDER BY name").fetchall()]
     facts = []
     used_names = set()
 
-    def add_fact(emoji, title, reason, person=None):
-        if person and person in used_names:
+    def add_fact(emoji, title, reason, person=None, allow_duplicate=False):
+        if person and person in used_names and not allow_duplicate:
             return False
-        if person:
+        if person and not allow_duplicate:
             used_names.add(person)
         facts.append({"emoji": emoji, "title": title, "reason": reason, "person": person})
         return True
@@ -2647,9 +2666,627 @@ def get_fun_facts():
     if rows and rows[0][0] not in used_names:
         add_fact("👑", "Legend", f"{rows[0][0]} is a legend with {rows[0][1]} updates and {rows[0][2]}% done rate", rows[0][0])
 
+    # === G. RELATIONSHIP PATTERNS (30) ===
+
+    # --- Mention-Based (10) ---
+
+    # 1. Name Dropper - Who mentions other members names in descriptions most
+    mention_rows = conn.execute("""
+        SELECT name, description FROM updates
+        WHERE status != 'leave' ORDER BY created_at DESC LIMIT 500
+    """).fetchall()
+    mention_counts = {}
+    mentioned_counts = {}
+    pair_mentions = {}
+    mention_dates = {}
+    ghost_mentions = {}
+    done_mentions = {}
+    collab_tags = {}
+    fan_club = {}
+    daily_mentions = {}
+    weekend_mentions = {}
+
+    member_names_lower = {m.lower(): m for m in members}
+
+    for updater, desc in mention_rows:
+        if not desc or updater not in members:
+            continue
+        desc_lower = desc.lower()
+        updater_lower = updater.lower()
+        found_names = set()
+        for m_lower, m_orig in member_names_lower.items():
+            if m_lower != updater_lower and m_lower in desc_lower:
+                found_names.add(m_orig)
+        mention_counts[updater] = mention_counts.get(updater, 0) + len(found_names)
+        for name in found_names:
+            mentioned_counts[name] = mentioned_counts.get(name, 0) + 1
+            pair_key = tuple(sorted([updater, name]))
+            pair_mentions[pair_key] = pair_mentions.get(pair_key, 0) + 1
+            date_key = (updater, name)
+            if date_key not in mention_dates:
+                mention_dates[date_key] = []
+            row_date = conn.execute("SELECT date FROM updates WHERE name = ? AND description LIKE ? AND status != 'leave' ORDER BY created_at DESC LIMIT 1", (updater, f'%{name}%')).fetchone()
+            if row_date:
+                mention_dates[date_key].append(row_date[0])
+            ghost_mentions[updater] = ghost_mentions.get(updater, 0) + len(found_names)
+            done_mentions[updater] = done_mentions.get(updater, 0) + len(found_names) if conn.execute("SELECT 1 FROM updates WHERE name = ? AND description LIKE ? AND status = 'done' LIMIT 1", (updater, f'%{name}%')).fetchone() else done_mentions.get(updater, 0)
+            if updater not in collab_tags:
+                collab_tags[updater] = set()
+            collab_tags[updater].add(name)
+            if name not in fan_club:
+                fan_club[name] = set()
+            fan_club[name].add(updater)
+
+    # Recompute done_mentions properly from status=done rows
+    done_mention_rows = conn.execute("""
+        SELECT name, description FROM updates
+        WHERE status = 'done' AND description IS NOT NULL
+        ORDER BY created_at DESC LIMIT 500
+    """).fetchall()
+    done_mentions = {}
+    for updater, desc in done_mention_rows:
+        if not desc or updater not in members:
+            continue
+        desc_lower = desc.lower()
+        count = 0
+        for m_lower, m_orig in member_names_lower.items():
+            if m_lower != updater.lower() and m_lower in desc_lower:
+                count += 1
+        if count > 0:
+            done_mentions[updater] = done_mentions.get(updater, 0) + count
+
+    # Recompute weekend mentions
+    weekend_mention_rows = conn.execute("""
+        SELECT name, description, strftime('%w', created_at) as dow FROM updates
+        WHERE status != 'leave' AND description IS NOT NULL
+        AND (strftime('%w', created_at) = '0' OR strftime('%w', created_at) = '6')
+        ORDER BY created_at DESC LIMIT 500
+    """).fetchall()
+    weekend_mentions = {}
+    for updater, desc, dow in weekend_mention_rows:
+        if not desc or updater not in members:
+            continue
+        desc_lower = desc.lower()
+        count = 0
+        for m_lower, m_orig in member_names_lower.items():
+            if m_lower != updater.lower() and m_lower in desc_lower:
+                count += 1
+        if count > 0:
+            weekend_mentions[updater] = weekend_mentions.get(updater, 0) + count
+
+    # Daily shoutout - most mentions in a single day
+    daily_mention_rows = conn.execute("""
+        SELECT name, description, date FROM updates
+        WHERE status != 'leave' AND description IS NOT NULL
+        ORDER BY created_at DESC LIMIT 500
+    """).fetchall()
+    daily_mentions = {}
+    for updater, desc, dt in daily_mention_rows:
+        if not desc or updater not in members:
+            continue
+        desc_lower = desc.lower()
+        count = 0
+        for m_lower, m_orig in member_names_lower.items():
+            if m_lower != updater.lower() and m_lower in desc_lower:
+                count += 1
+        if count > 0:
+            key = (updater, dt)
+            daily_mentions[key] = daily_mentions.get(key, 0) + count
+
+    # 1. Name Dropper
+    name_dropper = max(mention_counts, key=mention_counts.get) if mention_counts else None
+    if name_dropper:
+        add_fact("📢", "Name Dropper", f"{name_dropper} mentions other members by name the most ({mention_counts[name_dropper]} mentions)", name_dropper, allow_duplicate=True)
+
+    # 2. Most Mentioned
+    most_mentioned = max(mentioned_counts, key=mentioned_counts.get) if mentioned_counts else None
+    if most_mentioned:
+        add_fact("⭐", "Most Mentioned", f"{most_mentioned} is mentioned by others the most ({mentioned_counts[most_mentioned]} times)", most_mentioned, allow_duplicate=True)
+
+    # 3. Shoutout Duo
+    if pair_mentions:
+        top_pair = max(pair_mentions, key=pair_mentions.get)
+        top_pair_cnt = pair_mentions[top_pair]
+        add_fact("🤝", "Shoutout Duo", f"{top_pair[0]} and {top_pair[1]} mention each other the most ({top_pair_cnt} cross-mentions)", allow_duplicate=True)
+
+    # 4. Mention Streak - longest consecutive days A mentions B
+    streak_data = conn.execute("""
+        SELECT a.name AS updater, b.name AS mentioned, a.date,
+               GROUP_CONCAT(a.date) OVER (PARTITION BY a.name, b.name ORDER BY a.date) as dates_str
+        FROM updates a, members b
+        WHERE a.status != 'leave' AND a.description IS NOT NULL
+        AND LOWER(b.name) != LOWER(a.name)
+        AND LOWER(a.description) LIKE '%' || LOWER(b.name) || '%'
+        ORDER BY a.name, b.name, a.date
+    """).fetchall()
+    mention_streak_map = {}
+    for row in streak_data:
+        key = (row[0], row[1])
+        if key not in mention_streak_map:
+            mention_streak_map[key] = []
+        if row[2] not in mention_streak_map[key]:
+            mention_streak_map[key].append(row[2])
+    best_streak_pair = None
+    best_streak_len = 0
+    for (updater, mentioned), dates in mention_streak_map.items():
+        dates_sorted = sorted(set(dates))
+        current = 1
+        best = 1
+        for i in range(1, len(dates_sorted)):
+            d_prev = datetime.strptime(dates_sorted[i-1], '%Y-%m-%d')
+            d_curr = datetime.strptime(dates_sorted[i], '%Y-%m-%d')
+            if (d_curr - d_prev).days == 1:
+                current += 1
+                best = max(best, current)
+            else:
+                current = 1
+        if best > best_streak_len:
+            best_streak_len = best
+            best_streak_pair = (updater, mentioned)
+    if best_streak_pair and best_streak_len > 1:
+        add_fact("🔥", "Mention Streak", f"{best_streak_pair[0]} mentioned {best_streak_pair[1]} for {best_streak_len} consecutive days", allow_duplicate=True)
+
+    # 5. Ghost Writer - mentions others but never mentioned back
+    ghost_candidates = {}
+    for updater in mention_counts:
+        mentioned_back = mentioned_counts.get(updater, 0)
+        if mentioned_back == 0 and mention_counts[updater] > 0:
+            ghost_candidates[updater] = mention_counts[updater]
+    ghost_writer = max(ghost_candidates, key=ghost_candidates.get) if ghost_candidates else None
+    if ghost_writer:
+        add_fact("👻", "Ghost Writer", f"{ghost_writer} mentions others {ghost_candidates[ghost_writer]} times but is never mentioned back", ghost_writer, allow_duplicate=True)
+
+    # 6. Thank You Note - most mentions in done tasks
+    thank_you = max(done_mentions, key=done_mentions.get) if done_mentions else None
+    if thank_you:
+        add_fact("🙏", "Thank You Note", f"{thank_you} gives credit by mentioning others most in completed tasks ({done_mentions[thank_you]} mentions)", thank_you, allow_duplicate=True)
+
+    # 7. Collaboration Tag - mentions most unique coworkers
+    collab_tag_winner = None
+    collab_tag_count = 0
+    for name, tag_set in collab_tags.items():
+        if len(tag_set) > collab_tag_count:
+            collab_tag_count = len(tag_set)
+            collab_tag_winner = name
+    if collab_tag_winner:
+        add_fact("🏷️", "Collaboration Tag", f"{collab_tag_winner} mentions the most unique coworkers ({collab_tag_count} different people)", collab_tag_winner, allow_duplicate=True)
+
+    # 8. Fan Club - mentioned by most unique members
+    fan_club_winner = None
+    fan_club_count = 0
+    for name, fan_set in fan_club.items():
+        if len(fan_set) > fan_club_count:
+            fan_club_count = len(fan_set)
+            fan_club_winner = name
+    if fan_club_winner:
+        add_fact("🎪", "Fan Club", f"{fan_club_winner} is mentioned by the most unique members ({fan_club_count} different people)", fan_club_winner, allow_duplicate=True)
+
+    # 9. Daily Shoutout - most mentions of others in a single day
+    daily_shoutout = max(daily_mentions, key=daily_mentions.get) if daily_mentions else None
+    if daily_shoutout:
+        add_fact("📣", "Daily Shoutout", f"{daily_shoutout[0]} gave {daily_mentions[daily_shoutout]} shoutouts on {daily_shoutout[1]}", daily_shoutout[0], allow_duplicate=True)
+
+    # 10. Weekend Shoutout - mentions others on weekends most
+    weekend_shouter = max(weekend_mentions, key=weekend_mentions.get) if weekend_mentions else None
+    if weekend_shouter:
+        add_fact("🏖️", "Weekend Shoutout", f"{weekend_shouter} mentions others on weekends the most ({weekend_mentions[weekend_shouter]} weekend mentions)", weekend_shouter, allow_duplicate=True)
+
+    # --- Module-Based (10) ---
+
+    module_rows = conn.execute("""
+        SELECT module, date, name FROM updates
+        WHERE module != '' AND module IS NOT NULL AND status != 'leave'
+        ORDER BY module, date, name
+    """).fetchall()
+
+    # Build module-date groups: {(module, date): set(names)}
+    module_date_groups = {}
+    name_modules = {}
+    name_module_dates = {}
+    pair_module_dates = {}
+    name_module_pairs = {}
+    name_solo_days = {}
+    name_total_days = {}
+    all_names_with_modules = set()
+    all_modules_set = set()
+
+    for module, date, name in module_rows:
+        key = (module, date)
+        if key not in module_date_groups:
+            module_date_groups[key] = set()
+        module_date_groups[key].add(name)
+        all_names_with_modules.add(name)
+        all_modules_set.add(module)
+        if name not in name_modules:
+            name_modules[name] = set()
+        name_modules[name].add(module)
+        if name not in name_module_dates:
+            name_module_dates[name] = {}
+        name_module_dates[name].setdefault(module, set()).add(date)
+        if name not in name_total_days:
+            name_total_days[name] = 0
+        name_total_days[name] += 1
+
+    # 11. Dynamic Duo - pair who worked same module on same date most
+    pair_same_count = {}
+    for (module, date), names in module_date_groups.items():
+        if len(names) < 2:
+            continue
+        for n1 in names:
+            for n2 in names:
+                if n1 >= n2:
+                    continue
+                pair_key = (n1, n2)
+                pair_same_count[pair_key] = pair_same_count.get(pair_key, 0) + 1
+                if pair_key not in pair_module_dates:
+                    pair_module_dates[pair_key] = {}
+                pair_module_dates[pair_key].setdefault(module, set()).add(date)
+                if pair_key not in name_module_pairs:
+                    name_module_pairs[pair_key] = set()
+                name_module_pairs[pair_key].add(module)
+
+    if pair_same_count:
+        dynamic_duo = max(pair_same_count, key=pair_same_count.get)
+        add_fact("👯", "Dynamic Duo", f"{dynamic_duo[0]} and {dynamic_duo[1]} worked the same module on the same day {pair_same_count[dynamic_duo]} times", allow_duplicate=True)
+
+    # 12. Project Twins - most overlapping module+date work
+    overlap_count = {}
+    for (module, date), names in module_date_groups.items():
+        for n1 in names:
+            for n2 in names:
+                if n1 >= n2:
+                    continue
+                pair_key = (n1, n2)
+                overlap_count[pair_key] = overlap_count.get(pair_key, 0) + 1
+    if overlap_count:
+        twins = max(overlap_count, key=overlap_count.get)
+        add_fact("🔬", "Project Twins", f"{twins[0]} and {twins[1]} have the most overlapping module+date work ({overlap_count[twins]} overlaps)", allow_duplicate=True)
+
+    # 13. Solo Artist - highest % of solo module days
+    solo_pct = {}
+    for name in all_names_with_modules:
+        total = name_total_days.get(name, 0)
+        if total == 0:
+            continue
+        solo = 0
+        for module in name_module_dates.get(name, {}):
+            for date in name_module_dates[name][module]:
+                key = (module, date)
+                if len(module_date_groups.get(key, set())) == 1:
+                    solo += 1
+        solo_pct[name] = round(solo * 100 / total, 1)
+    solo_artist = max(solo_pct, key=solo_pct.get) if solo_pct else None
+    if solo_artist:
+        add_fact("🎨", "Solo Artist", f"{solo_artist} works alone the most ({solo_pct[solo_artist]}% solo module days)", solo_artist, allow_duplicate=True)
+
+    # 14. Team Player - shares modules with most unique coworkers
+    team_player_count = {}
+    for name in all_names_with_modules:
+        coworkers = set()
+        for module in name_modules.get(name, set()):
+            for date in name_module_dates.get(name, {}).get(module, set()):
+                key = (module, date)
+                for n in module_date_groups.get(key, set()):
+                    if n != name:
+                        coworkers.add(n)
+        team_player_count[name] = len(coworkers)
+    team_player = max(team_player_count, key=team_player_count.get) if team_player_count else None
+    if team_player:
+        add_fact("🤜", "Team Player", f"{team_player} shares modules with the most unique coworkers ({team_player_count[team_player]} people)", team_player, allow_duplicate=True)
+
+    # 15. Module Matchmaker - module with most unique collaborator pairs
+    module_pairs = {}
+    for (module, date), names in module_date_groups.items():
+        for n1 in names:
+            for n2 in names:
+                if n1 >= n2:
+                    continue
+                if module not in module_pairs:
+                    module_pairs[module] = set()
+                module_pairs[module].add((n1, n2))
+    matchmaker_module = max(module_pairs, key=lambda m: len(module_pairs[m])) if module_pairs else None
+    if matchmaker_module:
+        add_fact("💕", "Module Matchmaker", f"{matchmaker_module} brings together the most unique collaborator pairs ({len(module_pairs[matchmaker_module])} pairs)", allow_duplicate=True)
+
+    # 16. Handoff King - done follows another in_progress on same module
+    task_flow_rows = conn.execute("""
+        SELECT name, module, date, status, id FROM updates
+        WHERE module != '' AND module IS NOT NULL
+        AND status IN ('in_progress', 'done', 'blocked')
+        ORDER BY module, date, id
+    """).fetchall()
+
+    handoff_counts = {}
+    module_status_by_date = {}
+    for name, module, date, status, uid in task_flow_rows:
+        key = (module, date)
+        if key not in module_status_by_date:
+            module_status_by_date[key] = []
+        module_status_by_date[key].append((name, status, uid))
+
+    for key, entries in module_status_by_date.items():
+        for i in range(1, len(entries)):
+            prev = entries[i-1]
+            curr = entries[i]
+            if prev[1] == 'in_progress' and curr[1] == 'done' and prev[0] != curr[0]:
+                handoff_key = curr[0]
+                handoff_counts[handoff_key] = handoff_counts.get(handoff_key, 0) + 1
+
+    handoff_king = max(handoff_counts, key=handoff_counts.get) if handoff_counts else None
+    if handoff_king:
+        add_fact("接力", "Handoff King", f"{handoff_king} picks up and completes the most tasks started by others on the same module ({handoff_counts[handoff_king]} handoffs)", handoff_king, allow_duplicate=True)
+
+    # 17. Bug Buddies - worked same module within 2 days of each other most
+    buddy_count = {}
+    pair_dates_in_module = {}
+    for name in all_names_with_modules:
+        for name2 in all_names_with_modules:
+            if name >= name2:
+                continue
+            pair_key = (name, name2)
+            pair_dates_in_module[pair_key] = set()
+            for module in name_modules.get(name, set()) & name_modules.get(name2, set()):
+                for d1 in name_module_dates.get(name, {}).get(module, set()):
+                    for d2 in name_module_dates.get(name2, {}).get(module, set()):
+                        d1_dt = datetime.strptime(d1, '%Y-%m-%d')
+                        d2_dt = datetime.strptime(d2, '%Y-%m-%d')
+                        if abs((d1_dt - d2_dt).days) <= 2:
+                            pair_dates_in_module[pair_key].add(module)
+
+    for pair, modules in pair_dates_in_module.items():
+        if len(modules) > 0:
+            buddy_count[pair] = len(modules)
+    bug_buddies = max(buddy_count, key=buddy_count.get) if buddy_count else None
+    if bug_buddies:
+        add_fact("🐛", "Bug Buddies", f"{bug_buddies[0]} and {bug_buddies[1]} work the same module within 2 days of each other most ({buddy_count[bug_buddies]} modules)", allow_duplicate=True)
+
+    # 18. Module Hopper - pair who worked on most different modules together
+    if name_module_pairs:
+        hopper_pair = max(name_module_pairs, key=lambda k: len(name_module_pairs[k]))
+        add_fact("🦘", "Module Hopper", f"{hopper_pair[0]} and {hopper_pair[1]} collaborate across the most modules ({len(name_module_pairs[hopper_pair])} modules)", allow_duplicate=True)
+
+    # 19. Completion Partner - most done tasks on same module+date as another
+    completion_partners = {}
+    done_rows_in_module = [r for r in module_rows if True]
+    # Group done tasks by (module, date)
+    done_module_date = {}
+    for module, date, name in module_rows:
+        key = (module, date)
+        if key not in done_module_date:
+            done_module_date[key] = set()
+        done_module_date[key].add(name)
+    # Count pair co-occurrences on same module+date
+    for key, names in done_module_date.items():
+        for n1 in names:
+            for n2 in names:
+                if n1 >= n2:
+                    continue
+                pair = tuple(sorted([n1, n2]))
+                completion_partners[pair] = completion_partners.get(pair, 0) + 1
+    if completion_partners:
+        cp_pair = max(completion_partners, key=completion_partners.get)
+        add_fact("✅", "Completion Partner", f"{cp_pair[0]} and {cp_pair[1]} complete tasks on the same module and date the most ({completion_partners[cp_pair]} times)", allow_duplicate=True)
+
+    # 20. Strangers - pair with most total work days but zero shared modules
+    stranger_candidates = {}
+    for n1 in all_names_with_modules:
+        for n2 in all_names_with_modules:
+            if n1 >= n2:
+                continue
+            shared = name_modules.get(n1, set()) & name_modules.get(n2, set())
+            if len(shared) == 0:
+                total = name_total_days.get(n1, 0) + name_total_days.get(n2, 0)
+                if total >= 10:
+                    stranger_candidates[(n1, n2)] = total
+    strangers = max(stranger_candidates, key=stranger_candidates.get) if stranger_candidates else None
+    if strangers:
+        add_fact("🌍", "Strangers", f"{strangers[0]} and {strangers[1]} have {stranger_candidates[strangers]} total work days but zero shared modules", allow_duplicate=True)
+
+    # --- Task Flow-Based (10) ---
+
+    # 21. Block Buster - resolves most blocked tasks originally by someone else
+    blocked_then_done = {}
+    prev_by_module = {}
+    for name, module, date, status, uid in task_flow_rows:
+        if not module:
+            continue
+        key = (module, date)
+        if key not in prev_by_module:
+            prev_by_module[key] = []
+        prev_by_module[key].append((name, status, uid))
+
+    for key, entries in prev_by_module.items():
+        for i in range(len(entries)):
+            if entries[i][1] == 'done':
+                for j in range(i):
+                    if entries[j][1] == 'blocked' and entries[j][0] != entries[i][0]:
+                        resolver = entries[i][0]
+                        blocked_then_done[resolver] = blocked_then_done.get(resolver, 0) + 1
+                        break
+
+    block_buster = max(blocked_then_done, key=blocked_then_done.get) if blocked_then_done else None
+    if block_buster:
+        add_fact("💥", "Block Buster", f"{block_buster} resolves the most blocked tasks originally from others ({blocked_then_done[block_buster]} times)", block_buster, allow_duplicate=True)
+
+    # 22. Rescue Ranger - most done on modules where others were blocked
+    rescue_counts = {}
+    blocked_modules = set()
+    for key, entries in prev_by_module.items():
+        for entry in entries:
+            if entry[1] == 'blocked':
+                blocked_modules.add(key[0])
+    for key, entries in prev_by_module.items():
+        module = key[0]
+        if module in blocked_modules:
+            for entry in entries:
+                if entry[1] == 'done':
+                    rescue_counts[entry[0]] = rescue_counts.get(entry[0], 0) + 1
+
+    rescue_ranger = max(rescue_counts, key=rescue_counts.get) if rescue_counts else None
+    if rescue_ranger:
+        add_fact("🦸", "Rescue Ranger", f"{rescue_ranger} completes the most tasks on modules where others got blocked ({rescue_counts[rescue_ranger]} times)", rescue_ranger, allow_duplicate=True)
+
+    # 23. Tag Team - A starts in_progress and B finishes done most
+    tag_team_counts = {}
+    for key, entries in prev_by_module.items():
+        for i in range(len(entries)):
+            if entries[i][1] == 'done':
+                for j in range(i):
+                    if entries[j][1] == 'in_progress' and entries[j][0] != entries[i][0]:
+                        pair = (entries[j][0], entries[i][0])
+                        tag_team_counts[pair] = tag_team_counts.get(pair, 0) + 1
+
+    if tag_team_counts:
+        tag_team_pair = max(tag_team_counts, key=tag_team_counts.get)
+        add_fact("🎭", "Tag Team", f"{tag_team_pair[0]} starts and {tag_team_pair[1]} finishes the most tasks together ({tag_team_counts[tag_team_pair]} handoffs)", allow_duplicate=True)
+
+    # 24. Parallel Universe - work same module but never on same day
+    parallel_pairs = {}
+    for n1 in all_names_with_modules:
+        for n2 in all_names_with_modules:
+            if n1 >= n2:
+                continue
+            shared_mods = name_modules.get(n1, set()) & name_modules.get(n2, set())
+            same_day_count = 0
+            for mod in shared_mods:
+                dates1 = name_module_dates.get(n1, {}).get(mod, set())
+                dates2 = name_module_dates.get(n2, {}).get(mod, set())
+                same_day_count += len(dates1 & dates2)
+            if same_day_count == 0 and len(shared_mods) >= 2:
+                parallel_pairs[(n1, n2)] = len(shared_mods)
+    parallel_pair = max(parallel_pairs, key=parallel_pairs.get) if parallel_pairs else None
+    if parallel_pair:
+        add_fact("🌌", "Parallel Universe", f"{parallel_pair[0]} and {parallel_pair[1]} work the same {parallel_pairs[parallel_pair]} modules but never on the same day", allow_duplicate=True)
+
+    # 25. Shadow Worker - submits done right after someone else blocked
+    shadow_counts = {}
+    for key, entries in prev_by_module.items():
+        for i in range(1, len(entries)):
+            if entries[i][1] == 'done' and entries[i-1][1] == 'blocked' and entries[i][0] != entries[i-1][0]:
+                shadow_counts[entries[i][0]] = shadow_counts.get(entries[i][0], 0) + 1
+    shadow_worker = max(shadow_counts, key=shadow_counts.get) if shadow_counts else None
+    if shadow_worker:
+        add_fact("👤", "Shadow Worker", f"{shadow_worker} submits done right after someone else gets blocked ({shadow_counts[shadow_worker]} times)", shadow_worker, allow_duplicate=True)
+
+    # 26. Leave Coverage - works most on days when specific others are on leave
+    leave_rows = conn.execute("SELECT name, date FROM updates WHERE status = 'leave'").fetchall()
+    leave_by_date = {}
+    for lname, ldate in leave_rows:
+        if ldate not in leave_by_date:
+            leave_by_date[ldate] = set()
+        leave_by_date[ldate].add(lname)
+
+    coverage_counts = {}
+    non_leave_rows = conn.execute("""
+        SELECT name, date FROM updates
+        WHERE status != 'leave' AND date IS NOT NULL
+    """).fetchall()
+    for wname, wdate in non_leave_rows:
+        if wdate in leave_by_date:
+            for lperson in leave_by_date[wdate]:
+                if wname != lperson:
+                    coverage_counts[(wname, lperson)] = coverage_counts.get((wname, lperson), 0) + 1
+    leave_coverage = max(coverage_counts, key=coverage_counts.get) if coverage_counts else None
+    if leave_coverage:
+        add_fact("📋", "Leave Coverage", f"{leave_coverage[0]} works most on days when {leave_coverage[1]} is on leave ({coverage_counts[leave_coverage]} times)", allow_duplicate=True)
+
+    # 27. Description Echo - pair with most similar keywords/phrases
+    import re
+    keywords = ['bug', 'fix', 'feature', 'test', 'deploy', 'review', 'meeting', 'design', 'refactor', 'update']
+    desc_rows2 = conn.execute("""
+        SELECT name, description FROM updates
+        WHERE status != 'leave' AND description IS NOT NULL
+        ORDER BY created_at DESC LIMIT 500
+    """).fetchall()
+    name_keywords = {}
+    for name, desc in desc_rows2:
+        if name not in members or not desc:
+            continue
+        desc_lower = desc.lower()
+        found = set()
+        for kw in keywords:
+            if kw in desc_lower:
+                found.add(kw)
+        if name not in name_keywords:
+            name_keywords[name] = set()
+        name_keywords[name].update(found)
+    echo_overlap = {}
+    for n1 in name_keywords:
+        for n2 in name_keywords:
+            if n1 >= n2:
+                continue
+            overlap = len(name_keywords[n1] & name_keywords[n2])
+            if overlap >= 2:
+                echo_overlap[(n1, n2)] = overlap
+    echo_pair = max(echo_overlap, key=echo_overlap.get) if echo_overlap else None
+    if echo_pair:
+        add_fact("🔄", "Description Echo", f"{echo_pair[0]} and {echo_pair[1]} use the most similar keywords in descriptions ({echo_overlap[echo_pair]} shared keywords)", allow_duplicate=True)
+
+    # 28. Ticket Sharer - pair who reference same ticket numbers/IDs
+    ticket_rows = conn.execute("""
+        SELECT name, description FROM updates
+        WHERE status != 'leave' AND description IS NOT NULL
+        ORDER BY created_at DESC LIMIT 500
+    """).fetchall()
+    name_tickets = {}
+    ticket_re = re.compile(r'[A-Z]+-\d+|#\d+|ticket\s*#?\d+', re.IGNORECASE)
+    for name, desc in ticket_rows:
+        if name not in members or not desc:
+            continue
+        tickets = set(ticket_re.findall(desc))
+        if name not in name_tickets:
+            name_tickets[name] = set()
+        name_tickets[name].update(tickets)
+    ticket_overlap = {}
+    for n1 in name_tickets:
+        for n2 in name_tickets:
+            if n1 >= n2:
+                continue
+            overlap = len(name_tickets[n1] & name_tickets[n2])
+            if overlap >= 1:
+                ticket_overlap[(n1, n2)] = overlap
+    ticket_pair = max(ticket_overlap, key=ticket_overlap.get) if ticket_overlap else None
+    if ticket_pair:
+        add_fact("🎫", "Ticket Sharer", f"{ticket_pair[0]} and {ticket_pair[1]} reference the most shared ticket IDs ({ticket_overlap[ticket_pair]} shared tickets)", allow_duplicate=True)
+
+    # 29. Speed Dating - shortest gap between two people on same module
+    speed_dating_min = None
+    speed_dating_pair = None
+    for pair_key, mod_dates in pair_module_dates.items():
+        for module, dates in mod_dates.items():
+            dates1 = name_module_dates.get(pair_key[0], {}).get(module, set())
+            dates2 = name_module_dates.get(pair_key[1], {}).get(module, set())
+            for d1 in dates1:
+                for d2 in dates2:
+                    gap = abs((datetime.strptime(d1, '%Y-%m-%d') - datetime.strptime(d2, '%Y-%m-%d')).days)
+                    if gap > 0:
+                        if speed_dating_min is None or gap < speed_dating_min:
+                            speed_dating_min = gap
+                            speed_dating_pair = (pair_key[0], pair_key[1], module)
+    if speed_dating_pair and speed_dating_min is not None:
+        add_fact("⚡", "Speed Dating", f"{speed_dating_pair[0]} and {speed_dating_pair[1]} have the shortest gap ({speed_dating_min} day{'s' if speed_dating_min != 1 else ''}) working the same module ({speed_dating_pair[2]})", allow_duplicate=True)
+
+    # 30. Long Distance - longest gap between two people on same module
+    long_distance_max = 0
+    long_distance_pair = None
+    for pair_key, mod_dates in pair_module_dates.items():
+        for module, dates in mod_dates.items():
+            dates1 = name_module_dates.get(pair_key[0], {}).get(module, set())
+            dates2 = name_module_dates.get(pair_key[1], {}).get(module, set())
+            for d1 in dates1:
+                for d2 in dates2:
+                    gap = abs((datetime.strptime(d1, '%Y-%m-%d') - datetime.strptime(d2, '%Y-%m-%d')).days)
+                    if gap > long_distance_max:
+                        long_distance_max = gap
+                        long_distance_pair = (pair_key[0], pair_key[1], module)
+    if long_distance_pair and long_distance_max > 0:
+        add_fact("🛤️", "Long Distance", f"{long_distance_pair[0]} and {long_distance_pair[1]} have the longest gap ({long_distance_max} days) working the same module ({long_distance_pair[2]})", allow_duplicate=True)
+
     conn.close()
     random.shuffle(facts)
-    return {"today": today, "facts": facts[:3]}
+    result = {"today": today, "facts": facts[:3]}
+    set_cached(cache_key, result)
+    return result
 
 
 
