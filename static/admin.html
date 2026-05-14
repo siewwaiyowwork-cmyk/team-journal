@@ -119,6 +119,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div class="nav-item" data-section="bulk_import" onclick="showSection('bulk_import')">
         <span class="nav-icon">📤</span>Bulk Import
       </div>
+      <div class="nav-item" data-section="export" onclick="showSection('export')">
+        <span class="nav-icon">📥</span>Export
+      </div>
     </nav>
     <button class="logout-btn" onclick="doLogout()">Logout</button>
   </aside>
@@ -278,16 +281,16 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <strong style="color:var(--text)">CSV Format Requirements</strong>
         <ul style="margin:8px 0 0;padding-left:18px;line-height:1.6">
           <li><b>Required columns:</b> <code>date,name,module,description,status</code></li>
-          <li><b>Optional column:</b> <code>leave_type</code> (only needed for leave status)</li>
+          <li><b>Optional columns:</b> <code>leave_type</code> (only for leave status), <code>remarks</code></li>
           <li><b>date:</b> YYYY-MM-DD format</li>
           <li><b>name:</b> Must match the selected member exactly</li>
           <li><b>status:</b> Acceptable values: <code>in_progress</code>, <code>done</code>, <code>leave</code>, <code>blocked</code>, <code>vague</code></li>
           <li>All rows for other members will be rejected</li>
         </ul>
-        <div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.75em;color:var(--text-dim);white-space:pre-wrap">date,name,module,description,status,leave_type
-2026-05-13,ain,san,Implemented new feature,done,
-2026-05-12,ain,myd,Team standup meeting,in_progress,
-2026-05-11,ain,dnp,Annual Leave,leave,AL</div>
+        <div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.75em;color:var(--text-dim);white-space:pre-wrap">date,name,module,description,status,leave_type,remarks
+2026-05-13,ain,san,Implemented new feature,done,,Enhance Nebula TA to verify issue raised by pilot banks
+2026-05-12,ain,myd,Team standup meeting,in_progress,,
+2026-05-11,ain,dnp,Annual Leave,leave,AL,</div>
         <p style="margin-top:8px;font-size:.75em;color:var(--orange)">Warning: This will permanently delete all existing updates for the selected member before importing the new records.</p>
       </div>
       <div class="form-row" style="align-items:flex-end">
@@ -301,11 +304,22 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div id="bulkImportPreview" style="margin-top:16px;display:none">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Row</th><th>Date</th><th>Name</th><th>Module</th><th>Description</th><th>Status</th><th>Leave Type</th></tr></thead>
+            <thead><tr><th>Row</th><th>Date</th><th>Name</th><th>Module</th><th>Description</th><th>Status</th><th>Leave Type</th><th>Remarks</th></tr></thead>
             <tbody id="bulkImportPreviewTable"></tbody>
           </table>
         </div>
         <p id="bulkImportSummary" style="color:var(--text-dim);font-size:.85em;margin-top:8px"></p>
+      </div>
+    </div>
+
+    <div id="section-export" class="section">
+      <h2 class="section-title">Export Member Updates</h2>
+      <p style="color:var(--text-dim);margin:-12px 0 20px;font-size:.88em">Download a member's updates as CSV so you can edit offline and re-import via Bulk Import.</p>
+      <div class="form-row" style="align-items:flex-end">
+        <select id="exportMember" class="form-select" style="max-width:220px">
+          <option value="">Select member...</option>
+        </select>
+        <button class="btn-sm" onclick="exportMemberUpdates()">Download CSV</button>
       </div>
     </div>
 
@@ -387,6 +401,7 @@ function showSection(name) {
   if (name === 'members') loadMembers();
   if (name === 'updates') loadUpdates();
   if (name === 'bulk_import') loadBulkImportMembers();
+  if (name === 'export') loadExportMembers();
 }
 
 function apiUrl(path) {
@@ -819,6 +834,14 @@ async function loadBulkImportMembers() {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
+async function loadExportMembers() {
+  try {
+    const d = await apiGet('/api/admin/members');
+    const sel = document.getElementById('exportMember');
+    sel.innerHTML = '<option value="">Select member...</option>' + d.members.map(m => '<option value="' + m.name + '">' + m.name + '</option>').join('');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) throw new Error('CSV must have header and at least 1 data row');
@@ -856,6 +879,7 @@ async function previewBulkImport() {
       <td>${r.description}</td>
       <td>${r.status}</td>
       <td>${r.leave_type || '-'}</td>
+      <td>${r.remarks || '-'}</td>
     </tr>`).join('');
 
     document.getElementById('bulkImportSummary').textContent =
@@ -891,6 +915,27 @@ async function executeBulkImport() {
     document.getElementById('bulkImportPreview').style.display = 'none';
     document.getElementById('bulkImportBtn').style.display = 'none';
     loadUpdates();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function exportMemberUpdates() {
+  const member = document.getElementById('exportMember').value;
+  if (!member) { showToast('Please select a member', 'error'); return; }
+
+  try {
+    const url = '/api/admin/export?member_name=' + encodeURIComponent(member) + '&admin_token=' + encodeURIComponent(getToken());
+    const r = await fetch(url);
+    if (!r.ok) throw new Error((await r.json()).detail || 'Export failed');
+
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = member + '_updates.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+    showToast('Exported ' + member + ' updates', 'success');
   } catch (e) { showToast(e.message, 'error'); }
 }
 

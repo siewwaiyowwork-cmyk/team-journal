@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Body, Form
+from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Body, Form, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,6 +45,11 @@ def init_db():
 
     try:
         conn.execute("ALTER TABLE leave_types ADD COLUMN active INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        conn.execute("ALTER TABLE updates ADD COLUMN days REAL DEFAULT 1.0")
     except sqlite3.OperationalError:
         pass
 
@@ -558,12 +563,6 @@ def update_entry(update_id: int, payload: dict = Body(...)):
         old = dict(row)
         set_clause = ', '.join(f"{k} = ?" for k in updates.keys())
         conn.execute(f"UPDATE updates SET {set_clause} WHERE id = ?", (*updates.values(), update_id))
-        if 'status' in updates:
-            if old['status'] == 'leave' and updates['status'] != 'leave':
-                conn.execute("DELETE FROM leave_records WHERE date = ? AND name = ?", (old['date'], old['name']))
-            elif updates['status'] == 'leave' and old['status'] != 'leave':
-                leave_type = fields.get('leave_type', 'AL')
-                conn.execute("INSERT INTO leave_records (date, name, type, days) VALUES (?, ?, ?, 1)", (old['date'], old['name'], leave_type))
         conn.execute("COMMIT")
         conn.close()
         return {"ok": True, "updated": update_id}
@@ -583,8 +582,6 @@ def delete_update(update_id: int):
             conn.close()
             raise HTTPException(status_code=404, detail="Update not found")
         old = dict(row)
-        if old['status'] == 'leave':
-            conn.execute("DELETE FROM leave_records WHERE date = ? AND name = ?", (old['date'], old['name']))
         conn.execute("DELETE FROM updates WHERE id = ?", (update_id,))
         conn.execute("COMMIT")
         conn.close()
@@ -619,16 +616,6 @@ def submit(payload: dict):
         ''', (
             date, name_lc, module_lc, desc_lc, status, leave_type, remarks
         ))
-        
-        if status == 'leave':
-            cursor.execute('''
-                INSERT INTO leave_records (date, name, type, days)
-                VALUES (?, ?, ?, ?)
-            ''', (
-                date, name_lc,
-                leave_type or 'AL',
-                1.0
-            ))
     conn.commit()
     conn.close()
     return {"ok": True, "count": len(entries)}
@@ -664,7 +651,6 @@ def remove_member(name: str):
     try:
         conn.execute("UPDATE members SET active = 0 WHERE name = ?", (name,))
         conn.execute("DELETE FROM updates WHERE name = ?", (name,))
-        conn.execute("DELETE FROM leave_records WHERE name = ?", (name,))
         conn.commit()
         conn.close()
         return {"ok": True, "message": f"Member {name} removed and records cleared"}
@@ -953,34 +939,34 @@ def get_leave(
     year: Optional[int] = None
 ):
     conn = get_db()
-    where = ['1=1']
-    params = []
+    where = ['status = ?']
+    params = ['leave']
     if name:
         where.append('name = ?')
         params.append(name)
     if year:
         where.append("strftime('%Y', date) = ?")
         params.append(str(year))
-    
+
     rows = conn.execute(
-        f"SELECT name, type, SUM(days) as total FROM leave_records WHERE {' AND '.join(where)} GROUP BY name, type",
+        f"SELECT name, leave_type as type, SUM(days) as total FROM updates WHERE {' AND '.join(where)} GROUP BY name, leave_type",
         params
     ).fetchall()
     conn.close()
-    
+
     result = []
     others_map = {}
-    
+
     for r in rows:
         d = dict(r)
         if d['type'] in ('AL', 'MC', 'EL'):
             result.append(d)
         else:
             others_map[d['name']] = others_map.get(d['name'], 0) + d['total']
-    
+
     for name, total in others_map.items():
         result.append({"name": name, "type": "Others", "total": total})
-    
+
     return {"leave": result}
 
 @app.get("/api/backup")
@@ -1023,15 +1009,13 @@ def clear_db(secret: str = Query(...), payload: dict = Body(...)):
         cursor = conn.cursor()
         cursor.execute("DELETE FROM updates")
         u_count = cursor.rowcount
-        cursor.execute("DELETE FROM leave_records")
-        l_count = cursor.rowcount
         conn.commit()
         
         journal_path = DB_PATH + "-journal"
         if os.path.exists(journal_path):
             os.remove(journal_path)
             
-        return {"ok": True, "deleted_updates": u_count, "deleted_leave": l_count, "total": u_count + l_count}
+        return {"ok": True, "deleted_updates": u_count, "total": u_count}
     finally:
         conn.close()
 
@@ -2973,7 +2957,6 @@ def admin_member_delete(name: str, admin_token: str = Query(...)):
     try:
         conn.execute("DELETE FROM members WHERE name = ?", (name,))
         conn.execute("DELETE FROM updates WHERE name = ?", (name,))
-        conn.execute("DELETE FROM leave_records WHERE name = ?", (name,))
         conn.commit()
         return {"ok": True, "deleted": name}
     except Exception as e:
@@ -3012,8 +2995,6 @@ def admin_delete_update(update_id: int, admin_token: str = Query(...)):
         if not row:
             conn.execute("ROLLBACK")
             raise HTTPException(status_code=404, detail="Update not found")
-        if row['status'] == 'leave':
-            conn.execute("DELETE FROM leave_records WHERE date = ? AND name = ?", (row['date'], row['name']))
         conn.execute("DELETE FROM updates WHERE id = ?", (update_id,))
         conn.execute("COMMIT")
         return {"ok": True, "deleted": update_id}
@@ -3107,6 +3088,34 @@ async def admin_bulk_import(
             conn.execute("ROLLBACK")
         except Exception:
             pass
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.get("/api/admin/export")
+def admin_export_updates(
+    admin_token: str = Query(...),
+    member_name: str = Query(...)
+):
+    require_admin(admin_token)
+    if not member_name:
+        raise HTTPException(status_code=400, detail="member_name is required")
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT date, name, module, description, status, leave_type, remarks FROM updates WHERE name = ? ORDER BY date DESC",
+            (member_name.lower(),)
+        ).fetchall()
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["date", "name", "module", "description", "status", "leave_type", "remarks"])
+        for r in rows:
+            writer.writerow([r[0], r[1], r[2], r[3], r[4], r[5] or "", r[6] or ""])
+        return Response(content=output.getvalue(), media_type="text/csv", headers={
+            "Content-Disposition": f'attachment; filename="{member_name}_updates.csv"'
+        })
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()

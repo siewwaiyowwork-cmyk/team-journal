@@ -18,15 +18,6 @@ CREATE TABLE IF NOT EXISTS members (
     active INTEGER DEFAULT 1
 );
 
-CREATE TABLE IF NOT EXISTS leave_records (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL,
-    name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('AL','MC','CL','EL')),
-    days REAL DEFAULT 1.0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE INDEX IF NOT EXISTS idx_updates_date ON updates(date);
 CREATE INDEX IF NOT EXISTS idx_updates_name ON updates(name);
 
@@ -41,8 +32,6 @@ CREATE TABLE IF NOT EXISTS holidays (
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 
 CREATE INDEX IF NOT EXISTS idx_updates_status ON updates(status);
-CREATE INDEX IF NOT EXISTS idx_leave_date ON leave_records(date);
-CREATE INDEX IF NOT EXISTS idx_leave_name ON leave_records(name);
 
 CREATE TABLE IF NOT EXISTS modules (
     code TEXT PRIMARY KEY,
