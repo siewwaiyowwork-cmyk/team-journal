@@ -25,6 +25,7 @@ CREATE INDEX IF NOT EXISTS idx_updates_created_at ON updates(created_at);
 CREATE INDEX IF NOT EXISTS idx_updates_module ON updates(module);
 CREATE INDEX IF NOT EXISTS idx_updates_name_status ON updates(name, status);
 CREATE INDEX IF NOT EXISTS idx_updates_date_status ON updates(date, status);
+CREATE INDEX IF NOT EXISTS idx_updates_name_date ON updates(name, date);
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
     name TEXT NOT NULL,
