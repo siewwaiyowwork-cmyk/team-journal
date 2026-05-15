@@ -4156,17 +4156,24 @@ async def import_updates(
         module = row.get('module', '').strip()
         description = row.get('description', '').strip()
         
-        if not module:
-            raise HTTPException(status_code=400, detail=f"Row {idx}: module is required")
-        if not validate_module(module.lower()):
-            raise HTTPException(status_code=400, detail=f"Row {idx}: invalid module '{module}'")
-        
-        if not description:
-            raise HTTPException(status_code=400, detail=f"Row {idx}: description is required")
-        
         status = row.get('status', '').strip().lower()
         leave_type = row.get('leave_type', '').strip().upper() or None
         remarks = row.get('remarks', '').strip()
+
+        if status != 'leave':
+            if not module:
+                raise HTTPException(status_code=400, detail=f"Row {idx}: module is required")
+            module_lower = module.lower()
+            if not validate_module(module_lower):
+                # Auto-register missing module so imports are not blocked
+                conn.execute(
+                    "INSERT OR IGNORE INTO modules (code, label, color, active) VALUES (?, ?, ?, ?)",
+                    (module_lower, module_lower, '#ccc', 1)
+                )
+                conn.commit()
+        
+        if not description:
+            raise HTTPException(status_code=400, detail=f"Row {idx}: description is required")
 
         if not date_str or not name:
             raise HTTPException(status_code=400, detail=f"Row {idx}: date and name are required")
