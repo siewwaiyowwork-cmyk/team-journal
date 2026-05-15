@@ -991,14 +991,15 @@ def get_summary(
                 LIMIT 10
             )
             SELECT u.name, wd.cal_date as date,
-                   CASE WHEN COUNT(u.id) > 0 THEN 'ok' ELSE 'missing' END as status
+                   CASE WHEN COUNT(u.id) > 0 THEN 'ok' ELSE 'missing' END as status,
+                   COUNT(u.id) as task_count
             FROM working_days wd
             LEFT JOIN updates u ON u.name IN ({placeholders}) AND u.date = wd.cal_date
             GROUP BY wd.cal_date, u.name
             ORDER BY wd.cal_date DESC
         ''', (*member_names,)).fetchall()
         for r in activity_rows:
-            activity_by_member.setdefault(r['name'], []).append({'date': r['date'], 'status': r['status']})
+            activity_by_member.setdefault(r['name'], []).append({'date': r['date'], 'status': r['status'], 'task_count': r['task_count']})
 
     personality_by_member = {}
     if member_names:

@@ -1736,6 +1736,7 @@ function launchConfetti(x,y){
             const rankClass = rank===1?'g1':rank===2?'g2':rank===3?'g3':'';
             const lastUpdateDate = m.recent && m.recent.length > 0 ? m.recent[0].date : null;
             const activeCount = m.activity.filter(function(d){ return d.status !== 'missing'; }).length;
+            const totalTasks = m.activity.reduce(function(sum, d){ return sum + (d.task_count || 0); }, 0);
             const activePct = activeCount / m.activity.length;
             let statusText, statusColor, statusEmoji;
             if(activePct >= getConfig('activity_godlike', 0.9)){ statusText='GODLIKE'; statusColor='var(--green)'; statusEmoji='🔥'; }
@@ -1745,35 +1746,8 @@ function launchConfetti(x,y){
             else{ statusText='FOSSIL'; statusColor='var(--bronze)'; statusEmoji='🦴'; }
             if(activePct >= getConfig('activity_active', 0.6)) fireCards.push(m.name);
             
-            const recentHtml = (m.recent||[]).slice(0,5).map(r=>{
-                const st = (r.status||'').toLowerCase();
-                const ss = getStatusStyle(r.status);
-                const descClass = st==='vague'?'vague':'';
-                const statusLabel = ss.label;
-                return `<div class="task-entry"><span class="task-date">${r.date.slice(5)}</span><span class="task-text ${descClass}">${r.description}</span><span class="task-status-pill ${r.status}">${statusLabel}</span></div>`;
-            }).join('');
-            
-            const modHtml = (m.modules||[]).map(mod=>`<span class="ov-mod">${mod.module} <span class="cnt">${mod.cnt}</span></span>`).join('');
-            
-            const badgeGrid = (m.badges||{});
-            let bdgHtml = '';
-            if(badgeGrid.ok > 0) bdgHtml += `<span class="bdg bdg-gr" title="${badgeGrid.ok} specific">OK</span>`.repeat(Math.min(badgeGrid.ok,9));
-            if(badgeGrid.vg > 0) bdgHtml += `<span class="bdg bdg-or" title="${badgeGrid.vg} vague">VG</span>`.repeat(Math.min(badgeGrid.vg,3));
-            if(badgeGrid.lv > 0) bdgHtml += `<span class="bdg bdg-gy" title="${badgeGrid.lv} leave">LV</span>`.repeat(Math.min(badgeGrid.lv,3));
-            
-            let activityHtml = '';
-            if(m.activity && m.activity.length){
-                m.activity.forEach(function(day){
-                    if(day.status === 'missing') activityHtml += `<span class="bdg bdg-rd" title="${day.date} missing">MS</span>`;
-                    else activityHtml += `<span class="bdg bdg-gr" title="${day.date} updated">OK</span>`;
-                });
-            }
-            
-            const hourly = m.hourly_personality;
-            const hourlyBadge = hourly ? `<span class="bdg" style="background:${hourly.color}20;color:${hourly.color};border:1px solid ${hourly.color}" title="Peak activity hour in the last 10 days">${hourly.emoji} ${hourly.label}</span>` : '';
-            
             // RPG Stats calculations
-            const focusPct = Math.round(activePct * 100);
+            const focusPct = Math.min(100, Math.round((totalTasks / Math.max(1, activeCount)) * 40));
             const agilityPct = Math.max(0, Math.round(100 - ((m.ip_done_ratio || 0) * 10)));
             const blockedRate = m.blocked ? Math.round((m.blocked / Math.max(1, m.done + m.in_progress + m.blocked)) * 100) : 0;
             const defensePct = Math.max(0, 100 - blockedRate);
@@ -1799,7 +1773,7 @@ function launchConfetti(x,y){
                         <div class="rpg-stat-bar"><div class="rpg-stat-fill stamina" style="width:${m.attendance_pct || 0}%"></div></div>
                         <span class="rpg-stat-val">${m.attendance_pct || 0}</span>
                     </div>
-                    <div class="rpg-stat" title="Focus: ${activeCount} active days / 10 tracked days = ${focusPct}% (last 10 workdays)">
+                    <div class="rpg-stat" title="Focus: ${totalTasks} tasks / ${activeCount} active days = ${focusPct}% (avg tasks per day x 40, capped at 100)">
                         <span class="rpg-stat-label">🎯 FCS</span>
                         <div class="rpg-stat-bar"><div class="rpg-stat-fill focus" style="width:${focusPct}%"></div></div>
                         <span class="rpg-stat-val">${focusPct}</span>
@@ -2845,10 +2819,18 @@ function launchConfetti(x,y){
         const supportCount = updates.filter(u => u.status !== 'leave' && u.module === 'support').length;
         const supportRate = actionableTotal > 0 ? Math.round((supportCount / actionableTotal) * 1000) / 10 : 0;
 
+        const recentWorkUpdates = updates.filter(u => u.status !== 'leave' && u.status !== 'vague');
+        const tasksByDate = {};
+        recentWorkUpdates.forEach(u => { tasksByDate[u.date] = (tasksByDate[u.date] || 0) + 1; });
+        const recentDates = Object.keys(tasksByDate).sort().slice(-10);
+        const activeDays = recentDates.length;
+        const totalRecentTasks = recentDates.reduce((sum, d) => sum + (tasksByDate[d] || 0), 0);
+        const focusPct = Math.min(100, Math.round((totalRecentTasks / Math.max(1, activeDays)) * 40));
+
         const monsterStats = window._monsterCache && window._monsterCache[name] ? window._monsterCache[name] : {
             atk: Math.min(100, Math.round(completionRate)),
             stm: Math.min(100, Math.round(attendancePct)),
-            fcs: Math.min(100, Math.round(updates.filter(u => u.status !== 'leave' && u.status !== 'vague').slice(-10).length * 10)),
+            fcs: focusPct,
             agi: Math.max(0, Math.round(100 - (ipDoneRatio * 10))),
             sup: Math.min(100, Math.round(supportRate))
         };
