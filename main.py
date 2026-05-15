@@ -889,6 +889,18 @@ def get_summary(
 
     member_names = [r['name'] for r in rows]
 
+    unique_dates_by_member = {}
+    if member_names:
+        placeholders = ','.join('?' * len(member_names))
+        ud_rows = conn.execute(f'''
+            SELECT name, COUNT(DISTINCT date) as unique_days
+            FROM updates
+            WHERE name IN ({placeholders}) AND date BETWEEN ? AND ?
+            GROUP BY name
+        ''', (*member_names, from_date, to_date)).fetchall()
+        for r in ud_rows:
+            unique_dates_by_member[r['name']] = r['unique_days']
+
     recent_by_member = {}
     if member_names:
         placeholders = ','.join('?' * len(member_names))
@@ -1052,7 +1064,8 @@ def get_summary(
     members = []
     for r in rows:
         d = dict(r)
-        d['attendance_pct'] = round((d['total'] / max(total_workdays, 1)) * 100, 1) if total_workdays else 0
+        unique_days = unique_dates_by_member.get(d['name'], 0)
+        d['attendance_pct'] = round((unique_days / max(total_workdays, 1)) * 100, 1) if total_workdays else 0
         d['specificity'] = round((d['specific'] / max(d['total'] - d['leave_days'], 1)) * 100, 1) if (d['total'] - d['leave_days']) > 0 else 0
         d['badge'] = 'S' if d['specificity'] >= get_config_int('specificity_s', 95) else 'A' if d['specificity'] >= get_config_int('specificity_a', 85) else 'B' if d['specificity'] >= get_config_int('specificity_b', 70) else 'C' if d['specificity'] >= get_config_int('specificity_c', 50) else 'F'
 
