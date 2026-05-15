@@ -39,6 +39,10 @@ def get_cached_ttl(key, ttl):
             return data
     return None
 
+def clear_cached(key):
+    if key in _CACHE:
+        del _CACHE[key]
+
 app = FastAPI(title="Scoreboard API")
 
 app.add_middleware(
@@ -1286,7 +1290,7 @@ def get_goals(
         year = now.year
     if month is None:
         month = now.month
-    target = 50
+    target = get_config_int('goal_target', 50)
     month_start = f"{year}-{month:02d}-01"
     if month == 12:
         month_end = f"{year + 1}-01-01"
@@ -3649,6 +3653,9 @@ def admin_config_update(key: str, payload: dict = Body(...), admin_token: str = 
         raise HTTPException(status_code=400, detail="value is required")
     description = payload.get("description")
     set_config(key, value, description)
+    clear_config_cache()
+    if key == 'goal_target':
+        clear_cached('goals')
     return {"ok": True, "key": key, "value": value}
 
 @app.get("/api/admin/statuses")
