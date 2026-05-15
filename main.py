@@ -731,16 +731,21 @@ def submit(payload: dict):
         desc_lc = str(e.get('description','')).lower().strip()
         remarks = str(e.get('remarks','')).strip()
         
-        if not module_lc:
-            raise HTTPException(status_code=400, detail="Module is required")
-        if not validate_module(module_lc):
-            raise HTTPException(status_code=400, detail=f"Invalid module: '{module_lc}'")
+        if status != 'leave':
+            if not module_lc:
+                raise HTTPException(status_code=400, detail="Module is required")
+            if not validate_module(module_lc):
+                raise HTTPException(status_code=400, detail=f"Invalid module: '{module_lc}'")
         
         if not desc_lc:
             raise HTTPException(status_code=400, detail="Description is required")
         
         if not validate_status(status):
             raise HTTPException(status_code=400, detail=f"Invalid status: '{status}'")
+        
+        if leave_type and status == 'leave':
+            if not validate_leave_type(leave_type):
+                raise HTTPException(status_code=400, detail=f"Invalid leave type: '{leave_type}'")
         
         if status == 'done':
             existing = cursor.execute(
