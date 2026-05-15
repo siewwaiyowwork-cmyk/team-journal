@@ -18,6 +18,7 @@ import time
 
 _CACHE = {}
 _CACHE_TTL_SECONDS = 300
+_CACHE_TTL_DASHBOARD = 60
 
 def get_cached(key):
     now = time.time()
@@ -29,6 +30,14 @@ def get_cached(key):
 
 def set_cached(key, data):
     _CACHE[key] = (time.time(), data)
+
+def get_cached_ttl(key, ttl):
+    now = time.time()
+    if key in _CACHE:
+        ts, data = _CACHE[key]
+        if now - ts < ttl:
+            return data
+    return None
 
 app = FastAPI(title="Scoreboard API")
 
@@ -476,10 +485,16 @@ def public_modules():
 
 @app.get("/api/holidays")
 def get_holidays():
+    cache_key = "holidays"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
     conn = get_db()
     rows = conn.execute("SELECT id, date, name FROM holidays ORDER BY date").fetchall()
     conn.close()
-    return {"holidays": [dict(r) for r in rows]}
+    result = {"holidays": [dict(r) for r in rows]}
+    set_cached(cache_key, result)
+    return result
 
 @app.post("/api/holidays")
 def add_holiday(date: str = Form(...), name: str = Form(...)):
@@ -724,10 +739,18 @@ def submit(payload: dict):
 
 @app.get("/api/members")
 def get_members():
+    cache_key = "members"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     conn = get_db()
     rows = conn.execute("SELECT * FROM members WHERE active = 1 ORDER BY name").fetchall()
     conn.close()
-    return {"members": [dict(r) for r in rows]}
+    
+    result = {"members": [dict(r) for r in rows]}
+    set_cached(cache_key, result)
+    return result
 
 @app.post("/api/members")
 def add_member(data: dict = Body(...)):
@@ -1018,6 +1041,10 @@ def get_module_done(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None
 ):
+    cache_key = f"module-done:{from_date}:{to_date}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
     conn = get_db()
     if not from_date:
         from_date = business_days_ago(get_config_int('summary_days', 90), conn)
@@ -1047,17 +1074,23 @@ def get_module_done(
     all_members = [row['name'] for row in conn.execute("SELECT name FROM members WHERE active = 1 ORDER BY name").fetchall()]
     conn.close()
 
-    return {
+    result = {
         "members": all_members,
         "modules": sorted(modules),
         "data": matrix
     }
+    set_cached(cache_key, result)
+    return result
 
 @app.get("/api/heatmap")
 def get_heatmap(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None
 ):
+    cache_key = f"heatmap:{from_date}:{to_date}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
     conn = get_db()
     if not from_date:
         from_date = business_days_ago(get_config_int('summary_days', 90), conn)
@@ -1086,17 +1119,24 @@ def get_heatmap(
         matrix[d['name']][d['module']] = d['count']
         modules.add(d['module'])
     
-    return {
+    result = {
         "members": all_members,
         "modules": sorted(modules),
         "data": matrix
     }
+    set_cached(cache_key, result)
+    return result
 
 @app.get("/api/leave")
 def get_leave(
     name: Optional[str] = None,
     year: Optional[int] = None
 ):
+    cache_key = f"leave:{name or 'all'}:{year or 'all'}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     conn = get_db()
     where = ['status = ?']
     params = ['leave']
@@ -1126,7 +1166,9 @@ def get_leave(
     for name, total in others_map.items():
         result.append({"name": name, "type": "Others", "total": total})
 
-    return {"leave": result}
+    final_result = {"leave": result}
+    set_cached(cache_key, final_result)
+    return final_result
 
 @app.get("/api/backup")
 def backup_db(secret: str = Query(...)):
@@ -1183,6 +1225,11 @@ def get_goals(
     year: int = Query(None),
     month: int = Query(None)
 ):
+    cache_key = "goals"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     now = datetime.now()
     if year is None:
         year = now.year
@@ -1224,7 +1271,7 @@ def get_goals(
     remaining = max(target - current, 0)
     month_name = datetime(year, month, 1).strftime('%B')
     
-    return {
+    result = {
         "target": target,
         "current": current,
         "percentage": percentage,
@@ -1232,11 +1279,18 @@ def get_goals(
         "remaining": remaining,
         "month_name": month_name
     }
+    set_cached(cache_key, result)
+    return result
 
 
 
 @app.get("/api/pulse")
 def get_pulse():
+    cache_key = "pulse"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     now = datetime.now()
     today = now.strftime('%Y-%m-%d')
     week_ago = (now - timedelta(days=get_config_int("streak_days", 7))).strftime('%Y-%m-%d')
@@ -1305,7 +1359,7 @@ def get_pulse():
     
     conn.close()
     
-    return {
+    result = {
         "active_today": active_today,
         "on_streak": on_streak,
         "blockers_today": blockers_today,
@@ -1314,13 +1368,21 @@ def get_pulse():
         "done_this_week": done_this_week,
         "last_updated": last_updated
     }
+    set_cached(cache_key, result)
+    return result
 
 
 
 @app.get("/api/activity")
 def get_activity(
-    limit: int = Query(10, ge=1, le=50)
+    limit: int = Query(10, ge=1, le=50),
+    name: Optional[str] = None
 ):
+    cache_key = f"activity:{name or 'all'}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     STATUS_LABELS = {
         'in_progress': 'In Progress',
         'done': 'Done',
@@ -1335,13 +1397,23 @@ def get_activity(
         return res[0] if res else role
 
     leave_s = get_status_code('leave')
-    rows = conn.execute('''
-        SELECT name, date, status, description, module
-        FROM updates
-        WHERE status != ?
-        ORDER BY created_at DESC
-        LIMIT ?
-    ''', (leave_s, limit)).fetchall()
+    
+    if name:
+        rows = conn.execute('''
+            SELECT name, date, status, description, module
+            FROM updates
+            WHERE status != ? AND name = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        ''', (leave_s, name, limit)).fetchall()
+    else:
+        rows = conn.execute('''
+            SELECT name, date, status, description, module
+            FROM updates
+            WHERE status != ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        ''', (leave_s, limit)).fetchall()
     conn.close()
     
     activity = []
@@ -1350,14 +1422,22 @@ def get_activity(
         d['status_label'] = STATUS_LABELS.get(d['status'], d['status'].replace('_', ' ').title())
         activity.append(d)
     
-    return {"activity": activity}
+    result = {"activity": activity}
+    set_cached(cache_key, result)
+    return result
 
 
 
 @app.get("/api/velocity")
 def get_velocity(
-    weeks: int = Query(12, ge=1, le=52)
+    weeks: int = Query(12, ge=1, le=52),
+    name: Optional[str] = None
 ):
+    cache_key = f"velocity:{name or 'all'}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     conn = get_db()
     
     def get_status_code(role):
@@ -1365,17 +1445,31 @@ def get_velocity(
         return res[0] if res else role
 
     done_s = get_status_code('done')
-    raw = conn.execute('''
-        SELECT
-            strftime('%Y', date) as year,
-            strftime('%W', date) as week,
-            module,
-            COUNT(*) as done_count
-        FROM updates
-        WHERE status = ? AND module != ''
-        GROUP BY year, week, module
-        ORDER BY year, week, module
-    ''', (done_s,)).fetchall()
+    
+    if name:
+        raw = conn.execute('''
+            SELECT
+                strftime('%Y', date) as year,
+                strftime('%W', date) as week,
+                module,
+                COUNT(*) as done_count
+            FROM updates
+            WHERE status = ? AND module != '' AND name = ?
+            GROUP BY year, week, module
+            ORDER BY year, week, module
+        ''', (done_s, name)).fetchall()
+    else:
+        raw = conn.execute('''
+            SELECT
+                strftime('%Y', date) as year,
+                strftime('%W', date) as week,
+                module,
+                COUNT(*) as done_count
+            FROM updates
+            WHERE status = ? AND module != ''
+            GROUP BY year, week, module
+            ORDER BY year, week, module
+        ''', (done_s,)).fetchall()
     conn.close()
     
     week_data = {}
@@ -1402,11 +1496,13 @@ def get_velocity(
         for key in sorted_keys:
             data[mod].append(week_data.get(key, {}).get(mod, 0))
     
-    return {
+    result = {
         "weeks": weeks_labels,
         "modules": modules_list,
         "data": data
     }
+    set_cached(cache_key, result)
+    return result
 
 
 
@@ -1525,6 +1621,11 @@ def get_spotlight():
 
 @app.get("/api/challenge")
 def get_challenge():
+    cache_key = "challenge"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     conn = get_db()
     
     def get_status_code(role):
@@ -1548,7 +1649,7 @@ def get_challenge():
     
     conn.close()
     
-    result = []
+    result_list = []
     for r in rows:
         d = dict(r)
         dates = sorted(d['dates'].split(','))
@@ -1562,31 +1663,40 @@ def get_challenge():
                 max_streak = max(max_streak, streak)
             else:
                 streak = 1
-        result.append({
+        result_list.append({
             "name": d['name'],
             "streak": max_streak,
             "days_updated": len(dates)
         })
     
     for m in members:
-        if not any(r['name'] == m for r in result):
-            result.append({"name": m, "streak": 0, "days_updated": 0})
+        if not any(r['name'] == m for r in result_list):
+            result_list.append({"name": m, "streak": 0, "days_updated": 0})
     
-    result.sort(key=lambda x: (-x['streak'], x['name']))
-    total = len(result)
-    on_track = sum(1 for r in result if r['streak'] >= 3)
+    result_list.sort(key=lambda x: (-x['streak'], x['name']))
+    total = len(result_list)
+    on_track = sum(1 for r in result_list if r['streak'] >= 3)
     
-    return {
+    result = {
         "total": total,
         "on_track": on_track,
         "percentage": round(on_track / max(total, 1) * 100, 1),
-        "members": result[:10]
+        "members": result_list[:10]
     }
+    set_cached(cache_key, result)
+    return result
 
 
 
 @app.get("/api/yearly-done")
-def get_yearly_done():
+def get_yearly_done(
+    name: Optional[str] = None
+):
+    cache_key = f"yearly-done:{name or 'all'}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     current_year = datetime.now().year
     from_date = f"{current_year}-01-01"
     to_date = datetime.now().strftime('%Y-%m-%d')
@@ -1598,29 +1708,47 @@ def get_yearly_done():
         return res[0] if res else role
 
     done_s = get_status_code('done')
-    rows = conn.execute('''
-        SELECT name,
-            SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as done
-        FROM updates
-        WHERE date >= ? AND date <= ?
-        GROUP BY name
-    ''', (done_s, from_date, to_date)).fetchall()
+    
+    if name:
+        rows = conn.execute('''
+            SELECT name,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as done
+            FROM updates
+            WHERE date >= ? AND date <= ? AND name = ?
+            GROUP BY name
+        ''', (done_s, from_date, to_date, name)).fetchall()
+    else:
+        rows = conn.execute('''
+            SELECT name,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as done
+            FROM updates
+            WHERE date >= ? AND date <= ?
+            GROUP BY name
+        ''', (done_s, from_date, to_date)).fetchall()
     
     all_members = conn.execute("SELECT name FROM members").fetchall()
     conn.close()
     
     result_map = {r['name']: r['done'] or 0 for r in rows}
     
-    return {
+    result = {
         "year": current_year,
         "from_date": from_date,
         "to_date": to_date,
         "result": [{"name": r[0], "done": result_map.get(r[0], 0)} for r in all_members]
     }
+    set_cached(cache_key, result)
+    return result
+
 
 
 @app.get("/api/missing-progress")
 def get_missing_progress():
+    cache_key = "missing-progress"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     today = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
     members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 ORDER BY name").fetchall()]
@@ -1644,7 +1772,50 @@ def get_missing_progress():
             days_since = (today_dt - last_dt).days
         enhanced.append({"name": m, "last_update": last, "days_since": days_since})
     
-    return {"today": today, "missing": missing, "enhanced": enhanced, "submitted": updated}
+    result = {"today": today, "missing": missing, "enhanced": enhanced, "submitted": updated}
+    set_cached(cache_key, result)
+    return result
+
+
+@app.get("/api/dashboard")
+def get_dashboard(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None
+):
+    cache_key = f"dashboard:{from_date}:{to_date}"
+    cached = get_cached_ttl(cache_key, _CACHE_TTL_DASHBOARD)
+    if cached is not None:
+        return cached
+
+    summary = get_summary(from_date=from_date, to_date=to_date)
+    heatmap = get_heatmap(from_date=from_date, to_date=to_date)
+    leave = get_leave(name=None, year=None)
+    goals = get_goals(year=None, month=None)
+    pulse = get_pulse()
+    activity = get_activity(limit=10, name=None)
+    challenge = get_challenge()
+    velocity = get_velocity(weeks=12, name=None)
+    module_done = get_module_done(from_date=from_date, to_date=to_date)
+    missing_progress = get_missing_progress()
+    yearly_done = get_yearly_done(name=None)
+    fun_facts = get_fun_facts()
+
+    result = {
+        "summary": summary,
+        "heatmap": heatmap,
+        "leave": leave,
+        "goals": goals,
+        "pulse": pulse,
+        "activity": activity,
+        "challenge": challenge,
+        "velocity": velocity,
+        "module_done": module_done,
+        "missing_progress": missing_progress,
+        "yearly_done": yearly_done,
+        "fun_facts": fun_facts,
+    }
+    set_cached(cache_key, result)
+    return result
 
 
 @app.get("/api/fun-facts")

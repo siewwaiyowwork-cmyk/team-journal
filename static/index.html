@@ -1482,32 +1482,23 @@ function launchConfetti(x,y){
         await loadMembers();
         await loadHolidays();
         try{
-            const [summaryRes, heatmapRes, leaveRes, goalsRes, pulseRes, activityRes, challengeRes, velocityRes, yearlyDoneRes, moduleDoneRes, missingRes, funFactsRes] = await Promise.all([
-                fetch(`${API_URL}/api/summary`),
-                fetch(`${API_URL}/api/heatmap`),
-                fetch(`${API_URL}/api/leave`),
-                fetch(`${API_URL}/api/goals`),
-                fetch(`${API_URL}/api/pulse`),
-                fetch(`${API_URL}/api/activity`),
-                fetch(`${API_URL}/api/challenge`),
-                fetch(`${API_URL}/api/velocity`),
-                fetch(`${API_URL}/api/yearly-done`),
-                fetch(`${API_URL}/api/module-done`),
-                fetch(`${API_URL}/api/missing-progress`),
-                fetch(`${API_URL}/api/fun-facts`)
-            ]);
-            const summary = await summaryRes.json();
-            const heatmap = await heatmapRes.json();
-            const leaveJson = await leaveRes.json();
-            const goals = await goalsRes.json();
-            const pulse = await pulseRes.json();
-            const activity = await activityRes.json();
-            const challenge = await challengeRes.json();
-            const velocity = await velocityRes.json();
-            const yearlyDone = await yearlyDoneRes.json();
-            const moduleDone = await moduleDoneRes.json();
-            const missing = await missingRes.json();
-            const funFacts = await funFactsRes.json();
+            const res = await fetch(`${API_URL}/api/dashboard`);
+            if (!res.ok) throw new Error('Dashboard load failed');
+            const data = await res.json();
+
+            const summary = data.summary;
+            const heatmap = data.heatmap;
+            const leaveJson = data.leave;
+            const goals = data.goals;
+            const pulse = data.pulse;
+            const activity = data.activity;
+            const challenge = data.challenge;
+            const velocity = data.velocity;
+            const yearlyDone = data.yearly_done;
+            const moduleDone = data.module_done;
+            const missing = data.missing_progress;
+            const funFacts = data.fun_facts;
+
             window.yearlyDoneMap = {};
             if (yearlyDone && yearlyDone.result) {
                 yearlyDone.result.forEach(function(r) { window.yearlyDoneMap[r.name] = r.done || 0; });
