@@ -56,6 +56,16 @@ DB_PATH = os.environ.get('DB_PATH', 'scoreboard.db')
 BACKUP_SECRET = os.environ.get('BACKUP_SECRET', 'changeme')
 
 def init_db():
+    # Skip full init if DB already exists and is valid SQLite
+    if os.path.exists(DB_PATH):
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("SELECT 1 FROM sqlite_master LIMIT 1")
+            conn.close()
+            return  # DB exists and is valid, skip all schema/rebuild work
+        except sqlite3.Error:
+            pass  # Corrupted or not a valid SQLite file, proceed with init
+
     db_dir = os.path.dirname(DB_PATH)
     if db_dir and not os.path.exists(db_dir):
         os.makedirs(db_dir, exist_ok=True)
@@ -869,12 +879,14 @@ def get_summary(
             SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as blocked,
             SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as leave_days,
             SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as vague,
-            SUM(CASE WHEN status != ? AND status != ? THEN 1 ELSE 0 END) as specific
+            SUM(CASE WHEN status != ? AND status != ? THEN 1 ELSE 0 END) as specific,
+            SUM(CASE WHEN module = 'support' AND status != ? THEN 1 ELSE 0 END) as support_count,
+            SUM(CASE WHEN status != ? THEN 1 ELSE 0 END) as work_count
         FROM updates
         WHERE date BETWEEN ? AND ?
         GROUP BY name
         ORDER BY total DESC
-    ''', (done_s, ip_s, blocked_s, leave_s, vague_s, vague_s, leave_s, from_date, to_date)).fetchall()
+    ''', (done_s, ip_s, blocked_s, leave_s, vague_s, vague_s, leave_s, leave_s, leave_s, from_date, to_date)).fetchall()
 
     total_workdays = conn.execute('''
         WITH RECURSIVE dates(d) AS (
@@ -929,28 +941,6 @@ def get_summary(
         ''', (*member_names, from_date, to_date, leave_s)).fetchall()
         for r in module_rows:
             modules_by_member.setdefault(r['name'], []).append({'module': r['module'], 'cnt': r['cnt']})
-
-    support_by_member = {}
-    if member_names:
-        placeholders = ','.join('?' * len(member_names))
-        support_rows = conn.execute(f'''
-            SELECT name, COUNT(*) as cnt FROM updates
-            WHERE name IN ({placeholders}) AND date BETWEEN ? AND ? AND status != ? AND module = 'support'
-            GROUP BY name
-        ''', (*member_names, from_date, to_date, leave_s)).fetchall()
-        for r in support_rows:
-            support_by_member[r['name']] = r['cnt']
-
-    work_count_by_member = {}
-    if member_names:
-        placeholders = ','.join('?' * len(member_names))
-        work_rows = conn.execute(f'''
-            SELECT name, COUNT(*) as cnt FROM updates
-            WHERE name IN ({placeholders}) AND date BETWEEN ? AND ? AND status != ?
-            GROUP BY name
-        ''', (*member_names, from_date, to_date, leave_s)).fetchall()
-        for r in work_rows:
-            work_count_by_member[r['name']] = r['cnt']
 
     badges_by_member = {}
     if member_names:
@@ -1077,8 +1067,8 @@ def get_summary(
         d['recent'] = recent_by_member.get(d['name'], [])
         d['modules'] = modules_by_member.get(d['name'], [])
 
-        support_count = support_by_member.get(d['name'], 0)
-        total_work_count = work_count_by_member.get(d['name'], 0)
+        support_count = d['support_count']
+        total_work_count = d['work_count']
         d['support_pct'] = round((support_count / max(total_work_count, 1)) * 100, 1) if total_work_count > 0 else 0
         d['support_count'] = support_count
         d['total_work_count'] = total_work_count

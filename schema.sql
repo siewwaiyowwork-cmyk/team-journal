@@ -35,8 +35,6 @@ CREATE INDEX IF NOT EXISTS idx_updates_name_date ON updates(name, date);
 
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 
-CREATE INDEX IF NOT EXISTS idx_updates_status ON updates(status);
-
 CREATE TABLE IF NOT EXISTS modules (
     code TEXT PRIMARY KEY,
     label TEXT NOT NULL,
