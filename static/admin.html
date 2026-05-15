@@ -453,18 +453,32 @@ async function loadDashboard() {
 async function loadConfig() {
   try {
     const d = await apiGet('/api/admin/config');
-    document.getElementById('configTable').innerHTML = d.config.map(c => {
+    const tableBody = document.getElementById('configTable');
+    tableBody.innerHTML = d.config.map(c => {
       const isSecret = c.key === 'backup_secret' || c.key.includes('password') || c.key.includes('secret') || c.key.includes('token');
       const displayValue = isSecret && c.value ? '•'.repeat(Math.min(c.value.length, 16)) : c.value;
       return `
-      <tr>
+      <tr data-key="${c.key}" data-value="${c.value}" data-desc="${c.description || ''}" data-secret="${isSecret}">
         <td><code style="font-family:'JetBrains Mono',monospace;background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:.85em">${c.key}</code></td>
         <td>${displayValue}</td>
         <td>${c.description || ''}</td>
-        <td><button class="btn-sm" onclick="showConfigEdit('${c.key}', '${c.value}', '${c.description || ''}', ${isSecret})">Edit</button></td>
+        <td><button class="btn-sm config-edit-btn">Edit</button></td>
       </tr>`;
     }).join('');
-  } catch (e) { showToast(e.message, 'error'); }
+    
+    tableBody.querySelectorAll('.config-edit-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        const row = e.target.closest('tr');
+        const key = row.dataset.key;
+        const value = row.dataset.value;
+        const desc = row.dataset.desc;
+        const isSecret = row.dataset.secret === 'true';
+        showConfigEdit(key, value, desc, isSecret);
+      });
+    });
+  } catch (e) { 
+    showToast(e.message, 'error'); 
+  }
 }
 
 function showConfigEdit(key, value, desc, isSecret) {
