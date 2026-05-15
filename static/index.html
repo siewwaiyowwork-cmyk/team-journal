@@ -1751,6 +1751,28 @@ function launchConfetti(x,y){
             const agilityPct = Math.max(0, Math.round(100 - ((m.ip_done_ratio || 0) * 10)));
             const blockedRate = m.blocked ? Math.round((m.blocked / Math.max(1, m.done + m.in_progress + m.blocked)) * 100) : 0;
             const defensePct = Math.max(0, 100 - blockedRate);
+
+            let activityHtml = '';
+            if(m.activity && m.activity.length){
+                m.activity.forEach(function(day){
+                    if(day.status === 'missing') activityHtml += '<span class="bdg bdg-rd" title="' + day.date + ' missing">MS</span>';
+                    else activityHtml += '<span class="bdg bdg-gr" title="' + day.date + ' updated">OK</span>';
+                });
+            }
+
+            const hourly = m.hourly_personality;
+            const hourlyBadge = hourly ? '<span class="bdg" style="background:' + hourly.color + '20;color:' + hourly.color + ';border:1px solid ' + hourly.color + '" title="Peak activity hour in the last 10 days">' + hourly.emoji + ' ' + hourly.label + '</span>' : '';
+
+            const recentHtml = (m.recent || []).slice(0, 5).map(function(r) {
+                const st = (r.status || '').toLowerCase();
+                const ss = getStatusStyle(r.status);
+                const descClass = st === 'vague' ? 'vague' : '';
+                return '<div class="task-entry"><span class="task-date">' + r.date.slice(5) + '</span><span class="task-text ' + descClass + '">' + r.description + '</span><span class="task-status-pill ' + r.status + '">' + ss.label + '</span></div>';
+            }).join('');
+
+            const modHtml = (m.modules || []).map(function(mod) {
+                return '<span class="ov-mod">' + mod.module + ' <span class="cnt">' + mod.cnt + '</span></span>';
+            }).join('');
             
             const monsterStats = {
                 atk: Math.min(100, Math.round(m.completion_rate || 0)),
