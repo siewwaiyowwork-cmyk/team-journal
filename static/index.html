@@ -509,6 +509,10 @@
                     <div class="chart-title">Module Done Contributions <span class="badge" style="font-size:.6em">Done tasks per module</span> <span class="info-icon" data-tooltip="Total Done tasks per module for this year. Shows top contributor for each module.">ℹ</span></div>
                     <div id="module-done-container"></div>
                 </div>
+                <div class="chart-box-full" style="margin-top:16px">
+                    <div class="chart-title">Monthly Team Deliveries <span class="badge" style="font-size:.6em">Done tasks by month</span> <span class="info-icon" data-tooltip="Total tasks marked as Done by the team per month. Helps identify peak delivery months.">ℹ</span></div>
+                    <div id="monthly-deliveries-container"></div>
+                </div>
             </div>
             
             <div id="activityTicker" style="display:none"></div>
@@ -1289,6 +1293,72 @@ function launchConfetti(x,y){
             }, 100);
         }
 
+    var monthlyDeliveriesChart = null;
+    function renderMonthlyDeliveriesChart(data){
+        var container = document.getElementById('monthly-deliveries-container');
+        if(!container) return;
+        if(!data || !data.length){
+            container.innerHTML = '<div class="task-empty-state">No delivery data yet</div>';
+            return;
+        }
+        container.innerHTML = '<div class="chart-wrapper" id="monthly-deliveries-wrapper"><canvas id="monthly-deliveries-canvas"></canvas></div>';
+        var wrapper = document.getElementById('monthly-deliveries-wrapper');
+        if(wrapper) wrapper.style.height = '320px';
+
+        var labels = data.map(function(r){ return r.month; });
+        var counts = data.map(function(r){ return r.count; });
+        var maxCount = Math.max.apply(null, counts);
+
+        if(monthlyDeliveriesChart) monthlyDeliveriesChart.destroy();
+        monthlyDeliveriesChart = new Chart(document.getElementById('monthly-deliveries-canvas'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Done tasks',
+                    data: counts,
+                    backgroundColor: counts.map(function(c){
+                        return c === maxCount ? 'rgba(0,230,118,.85)' : 'rgba(0,230,118,.55)';
+                    }),
+                    borderColor: 'rgba(0,230,118,.9)',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        ticks: { color: '#aaa', font: { size: 11 } },
+                        grid: { color: 'rgba(255,255,255,.1)' }
+                    },
+                    y: {
+                        ticks: { color: '#aaa', font: { size: 11 } },
+                        grid: { color: 'rgba(255,255,255,.1)' },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(18,18,26,.95)',
+                        titleColor: '#fff',
+                        bodyColor: '#aaa',
+                        borderColor: 'rgba(255,255,255,.2)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context){
+                                return 'Done: ' + context.raw;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     function renderMissingProgress(data){
         var el = document.getElementById('missingProgressSection');
         if(!el) return;
@@ -1498,6 +1568,7 @@ function launchConfetti(x,y){
             const moduleDone = data.module_done;
             const missing = data.missing_progress;
             const funFacts = data.fun_facts;
+            const monthlyDeliveries = data.monthly_deliveries;
 
             window.yearlyDoneMap = {};
             if (yearlyDone && yearlyDone.result) {
@@ -1519,6 +1590,9 @@ function launchConfetti(x,y){
             renderFunFacts(funFacts);
             if (moduleDone && moduleDone.modules) {
                 renderModuleDoneChart(moduleDone);
+            }
+            if (monthlyDeliveries && monthlyDeliveries.length) {
+                renderMonthlyDeliveriesChart(monthlyDeliveries);
             }
         }catch(e){
             console.error('Dashboard init error:',e);

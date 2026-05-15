@@ -1114,6 +1114,25 @@ def get_module_done(
     set_cached(cache_key, result)
     return result
 
+def get_monthly_deliveries():
+    cache_key = "monthly-deliveries"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT strftime('%Y-%m', date) AS month,
+               COUNT(*) AS count
+        FROM updates
+        WHERE status = 'done'
+        GROUP BY month
+        ORDER BY month
+    ''').fetchall()
+    conn.close()
+    result = [{"month": r["month"], "count": r["count"]} for r in rows]
+    set_cached(cache_key, result)
+    return result
+
 @app.get("/api/heatmap")
 def get_heatmap(
     from_date: Optional[str] = None,
@@ -1831,6 +1850,7 @@ def get_dashboard(
     missing_progress = get_missing_progress()
     yearly_done = get_yearly_done(name=None)
     fun_facts = get_fun_facts()
+    monthly_deliveries = get_monthly_deliveries()
 
     result = {
         "summary": summary,
@@ -1845,6 +1865,7 @@ def get_dashboard(
         "missing_progress": missing_progress,
         "yearly_done": yearly_done,
         "fun_facts": fun_facts,
+        "monthly_deliveries": monthly_deliveries,
     }
     set_cached(cache_key, result)
     return result
