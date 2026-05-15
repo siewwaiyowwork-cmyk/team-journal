@@ -773,6 +773,14 @@ def submit(payload: dict):
         ))
     conn.commit()
     conn.close()
+    # Invalidate caches affected by new submissions so charts refresh immediately
+    clear_cached('summary')
+    clear_cached('dashboard')
+    clear_cached('goals')
+    clear_cached('activity')
+    clear_cached('missing-progress')
+    clear_cached('fun-facts')
+    clear_config_cache()
     result = {"ok": True, "count": len(entries)}
     if warnings:
         result["warnings"] = warnings
@@ -4243,6 +4251,14 @@ async def import_updates(
                 (r['date'], r['name'], r['module'], r['description'], r['status'], r['leave_type'], r['remarks'])
             )
         conn.execute("COMMIT")
+        # Invalidate all read caches since import can change any member's data
+        clear_cached('summary')
+        clear_cached('dashboard')
+        clear_cached('goals')
+        clear_cached('activity')
+        clear_cached('missing-progress')
+        clear_cached('fun-facts')
+        clear_config_cache()
         return {"ok": True, "deleted_old": True, "imported": len(rows)}
     except Exception as e:
         try:
