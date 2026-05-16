@@ -1994,10 +1994,43 @@ def get_dashboard(
     return result
 
 
+@app.get("/api/dashboard-lite")
+def get_dashboard_lite(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None
+):
+    cache_key = f"dashboard-lite:{from_date}:{to_date}"
+    cached = get_cached_ttl(cache_key, _CACHE_TTL_DASHBOARD)
+    if cached is not None:
+        return cached
+
+    summary = get_summary(from_date=from_date, to_date=to_date)
+    heatmap = get_heatmap(from_date=from_date, to_date=to_date)
+    leave = get_leave(name=None, year=None)
+    goals = get_goals(year=None, month=None)
+    pulse = get_pulse()
+    activity = get_activity(limit=10, name=None)
+    challenge = get_challenge()
+    missing_progress = get_missing_progress()
+
+    result = {
+        "summary": summary,
+        "heatmap": heatmap,
+        "leave": leave,
+        "goals": goals,
+        "pulse": pulse,
+        "activity": activity,
+        "challenge": challenge,
+        "missing_progress": missing_progress,
+    }
+    set_cached(cache_key, result)
+    return result
+
+
 @app.get("/api/fun-facts")
 def get_fun_facts():
     cache_key = 'fun-facts'
-    cached = get_cached(cache_key)
+    cached = get_cached_ttl(cache_key, 3600)
     if cached is not None:
         return cached
     today = datetime.now().strftime('%Y-%m-%d')

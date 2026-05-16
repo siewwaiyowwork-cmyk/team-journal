@@ -7,8 +7,18 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="/static/monster-engine.js"></script>
+    <script>
+        window.chartJsReady = false;
+        window._chartQueue = [];
+        window.onChartJsReady = function() {
+            window.chartJsReady = true;
+            while(window._chartQueue.length) {
+                window._chartQueue.shift()();
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" async onload="window.onChartJsReady()"></script>
+    <script src="/static/monster-engine.js" async></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
@@ -478,6 +488,8 @@
         .cal-footer span{display:flex;align-items:center;gap:4px}
         .cal-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
         .cal-dot.ph{background:var(--orange)}.cal-dot.wd{background:var(--accent)}.cal-dot.we{background:var(--text-dim);opacity:.5}
+        .chart-wrapper{position:relative;height:250px;margin-top:12px}
+        .skeleton-box{background:linear-gradient(90deg,var(--surface2) 25%,var(--surface) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px;min-height:180px}
     </style>
     </style>
 </head>
@@ -1130,6 +1142,8 @@ function launchConfetti(x,y){
     el.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:20px 0"><div class="chart-title" style="margin-bottom:12px">Module Velocity Chart <span class="info-icon" data-tooltip="Tracks how many tasks each team member marked as Done per module, grouped by calendar week (ISO week format). Data is retrieved from the updates table where status=done. Use this to spot which modules have momentum, identify slowdowns, and compare throughput across different work areas. Higher lines = more completed work that week.">ℹ</span></div><div style="height:250px;position:relative"><canvas id="velocityCanvas"></canvas></div></div>';
     el.style.display='block';
     setTimeout(function(){
+        var makeChart = function() {
+            if (!window.chartJsReady) { window._chartQueue.push(makeChart); return; }
         new Chart(document.getElementById('velocityCanvas'),{
             type:'line',
             data:{labels:weeks,datasets:datasets},
@@ -1165,6 +1179,9 @@ function launchConfetti(x,y){
                 }
             }
         });
+        };
+        if (window.chartJsReady) { makeChart(); }
+        else { window._chartQueue.push(makeChart); }
     },100);
 }
 
@@ -1229,10 +1246,12 @@ function launchConfetti(x,y){
             });
 
             setTimeout(function(){
-                if (moduleDoneChart) {
-                    moduleDoneChart.destroy();
-                }
-                moduleDoneChart = new Chart(document.getElementById('module-done-canvas'), {
+                var makeChart = function() {
+                    if (!window.chartJsReady) { window._chartQueue.push(makeChart); return; }
+                    if (moduleDoneChart) {
+                        moduleDoneChart.destroy();
+                    }
+                    moduleDoneChart = new Chart(document.getElementById('module-done-canvas'), {
                     type: 'bar',
                     data: {
                         labels: sortedModules,
@@ -1290,6 +1309,9 @@ function launchConfetti(x,y){
                         }
                     }
                 });
+                };
+                if (window.chartJsReady) { makeChart(); }
+                else { window._chartQueue.push(makeChart); }
             }, 100);
         }
 
@@ -1309,8 +1331,10 @@ function launchConfetti(x,y){
         var counts = data.map(function(r){ return r.count; });
         var maxCount = Math.max.apply(null, counts);
 
-        if(monthlyDeliveriesChart) monthlyDeliveriesChart.destroy();
-        monthlyDeliveriesChart = new Chart(document.getElementById('monthly-deliveries-canvas'), {
+        var makeChart = function() {
+            if (!window.chartJsReady) { window._chartQueue.push(makeChart); return; }
+            if(monthlyDeliveriesChart) monthlyDeliveriesChart.destroy();
+            monthlyDeliveriesChart = new Chart(document.getElementById('monthly-deliveries-canvas'), {
             type: 'bar',
             data: {
                 labels: labels,
@@ -1357,6 +1381,9 @@ function launchConfetti(x,y){
                 }
             }
         });
+        };
+        if (window.chartJsReady) { makeChart(); }
+        else { window._chartQueue.push(makeChart); }
     }
 
     function renderMissingProgress(data){
@@ -1548,12 +1575,49 @@ function launchConfetti(x,y){
     function getHolidayName(ymd){return window.holidayMap[ymd];}
 
     async function initDashboard(){
+        // Show skeleton for heavy charts
+        document.getElementById('velocityChart').innerHTML = '<div class="skeleton-box" style="height:250px;margin:20px 0"></div>';
+        document.getElementById('velocityChart').style.display = 'block';
+        document.getElementById('module-done-container').innerHTML = '<div class="skeleton-box" style="height:180px"></div>';
+        document.getElementById('monthly-deliveries-container').innerHTML = '<div class="skeleton-box" style="height:180px"></div>';
+
+        // Try to show cached dashboard data immediately while fetching fresh
+        const cached = localStorage.getItem('dashboard_cache');
+        const cachedTs = localStorage.getItem('dashboard_cache_ts');
+        const now = Date.now();
+        const cacheAge = cachedTs ? (now - parseInt(cachedTs)) / 1000 : null;
+
+        if (cached && cacheAge && cacheAge < 3600) {
+            try {
+                const data = JSON.parse(cached);
+                renderDashboard(data);
+                renderInsights(data.summary.members, data.heatmap);
+                renderLeaveCharts();
+                renderGoals(data.goals);
+                renderPulse(data.pulse);
+                renderActivityTicker(data.activity);
+                renderChallenge(data.challenge);
+                renderMissingProgress(data.missing_progress);
+                // Heavy charts from cache
+                renderVelocityChart(data.velocity);
+                renderFunFacts(data.fun_facts);
+                if (data.module_done && data.module_done.modules) {
+                    renderModuleDoneChart(data.module_done);
+                }
+                if (data.monthly_deliveries && data.monthly_deliveries.length) {
+                    renderMonthlyDeliveriesChart(data.monthly_deliveries);
+                }
+            } catch(e) { }
+        }
+
         await loadAppConfig();
         await loadMembers();
         await loadHolidays();
+
         try{
-            const res = await fetch(`${API_URL}/api/dashboard`);
-            if (!res.ok) throw new Error('Dashboard load failed');
+            // Phase 1: Load critical data (fast)
+            const res = await fetch(`${API_URL}/api/dashboard-lite`);
+            if (!res.ok) throw new Error('Dashboard lite load failed');
             const data = await res.json();
 
             const summary = data.summary;
@@ -1563,21 +1627,15 @@ function launchConfetti(x,y){
             const pulse = data.pulse;
             const activity = data.activity;
             const challenge = data.challenge;
-            const velocity = data.velocity;
-            const yearlyDone = data.yearly_done;
-            const moduleDone = data.module_done;
             const missing = data.missing_progress;
-            const funFacts = data.fun_facts;
-            const monthlyDeliveries = data.monthly_deliveries;
 
+            // Initialize yearlyDoneMap before rendering (will be updated when heavy data loads)
             window.yearlyDoneMap = {};
-            if (yearlyDone && yearlyDone.result) {
-                yearlyDone.result.forEach(function(r) { window.yearlyDoneMap[r.name] = r.done || 0; });
+            if (summary && summary.members) {
+                summary.members.forEach(function(m) { window.yearlyDoneMap[m.name] = m.done || 0; });
             }
+
             leaveData = processLeaveData(leaveJson.leave || []);
-            if (moduleDone && moduleDone.modules) {
-                renderModuleDoneChart(moduleDone);
-            }
             renderDashboard(summary);
             renderInsights(summary.members, heatmap);
             renderLeaveCharts();
@@ -1585,8 +1643,46 @@ function launchConfetti(x,y){
             renderPulse(pulse);
             renderActivityTicker(activity);
             renderChallenge(challenge);
-            renderVelocityChart(velocity);
             renderMissingProgress(missing);
+
+            // Phase 2: Fetch heavy data in background
+            loadDashboardHeavy();
+        }catch(e){
+            console.error('Dashboard init error:',e);
+            showToast('Failed to load dashboard','err');
+        }
+    }
+
+    async function loadDashboardHeavy(from_date, to_date){
+        try{
+            const res = await fetch(`${API_URL}/api/dashboard` + (from_date ? `?from_date=${from_date}&to_date=${to_date}` : ''));
+            if (!res.ok) throw new Error('Dashboard heavy load failed');
+            const data = await res.json();
+
+            // Cache fresh data
+            try {
+                localStorage.setItem('dashboard_cache', JSON.stringify(data));
+                localStorage.setItem('dashboard_cache_ts', String(Date.now()));
+            } catch(e) { }
+
+            const velocity = data.velocity;
+            const yearlyDone = data.yearly_done;
+            const moduleDone = data.module_done;
+            const funFacts = data.fun_facts;
+            const monthlyDeliveries = data.monthly_deliveries;
+
+            window.yearlyDoneMap = {};
+            if (yearlyDone && yearlyDone.result) {
+                yearlyDone.result.forEach(function(r) { window.yearlyDoneMap[r.name] = r.done || 0; });
+            }
+
+            // Re-render insights with yearlyDone now available (and better level data)
+            if (data.summary && data.summary.members) {
+                renderInsights(data.summary.members, data.heatmap);
+                renderOverviewGrid(data.summary.members);
+            }
+
+            renderVelocityChart(velocity);
             renderFunFacts(funFacts);
             if (moduleDone && moduleDone.modules) {
                 renderModuleDoneChart(moduleDone);
@@ -1595,8 +1691,7 @@ function launchConfetti(x,y){
                 renderMonthlyDeliveriesChart(monthlyDeliveries);
             }
         }catch(e){
-            console.error('Dashboard init error:',e);
-            showToast('Failed to load dashboard','err');
+            console.error('Dashboard heavy load error:',e);
         }
     }
 
