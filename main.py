@@ -2,6 +2,7 @@ from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Body, Form,
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 import sqlite3
 import json
 from datetime import datetime, timedelta
@@ -52,6 +53,9 @@ app.add_middleware(
     allow_headers=["*"],
     allow_credentials=False,
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
+
 DB_PATH = os.environ.get('DB_PATH', 'scoreboard.db')
 BACKUP_SECRET = os.environ.get('BACKUP_SECRET', 'changeme')
 
@@ -4321,7 +4325,19 @@ def admin_dashboard(admin_token: str = Query(...)):
     finally:
         conn.close()
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+from fastapi.staticfiles import StaticFiles
+from starlette.staticfiles import StaticFiles as StarletteStaticFiles
+from starlette.responses import FileResponse
+
+class CachedStaticFiles(StarletteStaticFiles):
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if isinstance(response, FileResponse):
+            if not path.endswith('.html'):
+                response.headers["Cache-Control"] = "public, max-age=86400"
+        return response
+
+app.mount("/static", CachedStaticFiles(directory="static"), name="static")
 
 if __name__ == '__main__':
     import uvicorn
