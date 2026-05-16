@@ -44,6 +44,62 @@ def clear_cached(key):
     if key in _CACHE:
         del _CACHE[key]
 
+_WORK_EXCLUDE_KEYWORDS = ['discussion', 'sync up', 'sync-up', 'meeting']
+
+def should_count_as_work(description):
+    if not description:
+        return 1
+    d = str(description).lower()
+    try:
+        kw_str = get_config('work_exclude_keywords', 'discussion, sync up, sync-up, meeting')
+    except Exception:
+        kw_str = 'discussion, sync up, sync-up, meeting'
+    keywords = [k.strip().lower() for k in kw_str.split(',') if k.strip()]
+    for kw in keywords:
+        if kw in d:
+            return 0
+    return 1
+
+def retroactive_update_is_work():
+    conn = get_db()
+    try:
+        kw_str = get_config('work_exclude_keywords', 'discussion, sync up, sync-up, meeting')
+        keywords = [k.strip().lower() for k in kw_str.split(',') if k.strip()]
+        if not keywords:
+            conn.execute("UPDATE updates SET is_work = 1")
+            conn.commit()
+            return {"updated": 0, "action": "all_set_to_work"}
+        
+        conditions = []
+        params = []
+        for kw in keywords:
+            conditions.append("lower(description) LIKE ?")
+            params.append(f'%{kw}%')
+        
+        where_clause = " OR ".join(conditions)
+        
+        # First, set everything to work=1
+        conn.execute("UPDATE updates SET is_work = 1")
+        cursor = conn.execute(f"UPDATE updates SET is_work = 0 WHERE {where_clause}", params)
+        updated = cursor.rowcount
+        conn.commit()
+        
+        clear_cached('summary')
+        clear_cached('dashboard')
+        clear_cached('goals')
+        clear_cached('activity')
+        clear_cached('module-done')
+        clear_cached('velocity')
+        clear_cached('yearly-done')
+        clear_cached('fun-facts')
+        clear_cached('pulse')
+        
+        return {"updated": updated, "action": "retroactive_update"}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
 app = FastAPI(title="Scoreboard API")
 
 app.add_middleware(
@@ -59,6 +115,66 @@ app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 DB_PATH = os.environ.get('DB_PATH', 'scoreboard.db')
 BACKUP_SECRET = os.environ.get('BACKUP_SECRET', 'changeme')
 
+def run_migrations(conn=None):
+    close_conn = False
+    if conn is None:
+        conn = sqlite3.connect(DB_PATH)
+        close_conn = True
+    try:
+        conn.execute("ALTER TABLE statuses ADD COLUMN counts_toward_stats INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE leave_types ADD COLUMN active INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE updates ADD COLUMN days REAL DEFAULT 1.0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE updates ADD COLUMN remarks TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE updates ADD COLUMN is_work INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_updates_date_is_work ON updates(date, is_work)")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_updates_status_is_work ON updates(status, is_work)")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("DROP INDEX IF EXISTS idx_updates_is_work")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("""
+            UPDATE updates SET is_work = 0
+            WHERE is_work = 1 AND (
+                lower(description) LIKE '%discussion%'
+                OR lower(description) LIKE '%sync up%'
+                OR lower(description) LIKE '%sync-up%'
+                OR lower(description) LIKE '%meeting%'
+            )
+        """)
+    except sqlite3.OperationalError:
+        pass
+    try:
+        legacy_cols = [r[1] for r in conn.execute("PRAGMA table_info(badge_rules)").fetchall()]
+        if 'badge_type' in legacy_cols and 'sql_query' not in legacy_cols:
+            conn.execute("DROP TABLE badge_rules")
+            conn.executescript(open('schema.sql', 'r').read())
+    except Exception:
+        pass
+    if close_conn:
+        conn.commit()
+        conn.close()
+
 def init_db():
     # Skip full init if DB already exists and is valid SQLite
     if os.path.exists(DB_PATH):
@@ -66,7 +182,8 @@ def init_db():
             conn = sqlite3.connect(DB_PATH)
             conn.execute("SELECT 1 FROM sqlite_master LIMIT 1")
             conn.close()
-            return  # DB exists and is valid, skip all schema/rebuild work
+            run_migrations()
+            return
         except sqlite3.Error:
             pass  # Corrupted or not a valid SQLite file, proceed with init
 
@@ -81,33 +198,7 @@ def init_db():
         conn.close()
         conn = sqlite3.connect(DB_PATH)
 
-    try:
-        conn.execute("ALTER TABLE statuses ADD COLUMN counts_toward_stats INTEGER DEFAULT 1")
-    except sqlite3.OperationalError:
-        pass
-
-    try:
-        conn.execute("ALTER TABLE leave_types ADD COLUMN active INTEGER DEFAULT 1")
-    except sqlite3.OperationalError:
-        pass
-
-    try:
-        conn.execute("ALTER TABLE updates ADD COLUMN days REAL DEFAULT 1.0")
-    except sqlite3.OperationalError:
-        pass
-
-    try:
-        conn.execute("ALTER TABLE updates ADD COLUMN remarks TEXT DEFAULT ''")
-    except sqlite3.OperationalError:
-        pass
-
-    try:
-        legacy_cols = [r[1] for r in conn.execute("PRAGMA table_info(badge_rules)").fetchall()]
-        if 'badge_type' in legacy_cols and 'sql_query' not in legacy_cols:
-            conn.execute("DROP TABLE badge_rules")
-            conn.executescript(open('schema.sql', 'r').read())
-    except Exception:
-        pass
+    run_migrations(conn)
 
     # Seed statuses only if table is currently empty (respects admin deletions/customization)
     try:
@@ -146,7 +237,8 @@ def init_db():
         ('activity_ghost', '0.1', 'Activity threshold for GHOST status'),
         ('earlybird_hour', '9', 'Hour threshold for Early Bird badge (before this hour)'),
         ('nightowl_hour', '22', 'Hour threshold for Night Owl badge (at or after this hour)'),
-        ('import_export_enabled', '1', 'Enable import/export features');
+        ('import_export_enabled', '1', 'Enable import/export features'),
+        ('work_exclude_keywords', 'discussion, sync up, sync-up, meeting', 'Comma-separated keywords that mark an update as non-work (excluded from done stats). Case-insensitive.');
     """)
 
     # Leave types: only seed on a fresh table so admin deletions/customizations are respected
@@ -643,6 +735,7 @@ def get_updates(
     to_date: Optional[str] = None,
     name: Optional[str] = None,
     status: Optional[str] = None,
+    work_only: bool = Query(False),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0)
 ):
@@ -661,6 +754,8 @@ def get_updates(
     if status:
         where.append('status = ?')
         params.append(status)
+    if work_only:
+        where.append('is_work = 1')
     
     count_sql = f"SELECT COUNT(*) FROM updates WHERE {' AND '.join(where)}"
     total = conn.execute(count_sql, params).fetchone()[0]
@@ -774,16 +869,19 @@ def submit(payload: dict):
                 )
                 warnings.append(f"Previous done task from {old_date} moved to in_progress")
         
+        is_work = should_count_as_work(desc_lc)
+        
         cursor.execute('''
-            INSERT INTO updates (date, name, module, description, status, leave_type, remarks)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO updates (date, name, module, description, status, leave_type, remarks, is_work)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(date, name, description) DO UPDATE SET
                 module = excluded.module,
                 status = excluded.status,
                 leave_type = excluded.leave_type,
-                remarks = excluded.remarks
+                remarks = excluded.remarks,
+                is_work = excluded.is_work
         ''', (
-            date, name_lc, module_lc, desc_lc, status, leave_type, remarks
+            date, name_lc, module_lc, desc_lc, status, leave_type, remarks, is_work
         ))
     conn.commit()
     conn.close()
@@ -887,7 +985,7 @@ def get_summary(
             SUM(CASE WHEN module = 'support' AND status != ? THEN 1 ELSE 0 END) as support_count,
             SUM(CASE WHEN status != ? THEN 1 ELSE 0 END) as work_count
         FROM updates
-        WHERE date BETWEEN ? AND ?
+        WHERE date BETWEEN ? AND ? AND is_work = 1
         GROUP BY name
         ORDER BY total DESC
     ''', (done_s, ip_s, blocked_s, leave_s, vague_s, vague_s, leave_s, leave_s, leave_s, from_date, to_date)).fetchall()
@@ -939,7 +1037,7 @@ def get_summary(
                 SELECT name, module, COUNT(*) as cnt,
                     ROW_NUMBER() OVER (PARTITION BY name ORDER BY COUNT(*) DESC) as rn
                 FROM updates
-                WHERE name IN ({placeholders}) AND date BETWEEN ? AND ? AND module != '' AND status != ?
+                WHERE name IN ({placeholders}) AND date BETWEEN ? AND ? AND module != '' AND status != ? AND is_work = 1
                 GROUP BY name, module
             ) WHERE rn <= 4
         ''', (*member_names, from_date, to_date, leave_s)).fetchall()
@@ -1111,7 +1209,7 @@ def get_module_done(
     rows = conn.execute('''
         SELECT name, module, COUNT(*) as count
         FROM updates
-        WHERE date BETWEEN ? AND ? AND module != '' AND status = 'done'
+        WHERE date BETWEEN ? AND ? AND module != '' AND status = 'done' AND is_work = 1
         GROUP BY name, module
         ORDER BY name, count DESC
     ''', (from_date, to_date)).fetchall()
@@ -1149,7 +1247,7 @@ def get_monthly_deliveries():
         SELECT strftime('%Y-%m', date) AS month,
                COUNT(*) AS count
         FROM updates
-        WHERE status = 'done'
+        WHERE status = 'done' AND is_work = 1
         GROUP BY month
         ORDER BY month
     ''').fetchall()
@@ -1180,7 +1278,7 @@ def get_heatmap(
     rows = conn.execute('''
         SELECT name, module, COUNT(*) as count
         FROM updates
-        WHERE date BETWEEN ? AND ? AND module != ''
+        WHERE date BETWEEN ? AND ? AND module != '' AND is_work = 1
         GROUP BY name, module
         ORDER BY name, count DESC
     ''', (from_date, to_date)).fetchall()
@@ -1328,13 +1426,13 @@ def get_goals(
     row = conn.execute('''
         SELECT COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) as current
         FROM updates
-        WHERE date >= ? AND date < ?
+        WHERE date >= ? AND date < ? AND is_work = 1
     ''', (done_s, month_start, month_end)).fetchone()
 
     contributors = conn.execute('''
         SELECT name, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as done
         FROM updates
-        WHERE date >= ? AND date < ?
+        WHERE date >= ? AND date < ? AND is_work = 1
         GROUP BY name
         HAVING done > 0
         ORDER BY done DESC
@@ -1393,7 +1491,7 @@ def get_pulse():
     
     done_this_week = conn.execute('''
         SELECT COUNT(*) FROM updates
-        WHERE date >= ? AND date <= ? AND status = ?
+        WHERE date >= ? AND date <= ? AND status = ? AND is_work = 1
     ''', (week_ago, today, done_s)).fetchone()[0] or 0
     
     blockers_today = conn.execute('''
@@ -1530,7 +1628,7 @@ def get_velocity(
                 module,
                 COUNT(*) as done_count
             FROM updates
-            WHERE status = ? AND module != '' AND name = ?
+            WHERE status = ? AND module != '' AND name = ? AND is_work = 1
             GROUP BY year, week, module
             ORDER BY year, week, module
         ''', (done_s, name)).fetchall()
@@ -1542,7 +1640,7 @@ def get_velocity(
                 module,
                 COUNT(*) as done_count
             FROM updates
-            WHERE status = ? AND module != ''
+            WHERE status = ? AND module != '' AND is_work = 1
             GROUP BY year, week, module
             ORDER BY year, week, module
         ''', (done_s,)).fetchall()
@@ -1603,7 +1701,7 @@ def get_spotlight():
             SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as done_count,
             SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as ip_count
         FROM updates
-        WHERE date >= ? AND date <= ? AND status != ?
+        WHERE date >= ? AND date <= ? AND status != ? AND is_work = 1
         GROUP BY name
     ''', (done_s, ip_s, week_ago, today, leave_s)).fetchall()
     
@@ -1790,7 +1888,7 @@ def get_yearly_done(
             SELECT name,
                 SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as done
             FROM updates
-            WHERE date >= ? AND date <= ? AND name = ?
+            WHERE date >= ? AND date <= ? AND name = ? AND is_work = 1
             GROUP BY name
         ''', (done_s, from_date, to_date, name)).fetchall()
     else:
@@ -1798,7 +1896,7 @@ def get_yearly_done(
             SELECT name,
                 SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as done
             FROM updates
-            WHERE date >= ? AND date <= ?
+            WHERE date >= ? AND date <= ? AND is_work = 1
             GROUP BY name
         ''', (done_s, from_date, to_date)).fetchall()
     
@@ -1996,7 +2094,7 @@ def get_fun_facts():
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
-        WHERE strftime('%w', date) = '5' AND status = 'done'
+        WHERE strftime('%w', date) = '5' AND status = 'done' AND is_work = 1
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     """)
     if winner:
@@ -2063,7 +2161,7 @@ def get_fun_facts():
     # === B. TASK COMPLETION (15) ===
 
     winner, ratio = get_winner("""
-        SELECT name, ROUND(SUM(CASE WHEN status='done' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
+        SELECT name, ROUND(SUM(CASE WHEN status='done' AND is_work=1 THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
         FROM updates GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 10
         ORDER BY ratio DESC LIMIT 1
     """)
@@ -2071,7 +2169,7 @@ def get_fun_facts():
         add_fact("✅", "Closer", f"{winner} closes {ratio}% of all tasks", winner)
 
     winner, ratio = get_winner("""
-        SELECT name, ROUND(SUM(CASE WHEN status='done' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
+        SELECT name, ROUND(SUM(CASE WHEN status='done' AND is_work=1 THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
         FROM updates GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 10
         ORDER BY ratio ASC LIMIT 1
     """)
@@ -2114,7 +2212,7 @@ def get_fun_facts():
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
-        WHERE status = 'done' AND date IN (
+        WHERE status = 'done' AND is_work = 1 AND date IN (
             SELECT u1.date FROM updates u1
             WHERE u1.name = updates.name AND u1.status = 'in_progress'
         )
@@ -2153,7 +2251,7 @@ def get_fun_facts():
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
-        WHERE status = 'done'
+        WHERE status = 'done' AND is_work = 1
         GROUP BY name, strftime('%Y-%W', date)
         ORDER BY cnt DESC LIMIT 1
     """)
@@ -2171,7 +2269,7 @@ def get_fun_facts():
 
     rows = conn.execute("""
         SELECT name, COUNT(*) as cnt FROM updates
-        WHERE status = 'done' GROUP BY name HAVING cnt = 1
+        WHERE status = 'done' AND is_work = 1 GROUP BY name HAVING cnt = 1
     """).fetchall()
     if rows and rows[0][0] not in used_names:
         add_fact("🎵", "One-Hit Wonder", f"{rows[0][0]} has exactly one completed task to their name", rows[0][0])
@@ -2186,7 +2284,7 @@ def get_fun_facts():
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
-        WHERE status = 'done' AND date >= date('now', '-7 days')
+        WHERE status = 'done' AND is_work = 1 AND date >= date('now', '-7 days')
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     """)
     if winner:
@@ -2785,7 +2883,7 @@ def get_fun_facts():
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
         WHERE (description LIKE '%unblock%' OR description LIKE '%resolve%' OR description LIKE '%help%' OR description LIKE '%assist%')
-        AND status = 'done'
+        AND status = 'done' AND is_work = 1
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     """)
     if winner and winner not in used_names:
@@ -2946,7 +3044,7 @@ def get_fun_facts():
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
-        WHERE status = 'done' AND date >= date('now', '-30 days')
+        WHERE status = 'done' AND is_work = 1 AND date >= date('now', '-30 days')
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     """)
     if winner and winner not in used_names:
@@ -2954,7 +3052,7 @@ def get_fun_facts():
 
     rows = conn.execute("""
         SELECT name, MAX(date) as last_done FROM updates
-        WHERE status = 'done' AND date >= date('now', '-60 days')
+        WHERE status = 'done' AND is_work = 1 AND date >= date('now', '-60 days')
         GROUP BY name ORDER BY last_done ASC LIMIT 1
     """).fetchall()
     if rows and rows[0][0] not in used_names:
@@ -2996,7 +3094,7 @@ def get_fun_facts():
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
-        WHERE status = 'done' AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now')
+        WHERE status = 'done' AND is_work = 1 AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now')
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     """)
     if winner and winner not in used_names:
@@ -3004,7 +3102,7 @@ def get_fun_facts():
 
     winner, cnt = get_winner("""
         SELECT name, COUNT(*) as cnt FROM updates
-        WHERE status = 'done' AND date >= date('now', '-3 months')
+        WHERE status = 'done' AND is_work = 1 AND date >= date('now', '-3 months')
         GROUP BY name ORDER BY cnt DESC LIMIT 1
     """)
     if winner and winner not in used_names:
@@ -3063,7 +3161,7 @@ def get_fun_facts():
             if row_date:
                 mention_dates[date_key].append(row_date[0])
             ghost_mentions[updater] = ghost_mentions.get(updater, 0) + len(found_names)
-            done_mentions[updater] = done_mentions.get(updater, 0) + len(found_names) if conn.execute("SELECT 1 FROM updates WHERE name = ? AND description LIKE ? AND status = 'done' LIMIT 1", (updater, f'%{name}%')).fetchone() else done_mentions.get(updater, 0)
+            done_mentions[updater] = done_mentions.get(updater, 0) + len(found_names) if conn.execute("SELECT 1 FROM updates WHERE name = ? AND description LIKE ? AND status = 'done' AND is_work = 1 LIMIT 1", (updater, f'%{name}%')).fetchone() else done_mentions.get(updater, 0)
             if updater not in collab_tags:
                 collab_tags[updater] = set()
             collab_tags[updater].add(name)
@@ -3074,7 +3172,7 @@ def get_fun_facts():
     # Recompute done_mentions properly from status=done rows
     done_mention_rows = conn.execute("""
         SELECT name, description FROM updates
-        WHERE status = 'done' AND description IS NOT NULL
+        WHERE status = 'done' AND is_work = 1 AND description IS NOT NULL
         ORDER BY created_at DESC LIMIT 500
     """).fetchall()
     done_mentions = {}
@@ -3677,6 +3775,9 @@ def admin_config_update(key: str, payload: dict = Body(...), admin_token: str = 
     clear_config_cache()
     if key == 'goal_target':
         clear_cached('goals')
+    if key == 'work_exclude_keywords':
+        result = retroactive_update_is_work()
+        return {"ok": True, "key": key, "value": value, "retroactive": result}
     return {"ok": True, "key": key, "value": value}
 
 @app.get("/api/admin/statuses")
@@ -4246,7 +4347,8 @@ async def import_updates(
             'description': description,
             'status': normalized_status,
             'leave_type': leave_type if normalized_status == 'leave' else None,
-            'remarks': remarks
+            'remarks': remarks,
+            'is_work': should_count_as_work(description)
         })
 
     conn = get_db()
@@ -4255,8 +4357,8 @@ async def import_updates(
         conn.execute("DELETE FROM updates WHERE name = ?", (member_name.lower(),))
         for r in rows:
             conn.execute(
-                "INSERT INTO updates (date, name, module, description, status, leave_type, remarks) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (r['date'], r['name'], r['module'], r['description'], r['status'], r['leave_type'], r['remarks'])
+                "INSERT INTO updates (date, name, module, description, status, leave_type, remarks, is_work) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (r['date'], r['name'], r['module'], r['description'], r['status'], r['leave_type'], r['remarks'], r['is_work'])
             )
         conn.execute("COMMIT")
         # Invalidate all read caches since import can change any member's data

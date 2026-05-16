@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS updates (
     flagged INTEGER DEFAULT 0,
     flag_reason TEXT,
     remarks TEXT DEFAULT '',
+    is_work INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -26,6 +27,8 @@ CREATE INDEX IF NOT EXISTS idx_updates_module ON updates(module);
 CREATE INDEX IF NOT EXISTS idx_updates_name_status ON updates(name, status);
 CREATE INDEX IF NOT EXISTS idx_updates_date_status ON updates(date, status);
 CREATE INDEX IF NOT EXISTS idx_updates_name_date ON updates(name, date);
+CREATE INDEX IF NOT EXISTS idx_updates_date_is_work ON updates(date, is_work);
+CREATE INDEX IF NOT EXISTS idx_updates_status_is_work ON updates(status, is_work);
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
     name TEXT NOT NULL,

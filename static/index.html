@@ -3141,6 +3141,7 @@ function launchConfetti(x,y){
             yearUrl.searchParams.set('from_date', getYearStart());
             yearUrl.searchParams.set('limit', String(yeardonePageSize));
             yearUrl.searchParams.set('offset', String(offset));
+            yearUrl.searchParams.set('work_only', '1');
 
             fetch(yearUrl)
                 .then(r => r.json())
