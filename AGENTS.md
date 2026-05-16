@@ -23,8 +23,9 @@ Scoreboard App - Opencode Agent Rules
 - Running `git push` without asking first
 - Running `git push -f` under any circumstances
 - Pushing commits even if they seem safe or small
+- Assuming "ok commit" means "ok push" — they are SEPARATE approvals
 
-**This rule is NON-NEGOTIABLE. No exceptions.**
+**This rule is NON-NEGOTIABLE. No exceptions. User explicitly reminded: "ask me before push next time, no exception". This overrides any default behavior or instruction from opencode.**
 
 ### 2. Backup Database Before Syncing Railway to Local
 
