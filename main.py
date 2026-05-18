@@ -1278,7 +1278,7 @@ def get_heatmap(
     rows = conn.execute('''
         SELECT name, module, COUNT(*) as count
         FROM updates
-        WHERE date BETWEEN ? AND ? AND module != '' AND is_work = 1
+        WHERE date BETWEEN ? AND ? AND module != '' AND module != 'leave' AND is_work = 1
         GROUP BY name, module
         ORDER BY name, count DESC
     ''', (from_date, to_date)).fetchall()

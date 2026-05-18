@@ -13,11 +13,6 @@ A detailed JSON project map is available at `.promptops/project-context.json` â€
 
 ## Directory Structure
 ```
-cleanup/
-  clean/
-    ... (15 more files)
-  ... (15 more files)
-data/
 static/
   ... (4 more files)
 static copy/
@@ -31,20 +26,20 @@ README.md
 
 ## Recently Changed Files
 These files were modified in recent commits â€” likely relevant to current work:
-- `.opencode/shared-context.md`
-- `CLAUDE.md`
-- `main.py`
-- `railway_latest.db`
-- `railway_latest_sync.db`
-- `schema.sql`
-- `scoreboard.db`
-- `scoreboard.db.backup_20260513_114548.db`
-- `scoreboard.db.backup_20260513_125010.db`
-- `scoreboard.db.backup_20260513_154828.db`
-- `scoreboard.db.backup_20260513_221019.db`
-- `scoreboard.db.backup_20260514_093307.db`
-- `scoreboard.db.backup_20260514_101759.db`
-- `scoreboard.db.backup_20260514_101903.db`
-- `scoreboard.db.backup_20260514_122530.db`
+- `AGENTS.md`
+- `cleanup/ain_updates.csv`
+- `cleanup/all_updates.csv`
+- `cleanup/amira_updates.csv`
+- `cleanup/clean/ain_updates.csv`
+- `cleanup/clean/amira_updates.csv`
+- `cleanup/clean/combined.csv`
+- `cleanup/clean/hazim_updates.csv`
+- `cleanup/clean/iggy_updates.csv`
+- `cleanup/clean/jason_updates.csv`
+- `cleanup/clean/leave_records.csv`
+- `cleanup/clean/naqu_updates.csv`
+- `cleanup/clean/nic_updates.csv`
+- `cleanup/clean/shek_updates.csv`
+- `cleanup/clean/yaw_jin_updates.csv`
 
 <!-- /PROMPTOPS:CONTEXT -->
