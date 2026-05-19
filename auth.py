@@ -1,3 +1,4 @@
+import base64
 import os
 import secrets
 from datetime import datetime, timedelta
@@ -7,6 +8,7 @@ from fastapi import APIRouter, Body, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from webauthn import generate_registration_options, verify_registration_response
 from webauthn import generate_authentication_options, verify_authentication_response
+from webauthn.helpers.structs import AuthenticatorSelectionCriteria, ResidentKeyRequirement, UserVerificationRequirement
 
 from db import get_db
 
@@ -112,7 +114,7 @@ def logout(response: Response, request: Request):
 
 
 @router.get("/whoami")
-def whoami(request):
+def whoami(request: Request):
     token = request.cookies.get("session_token")
     _clear_expired_sessions()
     if token and token in _SESSIONS:
@@ -142,12 +144,16 @@ def require_auth(request: Request):
     return name
 
 
-@router.post("/passkey/register/begin")
-def passkey_register_begin(payload: dict = Body(...)):
-    name = payload.get("name")
-    if not name:
-        raise HTTPException(status_code=400, detail="name required")
+from webauthn.helpers.structs import AuthenticatorSelectionCriteria, ResidentKeyRequirement, UserVerificationRequirement
 
+
+@router.post("/passkey/register/begin")
+def passkey_register_begin(request: Request, payload: dict = Body(...)):
+    name = require_auth(request)
+    payload_name = payload.get("name")
+    if payload_name and payload_name != name:
+        raise HTTPException(status_code=403, detail="Can only register passkeys for yourself")
+    
     conn = get_db()
     existing_rows = conn.execute(
         "SELECT credential_id FROM passkeys WHERE member_name = ?", (name,)
@@ -166,44 +172,57 @@ def passkey_register_begin(payload: dict = Body(...)):
         user_name=name,
         user_display_name=name,
         exclude_credentials=exclude_credentials,
-        authenticator_selection={"residentKey": "preferred", "userVerification": "preferred"},
+        authenticator_selection=AuthenticatorSelectionCriteria(
+            resident_key=ResidentKeyRequirement.PREFERRED,
+            user_verification=UserVerificationRequirement.PREFERRED
+        ),
     )
 
-    _PASSKEY_CHALLENGES[name] = options.challenge
+    _PASSKEY_CHALLENGES[name] = base64.b64encode(options.challenge).decode()
 
     return {
         "options": {
             "rp": options.rp,
             "user": {
-                "id": options.user.id,
+                "id": base64.b64encode(options.user.id).decode(),
                 "name": options.user.name,
                 "displayName": options.user.display_name,
             },
-            "challenge": options.challenge,
-            "pubKeyCredParams": options.pub_key_cred_params,
+            "challenge": base64.b64encode(options.challenge).decode(),
+            "pubKeyCredParams": [{"type": p.type, "alg": p.alg} for p in options.pub_key_cred_params],
             "timeout": options.timeout,
-            "excludeCredentials": options.exclude_credentials,
-            "authenticatorSelection": options.authenticator_selection,
-            "attestation": options.attestation,
+            "excludeCredentials": [{"id": base64.b64encode(c.id).decode(), "type": c.type} for c in options.exclude_credentials] if options.exclude_credentials else [],
+            "authenticatorSelection": {
+                "residentKey": options.authenticator_selection.resident_key.value if options.authenticator_selection else "preferred",
+                "userVerification": options.authenticator_selection.user_verification.value if options.authenticator_selection else "preferred",
+            },
+            "attestation": options.attestation.value,
         }
     }
 
 
 @router.post("/passkey/register/finish")
-def passkey_register_finish(payload: dict = Body(...)):
+def passkey_register_finish(request: Request, payload: dict = Body(...)):
+    auth_name = require_auth(request)
     name = payload.get("name")
     credential = payload.get("credential")
     if not name or not credential:
         raise HTTPException(status_code=400, detail="name and credential required")
+    if name != auth_name:
+        raise HTTPException(status_code=403, detail="Can only register passkeys for yourself")
 
     challenge = _PASSKEY_CHALLENGES.pop(name, None)
     if challenge is None:
         raise HTTPException(status_code=400, detail="No pending registration challenge")
-
+    
+    credential = payload.get("credential")
+    if not credential:
+        raise HTTPException(status_code=400, detail="credential required")
+    
     try:
         result = verify_registration_response(
             credential=credential,
-            expected_challenge=challenge,
+            expected_challenge=base64.b64decode(challenge),
             expected_rp_id=RP_ID,
             expected_origin=f"https://{RP_ID}" if RP_ID != "localhost" else "http://localhost:8000",
         )
@@ -220,7 +239,7 @@ def passkey_register_finish(payload: dict = Body(...)):
         """,
         (
             name,
-            result.credential_id.hex(),
+            credential.get("id", ""),
             result.credential_public_key.hex(),
             result.sign_count,
             ",".join(credential.get("transports", [])),
@@ -254,24 +273,24 @@ def passkey_auth_begin(payload: dict = Body(...)):
     options = generate_authentication_options(
         rp_id=RP_ID,
         allow_credentials=allow_credentials,
-        user_verification="preferred",
+        user_verification=UserVerificationRequirement.PREFERRED,
     )
 
-    _PASSKEY_CHALLENGES[name] = options.challenge
+    _PASSKEY_CHALLENGES[name] = base64.b64encode(options.challenge).decode()
 
     return {
         "options": {
-            "challenge": options.challenge,
+            "challenge": base64.b64encode(options.challenge).decode(),
             "timeout": options.timeout,
             "rpId": options.rp_id,
-            "allowCredentials": options.allow_credentials,
-            "userVerification": options.user_verification,
+            "allowCredentials": [{"id": c.id, "type": c.type} for c in options.allow_credentials] if options.allow_credentials else [],
+            "userVerification": options.user_verification.value,
         }
     }
 
 
 @router.post("/passkey/auth/finish")
-def passkey_auth_finish(payload: dict = Body(...)):
+def passkey_auth_finish(request: Request, payload: dict = Body(...)):
     name = payload.get("name")
     credential = payload.get("credential")
     if not name or not credential:
@@ -299,7 +318,7 @@ def passkey_auth_finish(payload: dict = Body(...)):
     try:
         result = verify_authentication_response(
             credential=credential,
-            expected_challenge=challenge,
+            expected_challenge=base64.b64decode(challenge),
             expected_rp_id=RP_ID,
             expected_origin=f"https://{RP_ID}" if RP_ID != "localhost" else "http://localhost:8000",
             credential_public_key=bytes.fromhex(row["public_key"]),
@@ -354,6 +373,40 @@ def reset_password(request: Request, payload: dict = Body(...)):
         "UPDATE members SET password_hash = ? WHERE name = ?",
         (_hash_password(new_password), name),
     )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@router.get("/passkeys")
+def list_passkeys(request: Request, member_name: Optional[str] = None):
+    name = require_auth(request)
+    if member_name and member_name != name:
+        require_admin(request)
+        name = member_name
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, credential_id, sign_count, transports, created_at, last_used_at FROM passkeys WHERE member_name = ? ORDER BY created_at DESC",
+        (name,)
+    ).fetchall()
+    conn.close()
+    return {"passkeys": [dict(r) for r in rows]}
+
+
+@router.delete("/passkeys/{passkey_id}")
+def delete_passkey(request: Request, passkey_id: int):
+    name = require_auth(request)
+    conn = get_db()
+    row = conn.execute(
+        "SELECT member_name FROM passkeys WHERE id = ?", (passkey_id,)
+    ).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Passkey not found")
+    if row["member_name"] != name:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Can only delete your own passkeys")
+    conn.execute("DELETE FROM passkeys WHERE id = ?", (passkey_id,))
     conn.commit()
     conn.close()
     return {"ok": True}

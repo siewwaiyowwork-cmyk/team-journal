@@ -538,7 +538,8 @@
                     <button onclick="doLogout()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.85em;margin-left:4px" title="Logout">×</button>
                 </div>
                 <button class="btn-submit" onclick="openPanel()">+ Submit Today Update</button>
-                <a href="/admin" class="back-btn" style="margin-bottom:0;text-decoration:none">Admin</a>
+                <a href="/passkey" id="passkeyLink" class="back-btn" style="display:none;margin-bottom:0;text-decoration:none" title="Setup Passkey">🔐 Passkey</a>
+                <a href="/admin" id="adminLink" class="back-btn" style="display:none;margin-bottom:0;text-decoration:none">Admin</a>
             </div>
         </div>
 
@@ -3877,6 +3878,9 @@ function launchConfetti(x,y){
         const data = await r.json();
         if(data.logged_in){
             showUserChip(data.name);
+            if(data.role === 'admin'){
+                document.getElementById('adminLink').style.display='inline-flex';
+            }
             return data.name;
         }
         showLogin();
@@ -3894,6 +3898,7 @@ function launchConfetti(x,y){
     function showUserChip(name){
         document.getElementById('userChipName').textContent=name;
         document.getElementById('userChip').style.display='inline-flex';
+        document.getElementById('passkeyLink').style.display='inline-flex';
     }
     async function doLogin(){
         const name=document.getElementById('loginName').value.trim().toLowerCase();

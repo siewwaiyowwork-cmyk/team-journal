@@ -589,6 +589,10 @@ def root():
 def admin_root():
     return FileResponse('static/admin.html', headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"})
 
+@app.get("/passkey")
+def passkey_root():
+    return FileResponse('static/passkey.html', headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"})
+
 @app.get("/api/levels")
 def public_levels():
     return {"levels": get_levels()}
