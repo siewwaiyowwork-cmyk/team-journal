@@ -45,3 +45,5 @@ Thumbs.db
 
 # Monster debug preview
 static/monster-preview.html
+*.db.backup_*
+railway_*.db

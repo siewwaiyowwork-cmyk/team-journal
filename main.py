@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Body, Form, Response
+from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Body, Form, Response, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -102,12 +102,15 @@ def retroactive_update_is_work():
 
 app = FastAPI(title="Scoreboard API")
 
+from auth import router as auth_router
+app.include_router(auth_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
@@ -363,11 +366,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
 # Config helpers with caching
 _CONFIG_CACHE = {}
 
@@ -578,20 +576,10 @@ def get_badge_rule(badge_id: int):
     finally:
         conn.close()
 
-# Auth helper
-ADMIN_PASSWORD = 'changeme'
+from auth import get_current_name, require_admin
 
-def require_admin(secret: str):
-    pwd = os.environ.get('BACKUP_SECRET')
-    if not pwd:
-        pwd = get_config('backup_secret', 'changeme')
-    if secret != pwd:
-        raise HTTPException(status_code=403, detail="Invalid admin password")
-
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+from db import get_db as db_get_db
+get_db = db_get_db
 
 @app.get("/")
 def root():
@@ -652,8 +640,8 @@ def add_holiday(date: str = Form(...), name: str = Form(...)):
         conn.close()
 
 @app.delete("/api/holidays/{holiday_id}")
-def delete_holiday(holiday_id: int, admin_token: str = Query(...)):
-    require_admin(admin_token)
+def delete_holiday(holiday_id: int, request: Request):
+    require_admin(request)
     conn = get_db()
     try:
         conn.execute("DELETE FROM holidays WHERE id = ?", (holiday_id,))
@@ -3777,19 +3765,10 @@ def get_fun_facts():
 
 
 # Admin endpoints
-@app.post("/api/admin/login")
-def admin_login(payload: dict = Body(...)):
-    password = payload.get("password", "")
-    pwd = os.environ.get('BACKUP_SECRET')
-    if not pwd:
-        pwd = get_config('backup_secret', 'changeme')
-    if password != pwd:
-        raise HTTPException(status_code=403, detail="Invalid admin password")
-    return {"ok": True, "token": "admin_session"}
 
 @app.get("/api/admin/config")
-def admin_config_list(admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_config_list(request: Request):
+    require_admin(request)
     conn = get_db()
     try:
         rows = conn.execute("SELECT key, value, description FROM config ORDER BY key").fetchall()
@@ -3798,8 +3777,8 @@ def admin_config_list(admin_token: str = Query(...)):
         conn.close()
 
 @app.put("/api/admin/config/{key}")
-def admin_config_update(key: str, payload: dict = Body(...), admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_config_update(request: Request, key: str, payload: dict = Body(...)):
+    require_admin(request)
     value = payload.get("value")
     if value is None:
         raise HTTPException(status_code=400, detail="value is required")
@@ -3814,13 +3793,13 @@ def admin_config_update(key: str, payload: dict = Body(...), admin_token: str = 
     return {"ok": True, "key": key, "value": value}
 
 @app.get("/api/admin/statuses")
-def admin_statuses_list(admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_statuses_list(request: Request):
+    require_admin(request)
     return {"statuses": get_statuses(active_only=False)}
 
 @app.post("/api/admin/statuses")
-def admin_statuses_create(payload: dict = Body(...), admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_statuses_create(request: Request, payload: dict = Body(...)):
+    require_admin(request)
     code = payload.get("code", "").lower().strip()
     label = payload.get("label", "").strip()
     color = payload.get("color", "#ccc")
@@ -3837,8 +3816,8 @@ def admin_statuses_create(payload: dict = Body(...), admin_token: str = Query(..
         conn.close()
 
 @app.put("/api/admin/statuses/{code}")
-def admin_statuses_update(code: str, payload: dict = Body(...), admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_statuses_update(request: Request, code: str, payload: dict = Body(...)):
+    require_admin(request)
     label = payload.get("label")
     color = payload.get("color")
     active = payload.get("active")
@@ -3861,8 +3840,8 @@ def admin_statuses_update(code: str, payload: dict = Body(...), admin_token: str
         conn.close()
 
 @app.delete("/api/admin/statuses/{code}")
-def admin_statuses_delete(code: str, admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_statuses_delete(code: str, request: Request):
+    require_admin(request)
     conn = get_db()
     try:
         used = conn.execute("SELECT COUNT(*) as cnt FROM updates WHERE status = ?", (code,)).fetchone()
@@ -3875,8 +3854,8 @@ def admin_statuses_delete(code: str, admin_token: str = Query(...)):
         conn.close()
 
 @app.get("/api/admin/leave_types")
-def admin_leave_types_list(admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_leave_types_list(request: Request):
+    require_admin(request)
     conn = get_db()
     try:
         rows = conn.execute("SELECT code, label, description, active FROM leave_types ORDER BY code").fetchall()
@@ -3885,8 +3864,8 @@ def admin_leave_types_list(admin_token: str = Query(...)):
         conn.close()
 
 @app.post("/api/admin/leave_types")
-def admin_leave_types_create(payload: dict = Body(...), admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_leave_types_create(request: Request, payload: dict = Body(...)):
+    require_admin(request)
     code = payload.get("code", "").upper().strip()
     label = payload.get("label", "").strip()
     description = payload.get("description", "")
@@ -3903,8 +3882,8 @@ def admin_leave_types_create(payload: dict = Body(...), admin_token: str = Query
         conn.close()
 
 @app.put("/api/admin/leave_types/{code}")
-def admin_leave_types_update(code: str, payload: dict = Body(...), admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_leave_types_update(request: Request, code: str, payload: dict = Body(...)):
+    require_admin(request)
     label = payload.get("label")
     description = payload.get("description")
     active = payload.get("active")
@@ -3927,13 +3906,13 @@ def admin_leave_types_update(code: str, payload: dict = Body(...), admin_token: 
         conn.close()
 
 @app.get("/api/admin/levels")
-def admin_levels_list(admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_levels_list(request: Request):
+    require_admin(request)
     return {"levels": get_levels()}
 
 @app.post("/api/admin/levels")
-def admin_levels_create(payload: dict = Body(...), admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_levels_create(request: Request, payload: dict = Body(...)):
+    require_admin(request)
     min_tasks = payload.get("min_tasks")
     label = payload.get("label", "").strip()
     color = payload.get("color", "#ddd")
@@ -3950,8 +3929,8 @@ def admin_levels_create(payload: dict = Body(...), admin_token: str = Query(...)
         conn.close()
 
 @app.put("/api/admin/levels/{level_id}")
-def admin_levels_update(level_id: int, payload: dict = Body(...), admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_levels_update(request: Request, level_id: int, payload: dict = Body(...)):
+    require_admin(request)
     min_tasks = payload.get("min_tasks")
     label = payload.get("label")
     color = payload.get("color")
@@ -3977,13 +3956,13 @@ def admin_levels_update(level_id: int, payload: dict = Body(...), admin_token: s
         conn.close()
 
 @app.get("/api/admin/modules")
-def admin_modules_list(admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_modules_list(request: Request):
+    require_admin(request)
     return {"modules": get_modules(active_only=False)}
 
 @app.post("/api/admin/modules")
-def admin_modules_create(payload: dict = Body(...), admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_modules_create(request: Request, payload: dict = Body(...)):
+    require_admin(request)
     code = payload.get("code", "").lower().strip()
     label = payload.get("label", "").strip()
     color = payload.get("color", "#ccc")
@@ -4000,8 +3979,8 @@ def admin_modules_create(payload: dict = Body(...), admin_token: str = Query(...
         conn.close()
 
 @app.put("/api/admin/modules/{code}")
-def admin_modules_update(code: str, payload: dict = Body(...), admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_modules_update(request: Request, code: str, payload: dict = Body(...)):
+    require_admin(request)
     label = payload.get("label")
     color = payload.get("color")
     active = payload.get("active")
@@ -4024,8 +4003,8 @@ def admin_modules_update(code: str, payload: dict = Body(...), admin_token: str 
         conn.close()
 
 @app.delete("/api/admin/modules/{code}")
-def admin_modules_delete(code: str, admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_modules_delete(code: str, request: Request):
+    require_admin(request)
     conn = get_db()
     try:
         conn.execute("DELETE FROM modules WHERE code = ?", (code,))
@@ -4038,13 +4017,13 @@ def admin_modules_delete(code: str, admin_token: str = Query(...)):
         conn.close()
 
 @app.get("/api/admin/badge_rules")
-def admin_badge_rules_list(admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_badge_rules_list(request: Request):
+    require_admin(request)
     return {"badge_rules": get_badge_rules()}
 
 @app.post("/api/admin/badge_rules")
-def admin_badge_rules_create(payload: dict = Body(...), admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_badge_rules_create(request: Request, payload: dict = Body(...)):
+    require_admin(request)
     badge_name = payload.get("badge_name", "").strip()
     sql_query = payload.get("sql_query", "").strip()
     result_type = payload.get("result_type", "top").strip()
@@ -4062,8 +4041,8 @@ def admin_badge_rules_create(payload: dict = Body(...), admin_token: str = Query
         conn.close()
 
 @app.put("/api/admin/badge_rules/{rule_id}")
-def admin_badge_rules_update(rule_id: int, payload: dict = Body(...), admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_badge_rules_update(request: Request, rule_id: int, payload: dict = Body(...)):
+    require_admin(request)
     badge_name = payload.get("badge_name")
     sql_query = payload.get("sql_query")
     result_type = payload.get("result_type")
@@ -4092,8 +4071,8 @@ def admin_badge_rules_update(rule_id: int, payload: dict = Body(...), admin_toke
         conn.close()
 
 @app.get("/api/admin/members")
-def admin_members_list(admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_members_list(request: Request):
+    require_admin(request)
     conn = get_db()
     try:
         rows = conn.execute("SELECT name, join_date, active FROM members ORDER BY name").fetchall()
@@ -4102,8 +4081,8 @@ def admin_members_list(admin_token: str = Query(...)):
         conn.close()
 
 @app.put("/api/admin/members/{name}")
-def admin_member_update(name: str, admin_token: str = Query(...), payload: dict = Body(...)):
-    require_admin(admin_token)
+def admin_member_update(name: str, request: Request, payload: dict = Body(...)):
+    require_admin(request)
     conn = get_db()
     try:
         active = payload.get('active')
@@ -4118,8 +4097,8 @@ def admin_member_update(name: str, admin_token: str = Query(...), payload: dict 
         conn.close()
 
 @app.delete("/api/admin/members/{name}")
-def admin_member_delete(name: str, admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_member_delete(name: str, request: Request):
+    require_admin(request)
     conn = get_db()
     try:
         conn.execute("DELETE FROM members WHERE name = ?", (name,))
@@ -4133,8 +4112,8 @@ def admin_member_delete(name: str, admin_token: str = Query(...)):
         conn.close()
 
 @app.get("/api/admin/updates")
-def admin_updates_list(admin_token: str = Query(...), name: Optional[str] = None, status: Optional[str] = None, limit: int = Query(100, ge=1, le=500)):
-    require_admin(admin_token)
+def admin_updates_list(request: Request, name: Optional[str] = None, status: Optional[str] = None, limit: int = Query(100, ge=1, le=500)):
+    require_admin(request)
     conn = get_db()
     try:
         where = ['1=1']
@@ -4153,8 +4132,8 @@ def admin_updates_list(admin_token: str = Query(...), name: Optional[str] = None
         conn.close()
 
 @app.delete("/api/admin/updates/{update_id}")
-def admin_delete_update(update_id: int, admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_delete_update(update_id: int, request: Request):
+    require_admin(request)
     conn = get_db()
     try:
         conn.execute("BEGIN")
@@ -4178,12 +4157,12 @@ def admin_delete_update(update_id: int, admin_token: str = Query(...)):
 
 @app.post("/api/admin/bulk-import")
 async def admin_bulk_import(
-    admin_token: str = Query(...),
+    request: Request,
     file: UploadFile = File(...),
     member_name: str = Form(...),
     preview_only: bool = Form(False)
 ):
-    require_admin(admin_token)
+    require_admin(request)
     if not is_import_export_enabled():
         raise HTTPException(status_code=403, detail="Import/export is disabled")
 
@@ -4415,10 +4394,10 @@ async def import_updates(
 
 @app.get("/api/admin/export")
 def admin_export_updates(
-    admin_token: str = Query(...),
+    request: Request,
     member_name: str = Query(...)
 ):
-    require_admin(admin_token)
+    require_admin(request)
     if not member_name:
         raise HTTPException(status_code=400, detail="member_name is required")
     conn = get_db()
@@ -4442,8 +4421,8 @@ def admin_export_updates(
 
 
 @app.get("/api/admin/dashboard")
-def admin_dashboard(admin_token: str = Query(...)):
-    require_admin(admin_token)
+def admin_dashboard(request: Request):
+    require_admin(request)
     conn = get_db()
     try:
         members_count = conn.execute("SELECT COUNT(*) FROM members WHERE active = 1").fetchone()[0]

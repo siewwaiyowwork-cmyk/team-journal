@@ -73,7 +73,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <div class="login-overlay" id="loginOverlay">
   <div class="login-card">
     <h2>Admin Access</h2>
-    <p>Enter admin password to manage system settings</p>
+    <p>Enter your name and password to access admin panel</p>
+    <input type="text" id="adminName" class="login-input" placeholder="Name">
     <input type="password" id="adminPassword" class="login-input" placeholder="Password" onkeypress="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()">Login</button>
     <div class="login-error" id="loginError"></div>
@@ -344,45 +345,52 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <div class="toast" id="toast"></div>
 
 <script>
-const getToken = () => sessionStorage.getItem('adminToken') || '';
-
-function checkAuth() {
-  // Clear stale token from old buggy version that stored 'admin_session'
-  const token = getToken();
-  if (token === 'admin_session') {
-    sessionStorage.removeItem('adminToken');
-  }
-  if (!getToken()) {
+async function checkAuth() {
+  try {
+    const r = await fetch('/api/auth/whoami', {credentials: 'include'});
+    const user = await r.json();
+    if (user.logged_in && user.role === 'admin') {
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('appContainer').style.display = 'flex';
+      showSection('dashboard');
+    } else {
+      throw new Error('Not authorized');
+    }
+  } catch (e) {
     document.getElementById('loginOverlay').style.display = 'flex';
     document.getElementById('appContainer').style.display = 'none';
-  } else {
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('appContainer').style.display = 'flex';
-    showSection('dashboard');
   }
 }
 
 async function doLogin() {
+  const name = document.getElementById('adminName').value.trim();
   const pwd = document.getElementById('adminPassword').value.trim();
   const errEl = document.getElementById('loginError');
   try {
-    const r = await fetch('/api/admin/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pwd})});
-    if (!r.ok) throw new Error('Invalid password');
-    sessionStorage.setItem('adminToken', pwd);
+    const r = await fetch('/api/auth/login', {
+      method: 'POST', 
+      headers: {'Content-Type': 'application/json'}, 
+      body: JSON.stringify({name, password: pwd}),
+      credentials: 'include'
+    });
+    if (!r.ok) throw new Error('Invalid name or password');
     errEl.style.display = 'none';
     checkAuth();
     showToast('Logged in successfully', 'success');
   } catch (e) {
-    sessionStorage.removeItem('adminToken');
     errEl.textContent = e.message;
     errEl.style.display = 'block';
   }
 }
 
-function doLogout() {
-  sessionStorage.removeItem('adminToken');
-  checkAuth();
-  showToast('Logged out', 'success');
+async function doLogout() {
+  try {
+    await fetch('/api/auth/logout', {method: 'POST', credentials: 'include'});
+    checkAuth();
+    showToast('Logged out', 'success');
+  } catch (e) {
+    showToast('Logout failed', 'error');
+  }
 }
 
 function showSection(name) {
@@ -404,30 +412,36 @@ function showSection(name) {
   if (name === 'export') loadExportMembers();
 }
 
-function apiUrl(path) {
-  return path + '?admin_token=' + encodeURIComponent(getToken());
-}
-
 async function apiGet(path) {
-  const r = await fetch(apiUrl(path));
+  const r = await fetch(path, {credentials: 'include'});
   if (!r.ok) throw new Error((await r.json()).detail || 'Request failed');
   return r.json();
 }
 
 async function apiPost(path, body) {
-  const r = await fetch(apiUrl(path), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const r = await fetch(path, {
+    method: 'POST', 
+    headers: {'Content-Type': 'application/json'}, 
+    body: JSON.stringify(body),
+    credentials: 'include'
+  });
   if (!r.ok) throw new Error((await r.json()).detail || 'Request failed');
   return r.json();
 }
 
 async function apiPut(path, body) {
-  const r = await fetch(apiUrl(path), {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const r = await fetch(path, {
+    method: 'PUT', 
+    headers: {'Content-Type': 'application/json'}, 
+    body: JSON.stringify(body),
+    credentials: 'include'
+  });
   if (!r.ok) throw new Error((await r.json()).detail || 'Request failed');
   return r.json();
 }
 
 async function apiDelete(path) {
-  const r = await fetch(apiUrl(path), {method:'DELETE'});
+  const r = await fetch(path, {method: 'DELETE', credentials: 'include'});
   if (!r.ok) throw new Error((await r.json()).detail || 'Request failed');
   return r.json();
 }
@@ -710,7 +724,7 @@ async function addHoliday() {
     const form = new FormData();
     form.append('date', date);
     form.append('name', name);
-    const r = await fetch('/api/holidays', {method:'POST', body:form});
+    const r = await fetch('/api/holidays', {method:'POST', body:form, credentials: 'include'});
     if (!r.ok) throw new Error((await r.json()).detail || 'Failed');
     document.getElementById('newHolidayDate').value = '';
     document.getElementById('newHolidayName').value = '';
@@ -921,7 +935,7 @@ async function executeBulkImport() {
     form.append('member_name', member);
     form.append('file', document.getElementById('bulkImportFile').files[0]);
 
-    const r = await fetch(apiUrl('/api/admin/bulk-import'), { method: 'POST', body: form });
+    const r = await fetch('/api/admin/bulk-import', { method: 'POST', body: form, credentials: 'include' });
     if (!r.ok) throw new Error((await r.json()).detail || 'Import failed');
     const data = await r.json();
     showToast('Imported ' + data.imported + ' records for ' + member, 'success');
@@ -937,8 +951,8 @@ async function exportMemberUpdates() {
   if (!member) { showToast('Please select a member', 'error'); return; }
 
   try {
-    const url = '/api/admin/export?member_name=' + encodeURIComponent(member) + '&admin_token=' + encodeURIComponent(getToken());
-    const r = await fetch(url);
+    const url = '/api/admin/export?member_name=' + encodeURIComponent(member);
+    const r = await fetch(url, {credentials: 'include'});
     if (!r.ok) throw new Error((await r.json()).detail || 'Export failed');
 
     const blob = await r.blob();

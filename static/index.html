@@ -490,10 +490,40 @@
         .cal-dot.ph{background:var(--orange)}.cal-dot.wd{background:var(--accent)}.cal-dot.we{background:var(--text-dim);opacity:.5}
         .chart-wrapper{position:relative;height:250px;margin-top:12px}
         .skeleton-box{background:linear-gradient(90deg,var(--surface2) 25%,var(--surface) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px;min-height:180px}
-    </style>
+        .login-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
+        .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+        .login-title{font-size:1.4em;font-weight:700;margin-bottom:4px;color:var(--accent)}
+        .login-sub{font-size:.85em;color:var(--text-dim);margin-bottom:20px}
+        .login-input{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.9em;margin-bottom:12px;box-sizing:border-box}
+        .login-input:focus{outline:none;border-color:var(--accent)}
+        .login-btn{width:100%;padding:12px;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;border:none;cursor:pointer;font-family:'Syne',sans-serif;font-size:1em;transition:.2s;margin-bottom:8px}
+        .login-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,229,255,.3)}
+        .login-error{color:var(--red);font-size:.8em;margin-top:8px;text-align:center}
+        .login-hint{font-size:.75em;color:var(--text-dim);margin-top:16px;text-align:center;border-top:1px solid var(--border);padding-top:12px}
+        .user-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:.8em}
+        .user-chip .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+        .passkey-btn{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+        .passkey-btn:hover{border-color:var(--accent);box-shadow:none}
+        .login-divider{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--text-dim);font-size:.75em}
+        .login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--border)}
     </style>
 </head>
 <body>
+    <div id="loginOverlay" class="login-overlay" style="display:none">
+        <div class="login-box">
+            <div class="login-title">Welcome Back</div>
+            <div class="login-sub" id="loginSub">Sign in to track your progress</div>
+            <input type="text" id="loginName" class="login-input" placeholder="Your name (e.g. nic)" autocomplete="username">
+            <input type="password" id="loginPassword" class="login-input" placeholder="Password" autocomplete="current-password">
+            <div id="loginError" class="login-error" style="display:none"></div>
+            <button class="login-btn" onclick="doLogin()">Sign In</button>
+            <div class="login-divider">or</div>
+            <button class="login-btn passkey-btn" id="passkeyBtn" onclick="doPasskey()" style="display:none">Sign in with Passkey</button>
+            <div class="login-hint">
+                Default password is <code>changeme</code>. You can reset it after login.
+            </div>
+        </div>
+    </div>
     <div class="container">
         <div class="header">
             <h1 style="display:inline-flex;align-items:center;gap:8px;justify-content:center"><span id="headerEmoji"></span>VAC24<svg width="50" height="50" viewBox="0 0 303 299" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><circle cx="150.471" cy="150.281" r="133" transform="rotate(180 150.471 150.281)" fill="#142D58"/><circle cx="150.471" cy="150.281" r="137.5" transform="rotate(180 150.471 150.281)" fill="#142D58" stroke="white" stroke-width="9"/><mask id="mask0_483_2349" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="53" y="52" width="196" height="196"><circle cx="150.971" cy="149.781" r="97.5" transform="rotate(180 150.971 149.781)" fill="#2C59C3"/></mask><g mask="url(#mask0_483_2349)"><circle cx="150.971" cy="149.781" r="97.5" transform="rotate(180 150.971 149.781)" fill="#F6921F"/><circle cx="116.971" cy="197.781" r="128.5" transform="rotate(180 116.971 197.781)" fill="#0B1B35"/></g><path fill-rule="evenodd" clip-rule="evenodd" d="M92.2451 155.281H92.6963C92.6963 158.962 94.0726 162.179 96.8229 164.929C99.5732 167.68 102.788 169.056 106.471 169.056V169.507C102.788 169.507 99.5732 170.883 96.8229 173.641C94.0726 176.398 92.6963 179.613 92.6963 183.281H92.2451C92.2451 179.601 90.8688 176.384 88.1185 173.634C85.3682 170.883 82.153 169.507 78.4707 169.507V169.056C82.1507 169.056 85.3682 167.68 88.1185 164.929C90.8688 162.179 92.2451 158.964 92.2451 155.281Z" fill="white"/><path fill-rule="evenodd" clip-rule="evenodd" d="M132.282 85.8176H132.46C132.46 87.1319 133 88.281 134.081 89.2633C135.161 90.2455 136.424 90.7371 137.871 90.7371V90.8982C136.424 90.8982 135.161 91.3897 134.081 92.3744C133 93.3591 132.46 94.5074 132.46 95.8176H132.282C132.282 94.5033 131.742 93.3542 130.661 92.372C129.581 91.3897 128.318 90.8982 126.871 90.8982V90.7371C128.317 90.7371 129.581 90.2455 130.661 89.2633C131.742 88.281 132.282 87.1327 132.282 85.8176Z" fill="white"/><path fill-rule="evenodd" clip-rule="evenodd" d="M198.218 120.818H198.524C198.524 123.315 199.458 125.498 201.324 127.364C203.191 129.231 205.372 130.165 207.871 130.165V130.471C205.372 130.471 203.191 131.405 201.324 133.276C199.458 135.146 198.524 137.328 198.524 139.818H198.218C198.218 137.32 197.284 135.137 195.418 133.271C193.552 131.405 191.37 130.471 188.871 130.471V130.165C191.368 130.165 193.552 129.231 195.418 127.364C197.284 125.498 198.218 123.316 198.218 120.818Z" fill="white"/><path d="M138.215 270.935L136.623 261.795L136.516 261.78L132.529 270.159L129.827 269.791L135.374 258.803L138.515 259.232L140.923 271.304L138.215 270.935Z" fill="white"/><path d="M95.8652 257.969L101.096 247.575L103.294 248.68L98.0628 259.075L95.8652 257.969Z" fill="white"/><path d="M65.9384 230.437C65.7962 230.687 65.6995 230.938 65.6484 231.189C65.5946 231.443 65.5877 231.696 65.6276 231.948C65.6622 232.201 65.7437 232.449 65.8722 232.695C65.9979 232.937 66.172 233.172 66.3944 233.4C66.81 233.825 67.281 234.096 67.8074 234.212C68.3311 234.325 68.8821 234.274 69.4605 234.058C70.0362 233.845 70.6139 233.455 71.1937 232.889C71.7734 232.322 72.1804 231.752 72.4147 231.179C72.649 230.606 72.7157 230.053 72.6146 229.522C72.5109 228.993 72.2446 228.509 71.8157 228.07C71.4266 227.672 71.0239 227.401 70.6077 227.257C70.1861 227.113 69.7725 227.093 69.3668 227.198C68.9585 227.301 68.5769 227.525 68.222 227.872L67.9253 227.463L70.0221 229.608L68.6973 230.903L65.2941 227.42L66.3425 226.396C67.074 225.681 67.8534 225.221 68.6808 225.017C69.5054 224.814 70.3247 224.845 71.1387 225.109C71.9499 225.376 72.697 225.858 73.3801 226.557C74.1425 227.338 74.6403 228.191 74.8733 229.118C75.1037 230.047 75.0621 230.988 74.7484 231.941C74.4294 232.894 73.831 233.799 72.9532 234.657C72.2787 235.316 71.5819 235.806 70.863 236.127C70.1388 236.448 69.419 236.611 68.7038 236.617C67.9886 236.622 67.3044 236.483 66.6514 236.199C65.9984 235.916 65.4032 235.499 64.8658 234.949C64.4052 234.478 64.0454 233.971 63.7864 233.43C63.5248 232.891 63.365 232.343 63.3072 231.785C63.2467 231.225 63.2905 230.676 63.4386 230.139C63.5841 229.605 63.8349 229.109 64.1911 228.649L65.9384 230.437Z" fill="white"/><path d="M42.0771 201.209L52.5893 196.219L53.6443 198.441L43.1321 203.431L42.0771 201.209Z" fill="white"/><path d="M43.9565 166.962L32.3937 168.269L32.1175 165.824L41.6648 164.745L41.1048 159.788L43.1204 159.561L43.9565 166.962Z" fill="white"/><path d="M57.3038 97.0295L55.9283 99.2786L48.0972 89.7804L49.7514 87.0757L61.7713 89.7249L60.3958 91.974L51.2165 89.7766L51.1691 89.8542L57.3038 97.0295ZM53.3159 94.7837L56.565 89.4712L58.2033 90.4732L54.9542 95.7857L53.3159 94.7837Z" fill="white"/><path d="M82.0151 57.8688L80.0977 59.4552C79.8574 59.2361 79.6036 59.0749 79.3363 58.9716C79.0665 58.8654 78.7903 58.8138 78.5075 58.8166C78.2247 58.8195 77.9423 58.8762 77.6601 58.9868C77.3808 59.0949 77.1128 59.2552 76.856 59.4677C76.3919 59.8517 76.0831 60.3014 75.9295 60.8168C75.7734 61.3294 75.7817 61.8831 75.9542 62.4778C76.1242 63.0696 76.4664 63.6763 76.9807 64.298C77.5096 64.9371 78.0487 65.3956 78.5982 65.6735C79.1506 65.949 79.6907 66.0552 80.2186 65.9921C80.7465 65.929 81.2366 65.7103 81.689 65.336C81.9429 65.1259 82.1501 64.898 82.3105 64.6522C82.4739 64.404 82.5871 64.1456 82.6501 63.8772C82.7107 63.6058 82.7192 63.3308 82.6756 63.0523C82.6348 62.7713 82.5374 62.4931 82.3831 62.2175L84.3078 60.6399C84.5987 61.0924 84.803 61.592 84.9209 62.1385C85.0393 62.6797 85.0564 63.2382 84.9724 63.8141C84.889 64.3846 84.6905 64.947 84.3772 65.5012C84.0644 66.0501 83.6205 66.5623 83.0456 67.038C82.2459 67.6996 81.3812 68.1103 80.4514 68.2699C79.5245 68.4272 78.5949 68.3138 77.6626 67.9298C76.7333 67.5434 75.8654 66.8628 75.0589 65.888C74.25 64.9103 73.7457 63.9264 73.546 62.9363C73.3463 61.9462 73.4131 61.0109 73.7465 60.1304C74.0775 59.2469 74.637 58.4792 75.425 57.8273C75.9445 57.3975 76.4864 57.072 77.0507 56.8509C77.618 56.6274 78.1897 56.5133 78.7659 56.5085C79.3397 56.5008 79.9012 56.609 80.4503 56.8331C81.0025 57.0548 81.5241 57.4 82.0151 57.8688Z" fill="white"/><path d="M105.994 41.9486L105.279 40.0506L114.221 36.6794L114.937 38.5774L111.603 39.8341L114.992 48.8245L112.717 49.6823L109.328 40.6919L105.994 41.9486Z" fill="white"/><path d="M191.733 41.8873L189.356 41.1497C189.408 40.8287 189.404 40.5281 189.344 40.2478C189.286 39.9639 189.178 39.7043 189.021 39.4692C188.864 39.2341 188.662 39.0286 188.415 38.8529C188.172 38.6782 187.891 38.5415 187.572 38.4427C186.997 38.2642 186.452 38.2516 185.936 38.405C185.422 38.5547 184.963 38.8644 184.559 39.3341C184.157 39.8002 183.836 40.4185 183.597 41.1891C183.351 41.9813 183.262 42.6835 183.33 43.2955C183.402 43.9086 183.608 44.4189 183.95 44.8263C184.291 45.2337 184.742 45.5244 185.303 45.6984C185.618 45.7961 185.922 45.8448 186.216 45.8447C186.513 45.8457 186.791 45.7992 187.05 45.7051C187.31 45.6074 187.545 45.4641 187.755 45.2752C187.967 45.0875 188.147 44.8537 188.293 44.5739L190.667 45.3223C190.447 45.8133 190.141 46.2576 189.748 46.6552C189.359 47.0503 188.901 47.3701 188.373 47.6148C187.85 47.8569 187.27 47.9984 186.635 48.0392C186.005 48.0776 185.333 47.9861 184.62 47.765C183.629 47.4574 182.812 46.9581 182.17 46.267C181.531 45.5771 181.118 44.7368 180.929 43.7464C180.745 42.757 180.84 41.6582 181.215 40.4498C181.591 39.2379 182.139 38.2776 182.858 37.5689C183.578 36.8601 184.397 36.4045 185.317 36.202C186.238 35.9959 187.186 36.0444 188.163 36.3475C188.807 36.5473 189.376 36.823 189.87 37.1745C190.367 37.5272 190.775 37.9434 191.094 38.4231C191.415 38.8993 191.631 39.4285 191.744 40.0108C191.86 40.5943 191.857 41.2197 191.733 41.8873Z" fill="white"/><path d="M224.189 62.3479C223.44 63.3721 222.609 64.1014 221.695 64.5358C220.784 64.9724 219.857 65.1365 218.913 65.0281C217.974 64.9188 217.091 64.5611 216.262 63.9551C215.428 63.3445 214.817 62.6071 214.431 61.7427C214.045 60.8783 213.922 59.9459 214.063 58.9457C214.203 57.9455 214.647 56.9348 215.394 55.9137C216.143 54.8896 216.973 54.1592 217.884 53.7225C218.794 53.2859 219.719 53.1222 220.658 53.2314C221.598 53.3376 222.486 53.696 223.321 54.3066C224.149 54.9126 224.756 55.6479 225.142 56.5123C225.534 57.3759 225.659 58.3078 225.519 59.308C225.382 60.3105 224.938 61.3238 224.189 62.3479ZM222.176 60.8752C222.661 60.2118 222.971 59.5797 223.106 58.9788C223.243 58.3801 223.219 57.8323 223.034 57.3352C222.848 56.8381 222.516 56.414 222.036 56.0629C221.556 55.7118 221.051 55.5231 220.521 55.4969C219.991 55.4706 219.46 55.6126 218.928 55.9227C218.399 56.2351 217.892 56.723 217.407 57.3864C216.922 58.0498 216.61 58.6809 216.473 59.2795C216.338 59.8804 216.364 60.4294 216.549 60.9264C216.734 61.4235 217.067 61.8476 217.547 62.1987C218.027 62.5498 218.532 62.7385 219.062 62.7648C219.592 62.791 220.121 62.648 220.65 62.3356C221.182 62.0254 221.691 61.5386 222.176 60.8752Z" fill="white"/><path d="M253.209 86.4065L243.661 93.0586L242.446 91.315L245.561 82.9745L245.513 82.9046L239.503 87.0914L238.097 85.0728L247.645 78.4207L248.879 80.1923L245.746 88.4969L245.804 88.5808L251.809 84.3973L253.209 86.4065Z" fill="white"/><path d="M264.948 121.739C265.376 121.57 265.665 121.285 265.815 120.884C265.964 120.482 265.958 119.998 265.796 119.43C265.686 119.043 265.538 118.733 265.353 118.498C265.172 118.262 264.966 118.101 264.736 118.013C264.507 117.928 264.272 117.92 264.032 117.989C263.83 118.039 263.667 118.13 263.543 118.264C263.421 118.401 263.328 118.568 263.266 118.763C263.207 118.957 263.168 119.173 263.149 119.41C263.134 119.647 263.134 119.895 263.149 120.155L263.195 121.229C263.225 121.748 263.207 122.238 263.142 122.698C263.076 123.158 262.953 123.575 262.772 123.949C262.591 124.324 262.344 124.645 262.03 124.911C261.717 125.182 261.328 125.385 260.863 125.522C260.177 125.714 259.533 125.708 258.932 125.505C258.335 125.305 257.806 124.921 257.344 124.351C256.887 123.784 256.529 123.046 256.269 122.135C256.012 121.232 255.926 120.405 256.011 119.656C256.098 118.91 256.359 118.273 256.795 117.743C257.235 117.215 257.855 116.828 258.655 116.58L259.308 118.869C258.94 119.002 258.658 119.199 258.46 119.46C258.268 119.723 258.153 120.034 258.117 120.391C258.086 120.75 258.128 121.134 258.245 121.542C258.359 121.943 258.517 122.274 258.717 122.536C258.919 122.801 259.147 122.986 259.401 123.091C259.656 123.196 259.918 123.209 260.187 123.133C260.439 123.061 260.629 122.926 260.757 122.728C260.887 122.533 260.971 122.277 261.011 121.958C261.051 121.644 261.062 121.268 261.044 120.832L261.002 119.526C260.963 118.518 261.109 117.67 261.441 116.985C261.774 116.299 262.354 115.84 263.182 115.608C263.858 115.411 264.501 115.423 265.112 115.642C265.723 115.866 266.262 116.258 266.729 116.818C267.196 117.378 267.546 118.066 267.779 118.882C268.015 119.712 268.08 120.478 267.973 121.178C267.866 121.882 267.609 122.479 267.201 122.97C266.794 123.46 266.258 123.806 265.595 124.007L264.948 121.739Z" fill="white"/><path d="M270.07 153.351L272.095 153.458L271.59 163.002L269.565 162.894L269.753 159.337L260.158 158.829L260.287 156.401L269.881 156.908L270.07 153.351Z" fill="white"/><path d="M253.615 189.198L254.601 186.753L263.889 194.833L262.702 197.773L250.41 197.138L251.397 194.693L260.813 195.35L260.847 195.266L253.615 189.198ZM257.918 190.757L255.587 196.532L253.807 195.813L256.137 190.038L257.918 190.757Z" fill="white"/><path d="M239.432 233.791L230.639 226.168L232.031 224.563L240.881 225.535L240.937 225.471L235.403 220.673L237.015 218.814L245.807 226.437L244.393 228.068L235.573 227.069L235.506 227.147L241.036 231.94L239.432 233.791Z" fill="white"/><path d="M214.653 251.542L215.671 253.296L207.406 258.093L206.388 256.339L209.469 254.551L204.646 246.241L206.749 245.02L211.572 253.33L214.653 251.542Z" fill="white"/><path d="M31.8711 113.333H37.4497L46.2468 136.637C46.5042 137.324 46.9763 137.624 47.6629 137.624C48.3495 137.624 48.7786 137.324 49.079 136.637L58.3052 113.333H63.9267L53.7135 139.084C52.6407 141.788 50.6667 142.818 47.6629 142.818C44.8306 142.818 42.6421 141.916 41.5693 139.084L31.8711 113.333Z" fill="white"/><path d="M76.9315 118.998L67.7482 142.303H62.1696L72.3399 116.552C73.4127 113.848 75.3866 112.818 78.4334 112.818C81.4373 112.818 83.4113 113.848 84.4412 116.552L94.2252 142.303H88.6037L79.8066 118.998C79.5492 118.311 79.0771 118.011 78.3905 118.011C77.7039 118.011 77.2319 118.311 76.9315 118.998Z" fill="white"/><path d="M108.863 113.333H120.064V118.397H108.863C103.285 118.397 100.839 121.187 100.839 127.839C100.839 134.449 103.242 137.238 108.863 137.238H120.064V142.303H108.863C100.41 142.303 95.7751 137.539 95.7751 127.839C95.7751 118.097 100.453 113.333 108.863 113.333Z" fill="white"/><path d="M126.399 113.333H143.006C148.585 113.333 151.717 116.208 151.717 121.53C151.717 125.822 149.658 128.225 144.98 129.298L132.922 132.002C130.905 132.474 130.519 133.547 130.519 135.178V136.637C130.519 137.109 130.69 137.238 131.077 137.238H150.945V142.303H127.858C126.227 142.303 125.455 141.53 125.455 139.942V135.564C125.455 130.843 126.871 128.354 131.806 127.238L143.993 124.449C146.053 123.976 146.697 122.989 146.697 121.616C146.697 119.685 145.452 118.397 143.135 118.397H126.399V113.333Z" fill="white"/><path d="M157.312 126.594L165.68 116.594C167.482 114.449 168.941 113.333 172.417 113.333H175.636C179.369 113.333 180.871 115.178 180.871 118.612V142.303H175.765V136.294H162.204C157.312 136.294 155.51 134.534 155.51 131.273C155.51 129.127 156.239 127.882 157.312 126.594ZM169.585 119.642L161.689 129.041C161.346 129.427 161.174 129.813 161.174 130.371C161.174 131.273 161.732 131.788 163.105 131.788H175.765V119.813C175.765 118.912 175.378 118.397 174.477 118.397H172.203C170.915 118.397 170.4 118.697 169.585 119.642Z" fill="white"/><path d="M281.526 65.992C274.311 35.5026 234.457 26.4787 218.148 35.4041C238.347 24.3499 300.54 3.34635 286.233 54.0381C285.181 57.7683 283.595 61.7675 281.526 65.992C283.247 73.2642 283.111 81.7577 280.356 91.5201C263.905 149.815 163.426 242.251 75.6227 265.755C56.9353 270.758 44.0409 267.372 35.4031 259.809C-26.1232 276.279 15.3649 207.767 24.6004 192.662C18.17 203.179 15.602 242.471 35.4031 259.809C117.588 237.808 251.264 127.787 281.526 65.992Z" fill="#ED2F2F"/><path d="M281.526 65.992C274.311 35.5026 234.457 26.4787 218.148 35.4041C238.347 24.3499 300.54 3.34634 286.233 54.0381C285.181 57.7683 283.595 61.7675 281.526 65.992ZM281.526 65.992C283.247 73.2642 283.111 81.7577 280.356 91.5201C263.905 149.815 163.426 242.251 75.6227 265.755C56.9353 270.758 44.0409 267.372 35.4031 259.809M281.526 65.992C251.264 127.787 117.588 237.808 35.4031 259.809M35.4031 259.809C15.602 242.471 18.17 203.179 24.6004 192.662C15.3649 207.767 -26.1232 276.279 35.4031 259.809Z" stroke="#ED2F2F" stroke-width="3" stroke-linejoin="round"/><path d="M281.433 102.688C225.421 183.71 181.205 223.818 80.4326 269.188" stroke="white" stroke-width="6"/><path d="M236.933 37.1885C231.353 33.4626 228.038 31.2108 221.433 27.1885L214.433 33.6885C219.766 36.6885 228.933 42.1885 229.933 43.6885C230.82 45.0198 234.766 40.3551 236.933 37.1885Z" fill="white"/><path d="M219.933 37.1885C219.133 36.3885 216.599 34.8551 215.433 34.1885L212.433 36.1885L216.933 41.1885C218.266 40.1885 220.733 37.9885 219.933 37.1885Z" fill="#142D58"/><path d="M23.4326 214.188C20.5756 207.999 19.0561 204.568 16.9326 198.688L22.9326 188.688C25.7134 196.717 27.1237 200.45 29.9326 206.688L23.4326 214.188Z" fill="white"/><path d="M23.9326 190.788C24.1259 193.031 24.8126 194.157 25.9326 196.188L27.9326 193.188L26.5993 190.188L23.9326 190.788Z" fill="#142D58"/></svg></h1>
@@ -503,6 +533,10 @@
 <div id="goalSection" style="display:none"></div>
             <div class="header-actions">
                 <span class="info-icon" data-tooltip="1. Keep the task in_progress for the day if it is not complete on the day&#10;2. Ensure no duplication in yearly completed task section, you will see duplication if #1 do not do correctly&#10;3. Discussion, code review do not need to log, unless you spent whole day discussion and review&#10;4. For no-code-change job, all categorized under &quot;support&quot;&#10;5. Be more specific, &quot;setup sit&quot;, &quot;bug fix&quot;, &quot;support load test&quot;, &quot;test alignment&quot; even appear in your achievement section, it is less convincing">ℹ️</span>
+                <div id="userChip" class="user-chip" style="display:none">
+                    <span class="dot"></span><span id="userChipName"></span>
+                    <button onclick="doLogout()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.85em;margin-left:4px" title="Logout">×</button>
+                </div>
                 <button class="btn-submit" onclick="openPanel()">+ Submit Today Update</button>
                 <a href="/admin" class="back-btn" style="margin-bottom:0;text-decoration:none">Admin</a>
             </div>
@@ -3838,8 +3872,94 @@ function launchConfetti(x,y){
         setTimeout(function(){ov.remove();},4100);
     }
 
+    async function checkAuth(){
+        const r = await fetch('/api/auth/whoami', {credentials:'include'});
+        const data = await r.json();
+        if(data.logged_in){
+            showUserChip(data.name);
+            return data.name;
+        }
+        showLogin();
+        return null;
+    }
+    function showLogin(){
+        document.getElementById('loginOverlay').style.display='flex';
+        document.querySelector('.container').style.filter='blur(4px)';
+        if(window.PublicKeyCredential){document.getElementById('passkeyBtn').style.display='block';}
+    }
+    function hideLogin(){
+        document.getElementById('loginOverlay').style.display='none';
+        document.querySelector('.container').style.filter='none';
+    }
+    function showUserChip(name){
+        document.getElementById('userChipName').textContent=name;
+        document.getElementById('userChip').style.display='inline-flex';
+    }
+    async function doLogin(){
+        const name=document.getElementById('loginName').value.trim().toLowerCase();
+        const password=document.getElementById('loginPassword').value;
+        const errorEl=document.getElementById('loginError');
+        errorEl.style.display='none';
+        const r=await fetch('/api/auth/login',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({name,password}),
+            credentials:'include'
+        });
+        if(!r.ok){
+            errorEl.textContent='Invalid name or password';
+            errorEl.style.display='block';
+            return;
+        }
+        const data=await r.json();
+        hideLogin();
+        showUserChip(data.name);
+        await initDashboard();
+    }
+    async function doLogout(){
+        await fetch('/api/auth/logout',{method:'POST',credentials:'include'});
+        document.getElementById('userChip').style.display='none';
+        showLogin();
+    }
+    async function doPasskey(){
+        const name=document.getElementById('loginName').value.trim().toLowerCase();
+        if(!name){document.getElementById('loginError').textContent='Enter your name first';document.getElementById('loginError').style.display='block';return;}
+        try{
+            const beginRes=await fetch('/api/auth/passkey/auth/begin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name}),credentials:'include'});
+            if(!beginRes.ok){throw new Error('No passkey found');}
+            const beginData=await beginRes.json();
+            const options=beginData.options;
+            options.challenge=new Uint8Array(atob(options.challenge).split('').map(c=>c.charCodeAt(0)));
+            if(options.allowCredentials){
+                options.allowCredentials=options.allowCredentials.map(c=>({...c,id:new Uint8Array(atob(c.id).split('').map(ch=>ch.charCodeAt(0)))}));
+            }
+            const credential=await navigator.credentials.get({publicKey:options});
+            const credentialJSON={
+                id:credential.id,
+                rawId:btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+                response:{
+                    authenticatorData:btoa(String.fromCharCode(...new Uint8Array(credential.response.authenticatorData))),
+                    clientDataJSON:btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON))),
+                    signature:btoa(String.fromCharCode(...new Uint8Array(credential.response.signature))),
+                    userHandle:credential.response.userHandle?btoa(String.fromCharCode(...new Uint8Array(credential.response.userHandle))):null
+                },
+                type:credential.type
+            };
+            const finishRes=await fetch('/api/auth/passkey/auth/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,credential:credentialJSON}),credentials:'include'});
+            if(!finishRes.ok){throw new Error('Passkey authentication failed');}
+            const finishData=await finishRes.json();
+            hideLogin();
+            showUserChip(finishData.name);
+            await initDashboard();
+        }catch(e){
+            document.getElementById('loginError').textContent=e.message;
+            document.getElementById('loginError').style.display='block';
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', async function(){
         randomizeHeaderEmojis();
+        await checkAuth();
         await initDashboard();
         document.addEventListener('keydown',function(e){if(e.key==='n'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName))openPanel();});
 
