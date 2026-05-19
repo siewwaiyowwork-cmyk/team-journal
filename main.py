@@ -4079,7 +4079,7 @@ def admin_members_list(request: Request):
     require_admin(request)
     conn = get_db()
     try:
-        rows = conn.execute("SELECT name, join_date, active FROM members ORDER BY name").fetchall()
+        rows = conn.execute("SELECT name, join_date, active, role FROM members ORDER BY name").fetchall()
         return {"members": [dict(r) for r in rows]}
     finally:
         conn.close()
@@ -4090,9 +4090,12 @@ def admin_member_update(name: str, request: Request, payload: dict = Body(...)):
     conn = get_db()
     try:
         active = payload.get('active')
+        role = payload.get('role')
         if active is not None:
             conn.execute("UPDATE members SET active = ? WHERE name = ?", (1 if active else 0, name))
-            conn.commit()
+        if role is not None and role in ('member', 'admin'):
+            conn.execute("UPDATE members SET role = ? WHERE name = ?", (role, name))
+        conn.commit()
         return {"ok": True}
     except Exception as e:
         conn.rollback()
