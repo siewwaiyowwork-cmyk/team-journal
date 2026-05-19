@@ -898,7 +898,7 @@ def get_members():
         return cached
 
     conn = get_db()
-    rows = conn.execute("SELECT * FROM members WHERE active = 1 ORDER BY name").fetchall()
+    rows = conn.execute("SELECT * FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') ORDER BY name").fetchall()
     conn.close()
     
     result = {"members": [dict(r) for r in rows]}
@@ -1218,7 +1218,7 @@ def get_module_done(
     
     all_members = []
     conn = get_db()
-    all_members = [row['name'] for row in conn.execute("SELECT name FROM members WHERE active = 1 ORDER BY name").fetchall()]
+    all_members = [row['name'] for row in conn.execute("SELECT name FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') ORDER BY name").fetchall()]
     conn.close()
 
     result = {
@@ -1264,7 +1264,7 @@ def get_heatmap(
         to_date = datetime.now().strftime('%Y-%m-%d')
 
     all_members = [row['name'] for row in conn.execute(
-        "SELECT name FROM members WHERE active = 1 ORDER BY name"
+        "SELECT name FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') ORDER BY name"
     ).fetchall()]
     
     rows = conn.execute('''
@@ -1492,7 +1492,7 @@ def get_pulse():
     ''', (today, blocked_s)).fetchone()[0] or 0
     
     active_members = conn.execute(
-        "SELECT COUNT(*) FROM members WHERE active = 1"
+        "SELECT COUNT(*) FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest')"
     ).fetchone()[0] or 0
     
     last_updated_row = conn.execute('''
@@ -1803,7 +1803,7 @@ def get_challenge():
     week_ago = (datetime.now() - timedelta(days=get_config_int("streak_days", 7))).strftime('%Y-%m-%d')
     
     members = [row['name'] for row in conn.execute(
-        "SELECT name FROM members WHERE active = 1 ORDER BY name"
+        "SELECT name FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') ORDER BY name"
     ).fetchall()]
     
     rows = conn.execute('''
@@ -1917,7 +1917,7 @@ def get_missing_progress():
 
     today = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
-    members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 ORDER BY name").fetchall()]
+    members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') ORDER BY name").fetchall()]
     updated = [r[0] for r in conn.execute("SELECT DISTINCT name FROM updates WHERE date = ?", (today,)).fetchall()]
     
     last_updates = {}
@@ -2027,7 +2027,7 @@ def get_fun_facts():
         return cached
     today = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
-    members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 ORDER BY name").fetchall()]
+    members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') ORDER BY name").fetchall()]
     facts = []
     used_names = set()
 
@@ -2336,7 +2336,7 @@ def get_fun_facts():
         add_fact("🎖️", "Centurion", f"{winner} leads with {cnt} total updates", winner)
 
     rows = conn.execute("""
-        SELECT m.name, COUNT(u.id) as cnt FROM members m
+        SELECT m.name, COUNT(u.id) as cnt FROM members m WHERE m.name NOT IN ('vacadmin', 'guest')
         LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave'
         WHERE m.active = 1
         GROUP BY m.name ORDER BY cnt ASC, m.join_date DESC LIMIT 1
@@ -3002,14 +3002,14 @@ def get_fun_facts():
 
     winner, days = get_winner("""
         SELECT name, CAST(julianday('now') - julianday(join_date) AS INTEGER) as days
-        FROM members WHERE active = 1 AND join_date IS NOT NULL
+        FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') AND join_date IS NOT NULL
         ORDER BY days DESC LIMIT 1
     """)
     if winner and winner not in used_names:
         add_fact("🎉", "Anniversary", f"{winner} celebrates {days} days on the team", winner)
 
     rows = conn.execute("""
-        SELECT name, join_date FROM members WHERE active = 1 AND join_date IS NOT NULL
+        SELECT name, join_date FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') AND join_date IS NOT NULL
     """).fetchall()
     bday_name = None
     bday_cnt = 0
@@ -3029,7 +3029,7 @@ def get_fun_facts():
 
     winner, days = get_winner("""
         SELECT name, CAST(julianday('now') - julianday(join_date) AS INTEGER) as days
-        FROM members WHERE active = 1 AND join_date IS NOT NULL
+        FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') AND join_date IS NOT NULL
         ORDER BY days ASC LIMIT 1
     """)
     if winner and winner not in used_names:
@@ -3045,7 +3045,7 @@ def get_fun_facts():
         SELECT m.name,
                CAST(julianday('now') - julianday(m.join_date) AS INTEGER) as days,
                COUNT(u.id) as cnt
-        FROM members m LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave'
+        FROM members m LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave' WHERE m.name NOT IN ('vacadmin', 'guest')
         WHERE m.active = 1 AND m.join_date IS NOT NULL
         GROUP BY m.name HAVING days > 0 AND cnt > 5
         ORDER BY (cnt*1.0/days) DESC LIMIT 1
@@ -3058,7 +3058,7 @@ def get_fun_facts():
         SELECT m.name,
                CAST(julianday('now') - julianday(m.join_date) AS INTEGER) as days,
                COUNT(u.id) as cnt
-        FROM members m LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave'
+        FROM members m LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave' WHERE m.name NOT IN ('vacadmin', 'guest')
         WHERE m.active = 1 AND m.join_date IS NOT NULL
         GROUP BY m.name HAVING days > 30 AND cnt > 5
         ORDER BY (cnt*1.0/days) ASC LIMIT 1
@@ -4432,7 +4432,7 @@ def admin_dashboard(request: Request):
     require_admin(request)
     conn = get_db()
     try:
-        members_count = conn.execute("SELECT COUNT(*) FROM members WHERE active = 1").fetchone()[0]
+        members_count = conn.execute("SELECT COUNT(*) FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest')").fetchone()[0]
         updates_count = conn.execute("SELECT COUNT(*) FROM updates").fetchone()[0]
         holidays_count = conn.execute("SELECT COUNT(*) FROM holidays").fetchone()[0]
         today = datetime.now().strftime('%Y-%m-%d')
