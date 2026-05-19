@@ -519,6 +519,8 @@
             <button class="login-btn" onclick="doLogin()">Sign In</button>
             <div class="login-divider">or</div>
             <button class="login-btn passkey-btn" id="passkeyBtn" onclick="doPasskey()" style="display:none">Sign in with Passkey</button>
+            <div class="login-divider">or</div>
+            <button class="login-btn" onclick="doGuestLogin()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">Guest (Read-Only)</button>
             <div class="login-hint">
                 Default password is <code>changeme</code>. You can reset it after login.
             </div>
@@ -3691,8 +3693,8 @@ function launchConfetti(x,y){
                 const statusPill = isYearDone
                     ? '<span class="task-status-pill done">✓</span>'
                     : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
-                const editBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
-                const delBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
+                const editBtn = (isYearDone || window._guestMode) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
+                const delBtn = (isYearDone || window._guestMode) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
                 const remarksHtml = u.remarks ? `<span class="task-remarks-badge" data-remarks="${u.remarks.replace(/"/g, '&quot;')}" title="💬 Has remarks - click Edit to view">💬</span>` : '';
                 htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${remarksHtml}${editBtn}${delBtn}</div>`;
             });
@@ -3877,10 +3879,7 @@ function launchConfetti(x,y){
         const r = await fetch('/api/auth/whoami', {credentials:'include'});
         const data = await r.json();
         if(data.logged_in){
-            showUserChip(data.name);
-            if(data.role === 'admin'){
-                document.getElementById('adminLink').style.display='inline-flex';
-            }
+            showUserChip(data);
             return data.name;
         }
         showLogin();
@@ -3895,10 +3894,24 @@ function launchConfetti(x,y){
         document.getElementById('loginOverlay').style.display='none';
         document.querySelector('.container').style.filter='none';
     }
-    function showUserChip(name){
-        document.getElementById('userChipName').textContent=name;
+    function showUserChip(data){
+        document.getElementById('userChipName').textContent=data.name;
         document.getElementById('userChip').style.display='inline-flex';
-        document.getElementById('passkeyLink').style.display='inline-flex';
+
+        const isGuest = data.role === 'guest';
+        window._isGuest = isGuest;
+
+        if (isGuest) {
+            document.getElementById('adminLink').style.display='none';
+            document.getElementById('passkeyLink').style.display='none';
+            document.querySelector('.btn-submit').style.display='none';
+        } else {
+            if (data.role === 'admin') {
+                document.getElementById('adminLink').style.display='inline-flex';
+            }
+            document.getElementById('passkeyLink').style.display='inline-flex';
+            document.querySelector('.btn-submit').style.display='inline-block';
+        }
     }
     async function doLogin(){
         const name=document.getElementById('loginName').value.trim().toLowerCase();
@@ -3918,7 +3931,25 @@ function launchConfetti(x,y){
         }
         const data=await r.json();
         hideLogin();
-        showUserChip(data.name);
+        showUserChip(data);
+        await initDashboard();
+    }
+    async function doGuestLogin(){
+        const r=await fetch('/api/auth/login',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({name:'guest',password:''}),
+            credentials:'include'
+        });
+        if(!r.ok){
+            document.getElementById('loginError').textContent='Guest login unavailable';
+            document.getElementById('loginError').style.display='block';
+            return;
+        }
+        const data=await r.json();
+        window._guestMode=true;
+        hideLogin();
+        showUserChip(data);
         await initDashboard();
     }
     async function doLogout(){
@@ -3953,8 +3984,8 @@ function launchConfetti(x,y){
             const finishRes=await fetch('/api/auth/passkey/auth/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,credential:credentialJSON}),credentials:'include'});
             if(!finishRes.ok){throw new Error('Passkey authentication failed');}
             const finishData=await finishRes.json();
-            hideLogin();
-            showUserChip(finishData.name);
+        hideLogin();
+        showUserChip(finishData);
             await initDashboard();
         }catch(e){
             document.getElementById('loginError').textContent=e.message;

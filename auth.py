@@ -65,8 +65,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 def login(payload: dict = Body(...)):
     name = payload.get("name")
     password = payload.get("password")
-    if not name or not password:
-        raise HTTPException(status_code=400, detail="name and password required")
+    if not name:
+        raise HTTPException(status_code=400, detail="name required")
 
     conn = get_db()
     row = conn.execute(
@@ -80,15 +80,16 @@ def login(payload: dict = Body(...)):
 
     stored_hash = row["password_hash"]
     if not stored_hash:
-        if password != DEFAULT_PASSWORD:
+        if name != 'guest' and password != DEFAULT_PASSWORD:
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        conn = get_db()
-        conn.execute(
-            "UPDATE members SET password_hash = ? WHERE name = ?",
-            (_hash_password(password), row["name"]),
-        )
-        conn.commit()
-        conn.close()
+        if name != 'guest':
+            conn = get_db()
+            conn.execute(
+                "UPDATE members SET password_hash = ? WHERE name = ?",
+                (_hash_password(password), row["name"]),
+            )
+            conn.commit()
+            conn.close()
     elif not _verify_password(password, stored_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
