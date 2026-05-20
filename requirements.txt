@@ -2,4 +2,4 @@ fastapi
 uvicorn[standard]
 python-multipart
 bcrypt
-py-webauthn
+py-webauthn>=2.0.0
