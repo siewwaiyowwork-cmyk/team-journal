@@ -18,6 +18,24 @@ RP_ID = os.environ.get("RP_ID", "localhost")
 RP_NAME = os.environ.get("RP_NAME", "Scoreboard App")
 TOKEN_TTL_HOURS = int(os.environ.get("TOKEN_TTL_HOURS", "168"))
 
+
+def _get_rp_id(request: Request = None):
+    if RP_ID != "localhost":
+        return RP_ID
+    if request is not None:
+        host = request.headers.get("host", "")
+        if host:
+            return host.split(":")[0]
+    return "localhost"
+
+
+def _get_origin(request: Request = None):
+    rp_id = _get_rp_id(request)
+    if rp_id == "localhost":
+        return "http://localhost:8000"
+    scheme = request.headers.get("x-forwarded-proto", "https") if request else "https"
+    return f"{scheme}://{rp_id}"
+
 _SESSIONS = {}
 _PASSKEY_CHALLENGES = {}
 
@@ -174,7 +192,7 @@ def passkey_register_begin(request: Request, payload: dict = Body(...)):
     ]
 
     options = generate_registration_options(
-        rp_id=RP_ID,
+        rp_id=_get_rp_id(request),
         rp_name=RP_NAME,
         user_id=name.encode(),
         user_name=name,
@@ -231,8 +249,8 @@ def passkey_register_finish(request: Request, payload: dict = Body(...)):
         result = verify_registration_response(
             credential=credential,
             expected_challenge=base64.b64decode(challenge),
-            expected_rp_id=RP_ID,
-            expected_origin=f"https://{RP_ID}" if RP_ID != "localhost" else "http://localhost:8000",
+            expected_rp_id=_get_rp_id(request),
+            expected_origin=_get_origin(request),
         )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Registration verification failed: {exc}")
@@ -279,7 +297,7 @@ def passkey_auth_begin(payload: dict = Body(...)):
         ]
 
     options = generate_authentication_options(
-        rp_id=RP_ID,
+        rp_id=_get_rp_id(),
         allow_credentials=allow_credentials or None,
         user_verification=UserVerificationRequirement.PREFERRED,
     )
@@ -331,8 +349,8 @@ def passkey_auth_finish(request: Request, payload: dict = Body(...)):
         result = verify_authentication_response(
             credential=credential,
             expected_challenge=base64.b64decode(challenge),
-            expected_rp_id=RP_ID,
-            expected_origin=f"https://{RP_ID}" if RP_ID != "localhost" else "http://localhost:8000",
+            expected_rp_id=_get_rp_id(),
+            expected_origin=_get_origin(),
             credential_public_key=bytes.fromhex(row["public_key"]),
             credential_current_sign_count=row["sign_count"],
         )
