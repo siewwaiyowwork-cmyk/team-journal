@@ -147,16 +147,17 @@ async function registerPasskey() {
     }
     const beginData = await beginRes.json();
     const options = beginData.options;
-    options.challenge = Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0));
+    const b64urlToBytes = function(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) { s += '='; } return Uint8Array.from(atob(s).split(''), c => c.charCodeAt(0)); };
+    options.challenge = b64urlToBytes(options.challenge);
     options.user = {
-      id: Uint8Array.from(atob(options.user.id), c => c.charCodeAt(0)),
+      id: b64urlToBytes(options.user.id),
       name: options.user.name,
       displayName: options.user.displayName
     };
     if (options.excludeCredentials) {
       options.excludeCredentials = options.excludeCredentials.map(c => ({
         ...c,
-        id: Uint8Array.from(atob(c.id), c => c.charCodeAt(0))
+        id: b64urlToBytes(c.id)
       }));
     }
     const credential = await navigator.credentials.create({publicKey: options});

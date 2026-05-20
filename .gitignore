@@ -17,7 +17,10 @@ venv/
 # Logs
 *.log
 
-# DB backups and temp
+# Database files - NEVER track these
+*.db
+*.sqlite
+*.sqlite3
 *.db.backup_*
 railway_*.db
 *.db-journal

@@ -2,6 +2,7 @@ import base64
 import os
 import secrets
 from datetime import datetime, timedelta
+from typing import Optional
 
 import bcrypt
 from fastapi import APIRouter, Body, HTTPException, Request, Response
@@ -94,7 +95,13 @@ def login(payload: dict = Body(...)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = _create_token(row["name"])
-    resp = JSONResponse({"ok": True, "name": row["name"]})
+    role = "member"
+    conn2 = get_db()
+    role_row = conn2.execute("SELECT role FROM members WHERE name = ?", (row["name"],)).fetchone()
+    conn2.close()
+    if role_row and role_row["role"]:
+        role = role_row["role"]
+    resp = JSONResponse({"ok": True, "name": row["name"], "role": role})
     resp.set_cookie(
         key="session_token",
         value=token,
@@ -192,7 +199,7 @@ def passkey_register_begin(request: Request, payload: dict = Body(...)):
             "challenge": base64.b64encode(options.challenge).decode(),
             "pubKeyCredParams": [{"type": p.type, "alg": p.alg} for p in options.pub_key_cred_params],
             "timeout": options.timeout,
-            "excludeCredentials": [{"id": base64.b64encode(c.id).decode(), "type": c.type} for c in options.exclude_credentials] if options.exclude_credentials else [],
+            "excludeCredentials": options.exclude_credentials if options.exclude_credentials else [],
             "authenticatorSelection": {
                 "residentKey": options.authenticator_selection.resident_key.value if options.authenticator_selection else "preferred",
                 "userVerification": options.authenticator_selection.user_verification.value if options.authenticator_selection else "preferred",
@@ -255,36 +262,37 @@ def passkey_register_finish(request: Request, payload: dict = Body(...)):
 @router.post("/passkey/auth/begin")
 def passkey_auth_begin(payload: dict = Body(...)):
     name = payload.get("name")
-    if not name:
-        raise HTTPException(status_code=400, detail="name required")
 
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT credential_id FROM passkeys WHERE member_name = ?", (name,)
-    ).fetchall()
-    conn.close()
+    allow_credentials = []
+    if name:
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT credential_id FROM passkeys WHERE member_name = ?", (name,)
+        ).fetchall()
+        conn.close()
 
-    if not rows:
-        raise HTTPException(status_code=404, detail="No passkeys found for member")
+        if not rows:
+            raise HTTPException(status_code=404, detail="No passkeys found for member")
 
-    allow_credentials = [
-        {"id": row["credential_id"], "type": "public-key"} for row in rows
-    ]
+        allow_credentials = [
+            {"id": row["credential_id"], "type": "public-key"} for row in rows
+        ]
 
     options = generate_authentication_options(
         rp_id=RP_ID,
-        allow_credentials=allow_credentials,
+        allow_credentials=allow_credentials or None,
         user_verification=UserVerificationRequirement.PREFERRED,
     )
 
-    _PASSKEY_CHALLENGES[name] = base64.b64encode(options.challenge).decode()
+    challenge_key = name if name else "_discovery"
+    _PASSKEY_CHALLENGES[challenge_key] = base64.b64encode(options.challenge).decode()
 
     return {
         "options": {
             "challenge": base64.b64encode(options.challenge).decode(),
             "timeout": options.timeout,
             "rpId": options.rp_id,
-            "allowCredentials": [{"id": c.id, "type": c.type} for c in options.allow_credentials] if options.allow_credentials else [],
+            "allowCredentials": options.allow_credentials if options.allow_credentials else [],
             "userVerification": options.user_verification.value,
         }
     }
@@ -294,10 +302,13 @@ def passkey_auth_begin(payload: dict = Body(...)):
 def passkey_auth_finish(request: Request, payload: dict = Body(...)):
     name = payload.get("name")
     credential = payload.get("credential")
-    if not name or not credential:
-        raise HTTPException(status_code=400, detail="name and credential required")
+    if not credential:
+        raise HTTPException(status_code=400, detail="credential required")
 
-    challenge = _PASSKEY_CHALLENGES.pop(name, None)
+    challenge_key = name if name else "_discovery"
+    challenge = _PASSKEY_CHALLENGES.pop(challenge_key, None)
+    if challenge is None and name:
+        challenge = _PASSKEY_CHALLENGES.pop("_discovery", None)
     if challenge is None:
         raise HTTPException(status_code=400, detail="No pending authentication challenge")
 
@@ -305,11 +316,11 @@ def passkey_auth_finish(request: Request, payload: dict = Body(...)):
     conn = get_db()
     row = conn.execute(
         """
-        SELECT credential_id, public_key, sign_count
+        SELECT credential_id, public_key, sign_count, member_name
         FROM passkeys
-        WHERE member_name = ? AND credential_id = ?
+        WHERE credential_id = ?
         """,
-        (name, credential_id),
+        (credential_id,),
     ).fetchone()
     conn.close()
 
@@ -336,8 +347,17 @@ def passkey_auth_finish(request: Request, payload: dict = Body(...)):
     conn.commit()
     conn.close()
 
-    token = _create_token(name)
-    resp = JSONResponse({"ok": True, "name": name})
+    found_name = row["member_name"]
+
+    role = "member"
+    conn = get_db()
+    role_row = conn.execute("SELECT role FROM members WHERE name = ?", (found_name,)).fetchone()
+    conn.close()
+    if role_row and role_row["role"]:
+        role = role_row["role"]
+
+    token = _create_token(found_name)
+    resp = JSONResponse({"ok": True, "name": found_name, "role": role})
     resp.set_cookie(
         key="session_token",
         value=token,

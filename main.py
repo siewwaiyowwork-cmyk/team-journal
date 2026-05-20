@@ -123,6 +123,15 @@ def run_migrations(conn=None):
     if conn is None:
         conn = sqlite3.connect(DB_PATH)
         close_conn = True
+
+    try:
+        conn.execute("ALTER TABLE members ADD COLUMN role TEXT DEFAULT 'member'")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE members ADD COLUMN password_hash TEXT")
+    except sqlite3.OperationalError:
+        pass
     try:
         conn.execute("ALTER TABLE statuses ADD COLUMN counts_toward_stats INTEGER DEFAULT 1")
     except sqlite3.OperationalError:
@@ -163,6 +172,52 @@ def run_migrations(conn=None):
                 OR lower(description) LIKE '%sync up%'
                 OR lower(description) LIKE '%sync-up%'
                 OR lower(description) LIKE '%meeting%'
+            )
+        """)
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS passkeys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                member_name TEXT NOT NULL,
+                credential_id TEXT NOT NULL UNIQUE,
+                public_key TEXT NOT NULL,
+                sign_count INTEGER DEFAULT 0,
+                transports TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_used_at DATETIME,
+                FOREIGN KEY (member_name) REFERENCES members(name) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_passkeys_member ON passkeys(member_name)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_passkeys_credential ON passkeys(credential_id)")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                table_name TEXT NOT NULL,
+                record_id INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                changed_by TEXT NOT NULL,
+                changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                old_values TEXT,
+                new_values TEXT
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_record ON audit_log(table_name, record_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_changed_by ON audit_log(changed_by)")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS modules (
+                code TEXT PRIMARY KEY,
+                label TEXT NOT NULL,
+                color TEXT DEFAULT '#ccc',
+                active INTEGER DEFAULT 1
             )
         """)
     except sqlite3.OperationalError:
@@ -1229,6 +1284,10 @@ def get_module_done(
     set_cached(cache_key, result)
     return result
 
+@app.get("/api/monthly-deliveries")
+def api_monthly_deliveries():
+    return get_monthly_deliveries()
+
 def get_monthly_deliveries():
     cache_key = "monthly-deliveries"
     cached = get_cached(cache_key)
@@ -2187,7 +2246,7 @@ def get_fun_facts():
 
     winner, ratio = get_winner("""
         SELECT name, ROUND(SUM(CASE WHEN status='done' AND is_work=1 THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
-        FROM updates GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 10
+        FROM updates WHERE name NOT IN ('vacadmin', 'guest') GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 10
         ORDER BY ratio DESC LIMIT 1
     """)
     if winner:
@@ -2195,7 +2254,7 @@ def get_fun_facts():
 
     winner, ratio = get_winner("""
         SELECT name, ROUND(SUM(CASE WHEN status='done' AND is_work=1 THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(CASE WHEN status!='leave' THEN 1 END),0),1) as ratio
-        FROM updates GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 10
+        FROM updates WHERE name NOT IN ('vacadmin', 'guest') GROUP BY name HAVING COUNT(CASE WHEN status!='leave' THEN 1 END) >= 10
         ORDER BY ratio ASC LIMIT 1
     """)
     if winner:
@@ -2336,9 +2395,9 @@ def get_fun_facts():
         add_fact("🎖️", "Centurion", f"{winner} leads with {cnt} total updates", winner)
 
     rows = conn.execute("""
-        SELECT m.name, COUNT(u.id) as cnt FROM members m WHERE m.name NOT IN ('vacadmin', 'guest')
+        SELECT m.name, COUNT(u.id) as cnt FROM members m
         LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave'
-        WHERE m.active = 1
+        WHERE m.name NOT IN ('vacadmin', 'guest') AND m.active = 1
         GROUP BY m.name ORDER BY cnt ASC, m.join_date DESC LIMIT 1
     """).fetchall()
     if rows and rows[0][0] not in used_names:
@@ -2616,7 +2675,7 @@ def get_fun_facts():
         SELECT name,
             ROUND(SUM(CASE WHEN strftime('%w', date) IN ('0','6') AND status != 'leave' THEN 1 ELSE 0 END)*100.0/
                   NULLIF(SUM(CASE WHEN strftime('%w', date) NOT IN ('0','6') AND status != 'leave' THEN 1 ELSE 0 END),0),1) as ratio
-        FROM updates GROUP BY name HAVING SUM(CASE WHEN strftime('%w', date) IN ('0','6') AND status != 'leave' THEN 1 ELSE 0 END) >= 3
+        FROM updates WHERE name NOT IN ('vacadmin', 'guest') GROUP BY name HAVING SUM(CASE WHEN strftime('%w', date) IN ('0','6') AND status != 'leave' THEN 1 ELSE 0 END) >= 3
         ORDER BY ratio DESC LIMIT 1
     """)
     if winner:
@@ -2864,7 +2923,7 @@ def get_fun_facts():
         SELECT name,
                SUM(CASE WHEN description LIKE '%pair%' OR description LIKE '%paired%' OR description LIKE '%mob%' OR description LIKE '%together%' OR description LIKE '%with %' THEN 1 ELSE 0 END) as collab,
                COUNT(*) as total
-        FROM updates WHERE status != 'leave' GROUP BY name HAVING total >= 10
+        FROM updates WHERE status != 'leave' AND name NOT IN ('vacadmin', 'guest') GROUP BY name HAVING total >= 10
     """).fetchall()
     lone = None
     lone_ratio = 1.0
@@ -3036,7 +3095,7 @@ def get_fun_facts():
         add_fact("🌟", "Newbie", f"{winner} is the newest member with {days} days on the team", winner)
 
     winner, cnt = get_winner("""
-        SELECT name, COUNT(*) as cnt FROM updates GROUP BY name ORDER BY cnt DESC LIMIT 1
+        SELECT name, COUNT(*) as cnt FROM updates WHERE name NOT IN ('vacadmin', 'guest') GROUP BY name ORDER BY cnt DESC LIMIT 1
     """)
     if winner and winner not in used_names:
         add_fact("🎖️", "Veteran", f"{winner} is the veteran with {cnt} total updates", winner)
@@ -3045,8 +3104,8 @@ def get_fun_facts():
         SELECT m.name,
                CAST(julianday('now') - julianday(m.join_date) AS INTEGER) as days,
                COUNT(u.id) as cnt
-        FROM members m LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave' WHERE m.name NOT IN ('vacadmin', 'guest')
-        WHERE m.active = 1 AND m.join_date IS NOT NULL
+        FROM members m LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave'
+        WHERE m.name NOT IN ('vacadmin', 'guest') AND m.active = 1 AND m.join_date IS NOT NULL
         GROUP BY m.name HAVING days > 0 AND cnt > 5
         ORDER BY (cnt*1.0/days) DESC LIMIT 1
     """).fetchall()
@@ -3058,8 +3117,8 @@ def get_fun_facts():
         SELECT m.name,
                CAST(julianday('now') - julianday(m.join_date) AS INTEGER) as days,
                COUNT(u.id) as cnt
-        FROM members m LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave' WHERE m.name NOT IN ('vacadmin', 'guest')
-        WHERE m.active = 1 AND m.join_date IS NOT NULL
+        FROM members m LEFT JOIN updates u ON u.name = m.name AND u.status != 'leave'
+        WHERE m.name NOT IN ('vacadmin', 'guest') AND m.active = 1 AND m.join_date IS NOT NULL
         GROUP BY m.name HAVING days > 30 AND cnt > 5
         ORDER BY (cnt*1.0/days) ASC LIMIT 1
     """).fetchall()

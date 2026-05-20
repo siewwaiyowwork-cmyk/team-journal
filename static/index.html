@@ -518,7 +518,7 @@
             <div id="loginError" class="login-error" style="display:none"></div>
             <button class="login-btn" onclick="doLogin()">Sign In</button>
             <div class="login-divider">or</div>
-            <button class="login-btn passkey-btn" id="passkeyBtn" onclick="doPasskey()" style="display:none">Sign in with Passkey</button>
+            <button class="login-btn" id="passkeyBtn" onclick="doPasskey()" style="display:none;background:var(--green);color:#0a0a0f">Sign in with Passkey</button>
             <div class="login-divider">or</div>
             <button class="login-btn" onclick="doGuestLogin()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">Guest (Read-Only)</button>
             <div class="login-hint">
@@ -537,6 +537,7 @@
                 <span class="info-icon" data-tooltip="1. Keep the task in_progress for the day if it is not complete on the day&#10;2. Ensure no duplication in yearly completed task section, you will see duplication if #1 do not do correctly&#10;3. Discussion, code review do not need to log, unless you spent whole day discussion and review&#10;4. For no-code-change job, all categorized under &quot;support&quot;&#10;5. Be more specific, &quot;setup sit&quot;, &quot;bug fix&quot;, &quot;support load test&quot;, &quot;test alignment&quot; even appear in your achievement section, it is less convincing">ℹ️</span>
                 <div id="userChip" class="user-chip" style="display:none">
                     <span class="dot"></span><span id="userChipName"></span>
+                    <button onclick="showResetPassword()" id="resetPwBtn" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:.85em;margin-left:4px" title="Change Password">🔒</button>
                     <button onclick="doLogout()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.85em;margin-left:4px" title="Logout">×</button>
                 </div>
                 <button class="btn-submit" onclick="openPanel()">+ Submit Today Update</button>
@@ -754,6 +755,19 @@
 <button class="panel-submit-btn" id="pSubmitBtn" onclick="doSubmit()" disabled>Submit Update -></button>
 <button class="panel-submit-btn" id="pSubmitNextBtn" onclick="doSubmit(true)" disabled style="background:var(--green)">Submit and Next -></button>
 </div>
+        </div>
+    </div>
+    <div class="panel-overlay" id="resetPwOverlay" style="z-index:201">
+        <div class="submit-panel" style="max-width:440px;border-radius:20px">
+            <div class="panel-header">
+                <h2>Change Password</h2>
+                <button class="panel-close" onclick="closeResetPassword()">×</button>
+            </div>
+            <input type="password" id="rpOld" class="panel-input" placeholder="Old password" style="margin-bottom:12px">
+            <input type="password" id="rpNew" class="panel-input" placeholder="New password (min 6 characters)" style="margin-bottom:12px">
+            <input type="password" id="rpConfirm" class="panel-input" placeholder="Confirm new password" style="margin-bottom:12px">
+            <div id="rpError" style="color:var(--red);font-size:.85em;margin-bottom:12px;display:none"></div>
+            <button class="panel-submit-btn" onclick="doResetPassword()">Update Password</button>
         </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -1810,6 +1824,7 @@ function launchConfetti(x,y){
     }
 
     function renderDashboard(data){
+        if(window._inDetailMode){return;}
         const range = data.range;
         window.currentRange = range;
         document.getElementById('dateRange').textContent = `${range.from} - ${range.to}`;
@@ -2546,6 +2561,7 @@ function launchConfetti(x,y){
 
     function showDetail(name, fromHash){
         window.currentDetailName = name;
+        window._inDetailMode = true;
         document.getElementById('overview-section').classList.add('hidden');
         document.getElementById('detail-view').classList.add('active');
         document.getElementById('detail-content').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading...</div>';
@@ -2748,6 +2764,7 @@ function launchConfetti(x,y){
     
     function showOverview(){
         window.currentDetailName = null;
+        window._inDetailMode = false;
         document.getElementById('detail-view').classList.remove('active');
         document.getElementById('overview-section').classList.remove('hidden');
         window.scrollTo(0,0);
@@ -3717,8 +3734,8 @@ function launchConfetti(x,y){
                     const statusPill = isYearDone
                         ? '<span class="task-status-pill done">✓</span>'
                         : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
-                    const editBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
-                    const delBtn = isYearDone ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
+                    const editBtn = (isYearDone || window._guestMode) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
+                    const delBtn = (isYearDone || window._guestMode) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
                     const remarksHtml2 = u.remarks ? `<span class="task-remarks-badge" data-remarks="${u.remarks.replace(/"/g, '&quot;')}" title="💬 Has remarks - click Edit to view">💬</span>` : '';
                     htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${remarksHtml2}${editBtn}${delBtn}</div>`;
                 });
@@ -3889,6 +3906,9 @@ function launchConfetti(x,y){
         document.getElementById('loginOverlay').style.display='flex';
         document.querySelector('.container').style.filter='blur(4px)';
         if(window.PublicKeyCredential){document.getElementById('passkeyBtn').style.display='block';}
+        const lastName = localStorage.getItem('lastLoginName');
+        if(lastName){document.getElementById('loginName').value=lastName;document.getElementById('loginPassword').focus();}
+        else{document.getElementById('loginName').focus();}
     }
     function hideLogin(){
         document.getElementById('loginOverlay').style.display='none';
@@ -3900,18 +3920,19 @@ function launchConfetti(x,y){
 
         const isGuest = data.role === 'guest';
         window._isGuest = isGuest;
+        window._guestMode = isGuest;
 
         if (isGuest) {
             document.getElementById('adminLink').style.display='none';
             document.getElementById('passkeyLink').style.display='none';
             document.querySelector('.btn-submit').style.display='none';
         } else {
-            if (data.role === 'admin') {
-                document.getElementById('adminLink').style.display='inline-flex';
-            }
+            document.getElementById('adminLink').style.display = (data.role === 'admin') ? 'inline-flex' : 'none';
             document.getElementById('passkeyLink').style.display='inline-flex';
             document.querySelector('.btn-submit').style.display='inline-block';
         }
+        const pending=window._pendingDetailSubmit;
+        if(pending){window._pendingDetailSubmit=null;showDetail(pending,true);}
     }
     async function doLogin(){
         const name=document.getElementById('loginName').value.trim().toLowerCase();
@@ -3930,9 +3951,12 @@ function launchConfetti(x,y){
             return;
         }
         const data=await r.json();
+        localStorage.setItem('lastLoginName',name);
         hideLogin();
         showUserChip(data);
         await initDashboard();
+        const pending=window._pendingDetailSubmit;
+        if(pending){window._pendingDetailSubmit=null;showDetail(pending,true);}
     }
     async function doGuestLogin(){
         const r=await fetch('/api/auth/login',{
@@ -3955,19 +3979,26 @@ function launchConfetti(x,y){
     async function doLogout(){
         await fetch('/api/auth/logout',{method:'POST',credentials:'include'});
         document.getElementById('userChip').style.display='none';
+        window._isGuest = false;
+        window._guestMode = false;
         showLogin();
     }
     async function doPasskey(){
-        const name=document.getElementById('loginName').value.trim().toLowerCase();
-        if(!name){document.getElementById('loginError').textContent='Enter your name first';document.getElementById('loginError').style.display='block';return;}
+        const nameInput=document.getElementById('loginName');
+        const name=nameInput.value.trim().toLowerCase();
         try{
-            const beginRes=await fetch('/api/auth/passkey/auth/begin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name}),credentials:'include'});
-            if(!beginRes.ok){throw new Error('No passkey found');}
+            const body=name?JSON.stringify({name}):JSON.stringify({});
+            const beginRes=await fetch('/api/auth/passkey/auth/begin',{method:'POST',headers:{'Content-Type':'application/json'},body:body,credentials:'include'});
+            if(!beginRes.ok){
+                const errData=await beginRes.json();
+                throw new Error(errData.detail||'No passkey found');
+            }
             const beginData=await beginRes.json();
             const options=beginData.options;
-            options.challenge=new Uint8Array(atob(options.challenge).split('').map(c=>c.charCodeAt(0)));
+            const b64urlToBytes=function(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4){s+='=';}return Uint8Array.from(atob(s).split(''),c=>c.charCodeAt(0));};
+            options.challenge=b64urlToBytes(options.challenge);
             if(options.allowCredentials){
-                options.allowCredentials=options.allowCredentials.map(c=>({...c,id:new Uint8Array(atob(c.id).split('').map(ch=>ch.charCodeAt(0)))}));
+                options.allowCredentials=options.allowCredentials.map(c=>({...c,id:b64urlToBytes(c.id)}));
             }
             const credential=await navigator.credentials.get({publicKey:options});
             const credentialJSON={
@@ -3984,6 +4015,7 @@ function launchConfetti(x,y){
             const finishRes=await fetch('/api/auth/passkey/auth/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,credential:credentialJSON}),credentials:'include'});
             if(!finishRes.ok){throw new Error('Passkey authentication failed');}
             const finishData=await finishRes.json();
+            localStorage.setItem('lastLoginName',finishData.name||name);
         hideLogin();
         showUserChip(finishData);
             await initDashboard();
@@ -3992,9 +4024,49 @@ function launchConfetti(x,y){
             document.getElementById('loginError').style.display='block';
         }
     }
+    function showResetPassword(){
+        document.getElementById('resetPwOverlay').style.display='flex';
+        document.getElementById('rpError').style.display='none';
+    }
+    function closeResetPassword(){
+        document.getElementById('resetPwOverlay').style.display='none';
+        document.getElementById('rpOld').value='';
+        document.getElementById('rpNew').value='';
+        document.getElementById('rpConfirm').value='';
+        document.getElementById('rpError').style.display='none';
+    }
+    async function doResetPassword(){
+        const oldPw=document.getElementById('rpOld').value;
+        const newPw=document.getElementById('rpNew').value;
+        const confirmPw=document.getElementById('rpConfirm').value;
+        const errorEl=document.getElementById('rpError');
+        if(newPw!==confirmPw){errorEl.textContent='New passwords do not match';errorEl.style.display='block';return;}
+        if(newPw.length<6){errorEl.textContent='New password must be at least 6 characters';errorEl.style.display='block';return;}
+        errorEl.style.display='none';
+        const r=await fetch('/api/auth/reset-password',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({old_password:oldPw,new_password:newPw}),
+            credentials:'include'
+        });
+        if(!r.ok){
+            const e=await r.json();
+            errorEl.textContent=e.detail||'Failed to update password';
+            errorEl.style.display='block';
+            return;
+        }
+        closeResetPassword();
+        showToast('Password updated successfully');
+    }
 
     document.addEventListener('DOMContentLoaded', async function(){
         randomizeHeaderEmojis();
+        const lastName = localStorage.getItem('lastLoginName');
+        if(lastName){document.getElementById('loginName').value = lastName;}
+        requestAnimationFrame(function(){
+            const lastName2 = localStorage.getItem('lastLoginName');
+            if(lastName2){document.getElementById('loginName').value = lastName2;}
+        });
         await checkAuth();
         await initDashboard();
         document.addEventListener('keydown',function(e){if(e.key==='n'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName))openPanel();});
@@ -4015,7 +4087,10 @@ function launchConfetti(x,y){
         // Handle direct URL with hash (e.g. page reload on #detail/ain)
         if(window.location.hash.startsWith('#detail/')){
             var name=decodeURIComponent(window.location.hash.slice(8));
-            if(name) showDetail(name, true);
+            if(name){
+                window._pendingDetailSubmit = name;
+                showDetail(name, false);
+            }
         }
 
         // Handle direct URL with submit hash (e.g. #submit/ain)

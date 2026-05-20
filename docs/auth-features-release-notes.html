@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAC24 Scoreboard - New Authentication Features</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --surface2: #1a1a28;
+            --border: #2a2a3e;
+            --text: #e0e0f0;
+            --text-dim: #7a7a9a;
+            --accent: #00e5ff;
+            --green: #00e676;
+            --red: #ff1744;
+            --orange: #ff9100;
+            --gold: #ffd700;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.7;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 40px 0;
+            border-bottom: 2px solid var(--accent);
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin: 0 0 10px;
+            background: linear-gradient(135deg, var(--accent), var(--green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header .subtitle {
+            color: var(--text-dim);
+            font-size: 1.2em;
+        }
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            color: var(--accent);
+            margin-top: 0;
+            font-size: 1.6em;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+        .section h3 {
+            color: var(--green);
+            margin-top: 25px;
+            font-size: 1.2em;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .feature-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .feature-card h4 {
+            color: var(--gold);
+            margin: 0 0 10px;
+            font-size: 1.1em;
+        }
+        .feature-card p {
+            color: var(--text-dim);
+            margin: 0;
+            font-size: 0.95em;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        .badge-new {
+            background: rgba(0, 229, 255, 0.15);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+        .badge-admin {
+            background: rgba(255, 23, 68, 0.15);
+            color: var(--red);
+            border: 1px solid var(--red);
+        }
+        .badge-guest {
+            background: rgba(255, 145, 0, 0.15);
+            color: var(--orange);
+            border: 1px solid var(--orange);
+        }
+        .badge-passkey {
+            background: rgba(0, 230, 118, 0.15);
+            color: var(--green);
+            border: 1px solid var(--green);
+        }
+        .steps {
+            counter-reset: step;
+            list-style: none;
+            padding: 0;
+        }
+        .steps li {
+            position: relative;
+            padding-left: 50px;
+            margin-bottom: 20px;
+            min-height: 40px;
+        }
+        .steps li::before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 32px;
+            height: 32px;
+            background: var(--accent);
+            color: var(--bg);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9em;
+        }
+        code {
+            background: var(--surface2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9em;
+            color: var(--green);
+        }
+        .highlight {
+            background: rgba(0, 229, 255, 0.1);
+            border-left: 3px solid var(--accent);
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .warning {
+            background: rgba(255, 23, 68, 0.1);
+            border-left: 3px solid var(--red);
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            color: var(--accent);
+            font-weight: 600;
+        }
+        tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .footer {
+            text-align: center;
+            padding: 40px 0;
+            color: var(--text-dim);
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>VAC24 Scoreboard</h1>
+            <div class="subtitle">New Authentication Features Release Notes</div>
+            <div style="margin-top:15px">
+                <span class="badge badge-new">NEW</span>
+                <span class="badge badge-admin">ADMIN</span>
+                <span class="badge badge-guest">GUEST</span>
+                <span class="badge badge-passkey">PASSKEY</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>What Is This?</h2>
+            <p>We have added a complete authentication and access control system to the VAC24 scoreboard. Members can now log in securely with passwords or passkeys, guest users can view the board read-only, and admin users have a dedicated management panel.</p>
+            
+            <div class="highlight">
+                <strong>Key benefit:</strong> Before this change, anyone could edit or delete entries. Now only authenticated members can update their own progress, and only admins can manage system settings.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Login Methods</h2>
+            
+            <h3>1. Password Login</h3>
+            <ul class="steps">
+                <li>Visit the scoreboard URL and you will see a login overlay.</li>
+                <li>Enter your member name (e.g., <code>vacadmin</code>) and password. The default password for all members is <code>changeme</code>.</li>
+                <li>After logging in, you can change your password from the user chip in the header (click the lock icon next to your name).</li>
+                <li>Your username is saved in browser localStorage, so refreshing the page restores your name in the login form.</li>
+            </ul>
+
+            <h3>2. Passkey Login (Passwordless)</h3>
+            <ul class="steps">
+                <li>Click <strong>Sign in with Passkey</strong> (green button on the login form).</li>
+                <li>You do not need to enter your name first. The browser will prompt you to select your passkey credential.</li>
+                <li>Authenticate using your device biometrics (Touch ID, Face ID, Windows Hello, PIN, etc.).</li>
+                <li>The system identifies you automatically and logs you in.</li>
+            </ul>
+
+            <h3>3. Guest Login (Read-Only)</h3>
+            <ul class="steps">
+                <li>Click <strong>Guest (Read-Only)</strong> on the login form.</li>
+                <li>No password required. You will have view-only access to the dashboard and member detail pages.</li>
+                <li>Guest users cannot submit updates, edit, delete, or access admin features.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Passkey Setup</h2>
+            
+            <div class="highlight">
+                Passkeys provide a secure, password-free way to sign in using your device biometrics or PIN. Each member can register multiple passkeys across different devices (laptop, phone, tablet).
+            </div>
+
+            <h3>How to Register a Passkey</h3>
+            <ul class="steps">
+                <li>Log in with your password first.</li>
+                <li>After logging in, click <strong>Passkey</strong> in the header actions.</li>
+                <li>On the passkey management page, click <strong>Register New Passkey</strong>.</li>
+                <li>Your browser will prompt you to create a credential. Follow the prompts (biometrics or PIN).</li>
+                <li>Your passkey is now registered. You can add more passkeys for additional devices.</li>
+                <li>To remove a passkey, click the delete button next to it in the list.</li>
+            </ul>
+
+            <div class="warning">
+                <strong>Important:</strong> Passkeys are tied to your device. If you lose access to a device, log in with your password and delete the old passkey from the Passkey page.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Role-Based Access</h2>
+            
+            <table>
+                <tr>
+                    <th>Role</th>
+                    <th>Can View Dashboard</th>
+                    <th>Can Submit Updates</th>
+                    <th>Can Edit/Delete</th>
+                    <th>Can Access Admin Panel</th>
+                    <th>Can Manage Passkeys</th>
+                </tr>
+                <tr>
+                    <td><strong>Admin</strong></td>
+                    <td>Yes</td>
+                    <td>Yes</td>
+                    <td>Yes</td>
+                    <td>Yes (Admin button in header)</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td><strong>Member</strong></td>
+                    <td>Yes</td>
+                    <td>Yes</td>
+                    <td>Yes</td>
+                    <td>No</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td><strong>Guest</strong></td>
+                    <td>Yes</td>
+                    <td>No</td>
+                    <td>No</td>
+                    <td>No</td>
+                    <td>No</td>
+                </tr>
+            </table>
+
+            <h3>Admin Account</h3>
+            <p>The admin account is <code>vacadmin</code>. Default password is <code>changeme</code>.</p>
+            <div class="highlight">
+                The <code>vacadmin</code> account and the <code>guest</code> account are filtered out from all statistics, charts, and team data. They do not appear in dashboards, leaderboards, or fun facts.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>New Features Summary</h2>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>Password Authentication</h4>
+                    <p>Secure bcrypt-hashed passwords. Default password is changeme for all members. Members can reset their password after logging in.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>WebAuthn Passkeys</h4>
+                    <p>Passwordless login with device biometrics. Works on Mac (Touch ID), Windows (Hello), iOS (Face ID), and Android (fingerprint).</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Guest Mode</h4>
+                    <p>No password required. Read-only access to view dashboards and member details. Cannot submit, edit, or delete.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Role Management</h4>
+                    <p>Admins can change member roles (member/admin) from the Admin panel. Only admins see the Admin button.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Session Cookies</h4>
+                    <p>httponly session cookies with 168-hour TTL. Sessions survive browser restarts.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Local Storage</h4>
+                    <p>Last login name is saved in browser localStorage. Pre-fills the username field on page load.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Deferred Submit on Bookmark</h4>
+                    <p>Bookmark member detail pages (e.g., /#detail/shek). After login, the update form opens automatically for that member.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Multiple Passkeys</h4>
+                    <p>Each member can register multiple passkeys across different devices. Existing passkeys are excluded from new registration to prevent duplicates.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Admin Stats Filter</h4>
+                    <p>vacadmin and guest accounts are excluded from all charts, leaderboards, and team statistics.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Quick Start</h2>
+            
+            <h3>For Members</h3>
+            <ul>
+                <li>Your username is your member name (e.g., <code>shek</code>, <code>nic</code>).</li>
+                <li>Your default password is <code>changeme</code>.</li>
+                <li>Log in, then click the lock icon next to your name to change your password.</li>
+                <li>Set up a passkey on your primary device for faster login next time.</li>
+            </ul>
+
+            <h3>For Admin (vacadmin)</h3>
+            <ul>
+                <li>Log in with <code>vacadmin / changeme</code>.</li>
+                <li>Click <strong>Admin</strong> in the header to open the management panel.</li>
+                <li>Manage member roles, reset passwords if needed, and audit system data.</li>
+                <li>Change the default password immediately after first login.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Technical Details</h2>
+            
+            <h3>Authentication Flow</h3>
+            <table>
+                <tr>
+                    <th>Step</th>
+                    <th>Password</th>
+                    <th>Passkey</th>
+                </tr>
+                <tr>
+                    <td>1. Begin</td>
+                    <td>POST /api/auth/login {name, password}</td>
+                    <td>POST /api/auth/passkey/auth/begin {name?}</td>
+                </tr>
+                <tr>
+                    <td>2. Challenge</td>
+                    <td>Server validates password with bcrypt</td>
+                    <td>Server returns WebAuthn options (challenge)</td>
+                </tr>
+                <tr>
+                    <td>3. Client</td>
+                    <td>Client receives {ok, name, role}</td>
+                    <td>Client calls navigator.credentials.get()</td>
+                </tr>
+                <tr>
+                    <td>4. Finish</td>
+                    <td>Session cookie set</td>
+                    <td>POST /api/auth/passkey/auth/finish {credential}</td>
+                </tr>
+                <tr>
+                    <td>5. Result</td>
+                    <td>Logged in</td>
+                    <td>Server verifies signature, identifies member, sets cookie</td>
+                </tr>
+            </table>
+
+            <h3>Database Changes</h3>
+            <ul>
+                <li><code>members</code> table: Added <code>role</code> (member/admin/guest) and <code>password_hash</code> columns</li>
+                <li><code>passkeys</code> table: Stores credential_id, public_key, sign_count, transports</li>
+                <li><code>audit_log</code> table: Tracks data changes (prepared for future audit trail)</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>VAC24 Scoreboard - Authentication Feature Release</p>
+            <p style="font-size:0.9em;color:var(--text-dim)">Built with FastAPI, SQLite, WebAuthn, and vanilla JavaScript</p>
+        </div>
+    </div>
+</body>
+</html>
