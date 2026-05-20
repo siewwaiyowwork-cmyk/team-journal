@@ -3926,10 +3926,12 @@ function launchConfetti(x,y){
             document.getElementById('adminLink').style.display='none';
             document.getElementById('passkeyLink').style.display='none';
             document.querySelector('.btn-submit').style.display='none';
+            document.getElementById('resetPwBtn').style.display='none';
         } else {
             document.getElementById('adminLink').style.display = (data.role === 'admin') ? 'inline-flex' : 'none';
             document.getElementById('passkeyLink').style.display='inline-flex';
             document.querySelector('.btn-submit').style.display='inline-block';
+            document.getElementById('resetPwBtn').style.display='inline-block';
         }
         const pending=window._pendingDetailSubmit;
         if(pending){window._pendingDetailSubmit=null;showDetail(pending,true);}
