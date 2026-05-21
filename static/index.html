@@ -2284,6 +2284,10 @@ function launchConfetti(x,y){
         var detailView = document.getElementById('detail-view');
         var isInDetail = detailView && detailView.classList.contains('active');
         var targetName = (memberName || (isInDetail ? window.currentDetailName : '')).toLowerCase().trim();
+        // Default to logged-in user when no specific member is targeted
+        if(!targetName && !window._guestMode && window._userName){
+            targetName = window._userName;
+        }
         
         if(!document.getElementById('pNameGrid').children.length){
             refreshMemberChips();
@@ -3709,8 +3713,9 @@ function launchConfetti(x,y){
                 const statusPill = isYearDone
                     ? '<span class="task-status-pill done">✓</span>'
                     : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
-                const editBtn = (isYearDone || window._guestMode) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
-                const delBtn = (isYearDone || window._guestMode) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
+                const isOwner = window._userName && u.name && u.name.toLowerCase().trim() === window._userName;
+                const editBtn = (isYearDone || window._guestMode || !isOwner) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
+                const delBtn = (isYearDone || window._guestMode || !isOwner) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
                 const remarksHtml = u.remarks ? `<span class="task-remarks-badge" title="${u.remarks.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">💬</span>` : '';
                 htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${remarksHtml}${editBtn}${delBtn}</div>`;
             });
@@ -3733,8 +3738,9 @@ function launchConfetti(x,y){
                     const statusPill = isYearDone
                         ? '<span class="task-status-pill done">✓</span>'
                         : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
-                    const editBtn = (isYearDone || window._guestMode) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
-                    const delBtn = (isYearDone || window._guestMode) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
+                    const isOwner = window._userName && u.name && u.name.toLowerCase().trim() === window._userName;
+                    const editBtn = (isYearDone || window._guestMode || !isOwner) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
+                    const delBtn = (isYearDone || window._guestMode || !isOwner) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
                     const remarksHtml2 = u.remarks ? `<span class="task-remarks-badge" title="${u.remarks.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">💬</span>` : '';
                     htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${remarksHtml2}${editBtn}${delBtn}</div>`;
                 });
@@ -3916,6 +3922,7 @@ function launchConfetti(x,y){
     function showUserChip(data){
         document.getElementById('userChipName').textContent=data.name;
         document.getElementById('userChip').style.display='inline-flex';
+        window._userName = data.name.toLowerCase().trim();
 
         const isGuest = data.role === 'guest';
         window._isGuest = isGuest;
