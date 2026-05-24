@@ -2084,7 +2084,11 @@ function launchConfetti(x,y){
                                 var desc = escapeHtml(t.description);
                                 var todoModule = t.module ? ' ['+escapeHtml(t.module)+']' : '';
                                 var disabled = !t.assignee ? ' disabled title="Unassigned — cannot promote to task"' : ' onclick="event.stopPropagation();window.promoteTodo('+t.id+')" title="Promote to in-progress task"';
-                                return '<div class="card-todo-entry"><span class="card-todo-text" title="'+desc+todoModule+'">'+desc+'</span><button class="card-todo-btn"'+disabled+'>+</button></div>';
+                                var isTodoAdmin = window._isAdmin;
+                                var isTodoOwner = window._userName && t.assignee && t.assignee.toLowerCase().trim() === window._userName;
+                                var canDelete = isTodoAdmin || isTodoOwner;
+                                var delBtn = canDelete ? '<button class="card-todo-btn" style="background:rgba(255,23,68,.12);border-color:rgba(255,23,68,.25);color:var(--red);margin-left:2px" onclick="event.stopPropagation();window.deleteTodo('+t.id+')" title="Delete todo">×</button>' : '';
+                                return '<div class="card-todo-entry"><span class="card-todo-text" title="'+desc+todoModule+'">'+desc+'</span><button class="card-todo-btn"'+disabled+'>+</button>'+delBtn+'</div>';
                             }).join('');
                             var totalTodoCount = memberTodos.length;
                             return '<div class="recent-tasks"><div class="recent-tasks-title">Open Todos ('+totalTodoCount+')</div>'+html+'</div>';
