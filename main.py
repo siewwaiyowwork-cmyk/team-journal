@@ -1403,7 +1403,7 @@ def get_summary(
     for r in rows:
         d = dict(r)
         unique_days = unique_dates_by_member.get(d['name'], 0)
-        d['attendance_pct'] = round((unique_days / max(total_workdays, 1)) * 100, 1) if total_workdays else 0
+        d['attendance_pct'] = round(min((unique_days / max(total_workdays, 1)) * 100, 100), 1) if total_workdays else 0
         d['specificity'] = round((d['specific'] / max(d['total'] - d['leave_days'], 1)) * 100, 1) if (d['total'] - d['leave_days']) > 0 else 0
         d['badge'] = 'S' if d['specificity'] >= get_config_int('specificity_s', 95) else 'A' if d['specificity'] >= get_config_int('specificity_a', 85) else 'B' if d['specificity'] >= get_config_int('specificity_b', 70) else 'C' if d['specificity'] >= get_config_int('specificity_c', 50) else 'F'
 
