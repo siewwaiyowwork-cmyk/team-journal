@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monster Preview</title>
+<style>
+body { background: #0a0a0f; color: #e0e0f0; font-family: 'JetBrains Mono', monospace; margin: 0; padding: 20px; }
+.panel { background: #0a0a0f; padding: 16px; border-radius: 16px; max-width: 1200px; margin: 0 auto; }
+.controls { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-bottom: 18px; }
+.ctrl { display: flex; flex-direction: column; gap: 4px; }
+.ctrl label { font-size: 11px; font-weight: 700; font-family: monospace; letter-spacing: 1px; }
+.ctrl input[type=range] { width: 100%; accent-color: var(--ac); }
+.ctrl .val { font-size: 13px; font-weight: 700; font-family: monospace; color: var(--ac); text-align: center; }
+.monster-stage { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.monster-name { font-size: 15px; font-weight: 800; font-family: monospace; letter-spacing: 2px; }
+.monster-type { font-size: 11px; padding: 3px 12px; border-radius: 20px; font-weight: 700; font-family: monospace; }
+.trait-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+.trait { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-family: monospace; opacity: .85; }
+.gallery { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 16px; border-top: 1px solid #2a2a3e; padding-top: 14px; }
+.gcard { background: #12121a; border: 1px solid #2a2a3e; border-radius: 8px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; transition: .15s; }
+.gcard:hover { border-color: #5a5a7e; transform: translateY(-2px); }
+.gcard .gname { font-size: 8px; font-family: monospace; color: #7a7a9a; text-align: center; }
+.section-label { font-size: 10px; color: #7a7a9a; font-family: monospace; letter-spacing: 1px; margin: 10px 0 6px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<div class="panel">
+
+<div class="controls" id="controls">
+  <div class="ctrl" style="--ac:#ff4444">
+    <label style="color:#ff4444">ATK</label>
+    <input type="range" min="0" max="100" value="75" id="s-atk">
+    <div class="val" id="v-atk">75</div>
+  </div>
+  <div class="ctrl" style="--ac:#00e676">
+    <label style="color:#00e676">STM</label>
+    <input type="range" min="0" max="100" value="82" id="s-stm">
+    <div class="val" id="v-stm">82</div>
+  </div>
+  <div class="ctrl" style="--ac:#ffd600">
+    <label style="color:#ffd600">FCS</label>
+    <input type="range" min="0" max="100" value="58" id="s-fcs">
+    <div class="val" id="v-fcs">58</div>
+  </div>
+  <div class="ctrl" style="--ac:#00e5ff">
+    <label style="color:#00e5ff">AGI</label>
+    <input type="range" min="0" max="100" value="97" id="s-agi">
+    <div class="val" id="v-agi">97</div>
+  </div>
+  <div class="ctrl" style="--ac:#a855f7">
+    <label style="color:#a855f7">SUP</label>
+    <input type="range" min="0" max="100" value="4" id="s-sup">
+    <div class="val" id="v-sup">4</div>
+  </div>
+</div>
+
+<div class="monster-stage">
+  <svg id="monster-svg" width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div class="monster-name" id="monster-name"></div>
+  <div class="monster-type" id="monster-type"></div>
+  <div class="trait-row" id="trait-row"></div>
+</div>
+
+<div class="section-label">sample gallery - 40 unique combinations (click to load)</div>
+<div class="gallery" id="gallery"></div>
+
+</div>
+
+<script>
+const STAT_COLORS = { atk:'#ff4444', stm:'#00e676', fcs:'#ffd600', agi:'#00e5ff', sup:'#a855f7' };
+const STAT_DARK =   { atk:'#cc1111', stm:'#009944', fcs:'#cc9900', agi:'#0099bb', sup:'#6622aa' };
+const STAT_LIGHT =  { atk:'#ff9999', stm:'#88ffcc', fcs:'#ffee88', agi:'#88eeff', sup:'#cc88ff' };
+
+const NAMES_A = ['BLA','VER','LUM','ZEP','AET','KRO','PHO','TOR','MYS','NUL','GLA','OBL','PYR','SOL','NEB'];
+const NAMES_B = ['ZOR','DAX','NOS','IXX','MUS','KAR','PHX','VEX','RAX','THO','GON','WYN','SYX','RUL','ORM'];
+
+function getName(stats) {
+  const dom = getDominant(stats);
+  const idx = Math.floor(stats[dom] / 7) % NAMES_A.length;
+  const idx2 = Math.floor((stats.atk + stats.stm) / 13) % NAMES_B.length;
+  return NAMES_A[idx] + NAMES_B[idx2];
+}
+
+function getDominant(s) {
+  return Object.entries(s).sort((a,b)=>b[1]-a[1])[0][0];
+}
+function getSecondary(s) {
+  return Object.entries(s).sort((a,b)=>b[1]-a[1])[1][0];
+}
+function getTotal(s) { return Object.values(s).reduce((a,b)=>a+b,0); }
+
+function getArchetype(s) {
+  const dom = getDominant(s);
+  const sec = getSecondary(s);
+  const total = getTotal(s);
+  const balanced = Object.values(s).every(v => v > 30 && v < 80);
+  if (balanced && total > 250) return { label:'ALLROUNDER', color:'#ffffff' };
+  const map = {
+    atk: { stm:'BERSERKER', fcs:'ASSASSIN', agi:'STRIKER', sup:'WARLORD', atk:'DESTROYER' },
+    stm: { atk:'TANK', fcs:'SENTINEL', agi:'IRONFOOT', sup:'GUARDIAN', stm:'FORTRESS' },
+    fcs: { atk:'SNIPER', stm:'SCHOLAR', agi:'PHANTOM', sup:'ORACLE', fcs:'ENLIGHTENED' },
+    agi: { atk:'DUELIST', stm:'RUNNER', fcs:'TRICKSTER', sup:'HERALD', agi:'BLUR' },
+    sup: { atk:'PALADIN', stm:'MENDER', fcs:'PROPHET', agi:'BARD', sup:'ASCENDANT' },
+  };
+  return { label: map[dom][sec] || 'WANDERER', color: STAT_COLORS[dom] };
+}
+
+function getTraits(s) {
+  const traits = [];
+  if (s.atk > 80) traits.push({t:'RAGING',c:'#ff4444'});
+  if (s.atk > 60) traits.push({t:'FIERCE',c:'#ff6666'});
+  if (s.stm > 80) traits.push({t:'IMMORTAL',c:'#00e676'});
+  if (s.stm > 60) traits.push({t:'STURDY',c:'#44dd88'});
+  if (s.fcs > 80) traits.push({t:'ALLSEEING',c:'#ffd600'});
+  if (s.fcs > 60) traits.push({t:'SHARP',c:'#ddcc00'});
+  if (s.agi > 80) traits.push({t:'HYPERSPEED',c:'#00e5ff'});
+  if (s.agi > 60) traits.push({t:'NIMBLE',c:'#44ddff'});
+  if (s.sup > 80) traits.push({t:'DIVINE',c:'#a855f7'});
+  if (s.sup > 60) traits.push({t:'BLESSED',c:'#cc88ff'});
+  if (getTotal(s) > 350) traits.push({t:'LEGENDARY',c:'#ffd700'});
+  if (Object.values(s).some(v=>v<10)) traits.push({t:'CURSED',c:'#666688'});
+  return traits.slice(0,4);
+}
+
+function drawMonster(svg, s, size=120) {
+  const cx = size/2, cy = size/2;
+  const dom = getDominant(s);
+  const sec = getSecondary(s);
+  const total = getTotal(s) / 500;
+  const bodyScale = 0.7 + total * 0.3;
+
+  const mc = STAT_COLORS[dom];
+  const sc = STAT_COLORS[sec];
+  const dc = STAT_DARK[dom];
+  const lc = STAT_LIGHT[dom];
+
+  let out = `<rect width="${size}" height="${size}" rx="${size*0.15}" fill="#0d0d18"/>`;
+
+  // body shape driven by DOM stat
+  const bw = Math.round(size * 0.28 * bodyScale);
+  const bh = Math.round(size * 0.28 * bodyScale);
+  const bx = cx - bw/2, by = cy - bh/2 + size*0.05;
+
+  if (dom === 'atk') {
+    // Spiky angular body
+    out += `<polygon points="${cx},${by-bh*0.3} ${bx+bw*1.2},${by+bh*0.4} ${bx+bw},${by+bh*1.3} ${bx},${by+bh*1.3} ${bx-bw*0.2},${by+bh*0.4}" fill="${dc}"/>`;
+    out += `<polygon points="${cx},${by-bh*0.2} ${bx+bw},${by+bh*0.4} ${bx+bw*0.8},${by+bh*1.2} ${bx+bw*0.2},${by+bh*1.2} ${bx},${by+bh*0.4}" fill="${mc}"/>`;
+  } else if (dom === 'stm') {
+    // Round solid body
+    const r = bw * 0.9;
+    out += `<circle cx="${cx}" cy="${by+bh*0.6}" r="${r*1.1}" fill="${dc}"/>`;
+    out += `<circle cx="${cx}" cy="${by+bh*0.5}" r="${r}" fill="${mc}"/>`;
+  } else if (dom === 'fcs') {
+    // Diamond/hexagon body
+    const hh = bh * 0.9;
+    out += `<polygon points="${cx},${by} ${cx+bw},${by+hh*0.5} ${cx+bw*0.7},${by+hh*1.1} ${cx-bw*0.7},${by+hh*1.1} ${cx-bw},${by+hh*0.5}" fill="${dc}"/>`;
+    out += `<polygon points="${cx},${by+hh*0.1} ${cx+bw*0.8},${by+hh*0.55} ${cx+bw*0.55},${by+hh} ${cx-bw*0.55},${by+hh} ${cx-bw*0.8},${by+hh*0.55}" fill="${mc}"/>`;
+  } else if (dom === 'agi') {
+    // Sleek elongated
+    out += `<ellipse cx="${cx+size*0.05}" cy="${by+bh*0.7}" rx="${bw*1.2}" ry="${bh*0.7}" fill="${dc}"/>`;
+    out += `<ellipse cx="${cx}" cy="${by+bh*0.6}" rx="${bw*1.1}" ry="${bh*0.6}" fill="${mc}"/>`;
+  } else {
+    // Flowing rounded ghost
+    out += `<ellipse cx="${cx}" cy="${by+bh*0.7}" rx="${bw*0.9}" ry="${bh*1.1}" fill="${dc}"/>`;
+    out += `<ellipse cx="${cx}" cy="${by+bh*0.6}" rx="${bw*0.8}" ry="${bh}" fill="${mc}"/>`;
+  }
+
+  // head driven by STM (size) and FCS (shape)
+  const hs = size * (0.18 + s.stm/100 * 0.08) * bodyScale;
+  const hx = cx, hy = by - hs * 0.3;
+
+  if (s.fcs > 70) {
+    // Geometric angular head
+    out += `<polygon points="${hx},${hy-hs} ${hx+hs},${hy} ${hx},${hy+hs*0.5} ${hx-hs},${hy}" fill="${dc}"/>`;
+    out += `<polygon points="${hx},${hy-hs*0.8} ${hx+hs*0.8},${hy} ${hx},${hy+hs*0.35} ${hx-hs*0.8},${hy}" fill="${mc}"/>`;
+  } else if (s.stm > 70) {
+    // Big round head
+    out += `<circle cx="${hx}" cy="${hy}" r="${hs*1.05}" fill="${dc}"/>`;
+    out += `<circle cx="${hx}" cy="${hy}" r="${hs}" fill="${mc}"/>`;
+  } else {
+    // Normal oval
+    out += `<ellipse cx="${hx}" cy="${hy}" rx="${hs*0.9}" ry="${hs}" fill="${dc}"/>`;
+    out += `<ellipse cx="${hx}" cy="${hy}" rx="${hs*0.8}" ry="${hs*0.9}" fill="${mc}"/>`;
+  }
+
+  // eyes driven by FCS and SUP
+  const er = Math.max(size*0.025, size * 0.025 + s.fcs/100 * size*0.025);
+  const ey = hy - hs*0.1;
+  const ex = hs * 0.35;
+  const eyeColor = s.fcs > 60 ? lc : (s.sup > 60 ? STAT_LIGHT['sup'] : '#ffffff');
+  const pupilColor = '#000a14';
+
+  if (dom === 'fcs') {
+    // Giant single eye
+    out += `<circle cx="${hx}" cy="${ey}" r="${er*2.5}" fill="${eyeColor}"/>`;
+    out += `<ellipse cx="${hx}" cy="${ey}" rx="${er*0.8}" ry="${er*2}" fill="${pupilColor}"/>`;
+    out += `<circle cx="${hx-er*0.7}" cy="${ey-er*0.7}" r="${er*0.6}" fill="#ffffff" opacity=".8"/>`;
+    // iris rays
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4; const r0=er*1.2,r1=er*2.3;
+      out+=`<line x1="${hx+Math.cos(a)*r0}" y1="${ey+Math.sin(a)*r0}" x2="${hx+Math.cos(a)*r1}" y2="${ey+Math.sin(a)*r1}" stroke="${dc}" stroke-width="0.8" opacity=".6"/>`;
+    }
+  } else {
+    // Two eyes
+    for(const side of [-1,1]) {
+      const ex2 = hx + side*ex;
+      if (s.agi > 70) {
+        // Slanted eyes
+        out += `<ellipse cx="${ex2}" cy="${ey}" rx="${er*1.6}" ry="${er*0.8}" fill="${eyeColor}" transform="rotate(${side*-15},${ex2},${ey})"/>`;
+        out += `<ellipse cx="${ex2}" cy="${ey}" rx="${er*0.6}" ry="${er*0.6}" fill="${pupilColor}"/>`;
+      } else if (s.sup > 70) {
+        // Star eyes
+        out += `<circle cx="${ex2}" cy="${ey}" r="${er*1.4}" fill="${eyeColor}"/>`;
+        out += `<polygon points="${ex2},${ey-er} ${ex2+er*0.35},${ey-er*0.35} ${ex2+er},${ey} ${ex2+er*0.35},${ey+er*0.35} ${ex2},${ey+er} ${ex2-er*0.35},${ey+er*0.35} ${ex2-er},${ey} ${ex2-er*0.35},${ey-er*0.35}" fill="${STAT_LIGHT['sup']}"/>`;
+      } else {
+        out += `<circle cx="${ex2}" cy="${ey}" r="${er*1.3}" fill="${eyeColor}"/>`;
+        out += `<circle cx="${ex2}" cy="${ey}" r="${er*0.7}" fill="${pupilColor}"/>`;
+        out += `<circle cx="${ex2-er*0.3}" cy="${ey-er*0.3}" r="${er*0.35}" fill="#ffffff" opacity=".7"/>`;
+      }
+    }
+  }
+
+  // horns/ears driven by ATK
+  if (s.atk > 20) {
+    const hornH = size * (0.04 + s.atk/100 * 0.1);
+    const hornW = size * 0.04;
+    const hBase = hy - hs*0.75;
+    const hCount = s.atk > 75 ? 3 : s.atk > 45 ? 2 : 1;
+    const hornPositions = hCount===1 ? [0] : hCount===2 ? [-1,1] : [-1.5,0,1.5];
+    for(const p of hornPositions) {
+      const hpx = hx + p * hs*0.45;
+      const lean = p * 0.25;
+      out += `<polygon points="${hpx-hornW},${hBase} ${hpx+hornW},${hBase} ${hpx+lean*hornH},${hBase-hornH}" fill="${dc}"/>`;
+      out += `<polygon points="${hpx-hornW*0.5},${hBase} ${hpx+hornW*0.5},${hBase} ${hpx+lean*hornH*0.7},${hBase-hornH*0.75}" fill="${lc}" opacity=".5"/>`;
+    }
+  } else {
+    // Ears for low ATK
+    const earH = size * 0.07;
+    for(const side of [-1,1]) {
+      const epx = hx + side*hs*0.8;
+      out += `<polygon points="${epx-size*0.04},${hy-hs*0.5} ${epx+size*0.04},${hy-hs*0.5} ${epx+side*size*0.02},${hy-hs*0.5-earH}" fill="${mc}"/>`;
+    }
+  }
+
+  // wings/arms driven by AGI
+  if (s.agi > 40) {
+    const wingW = size * (0.1 + s.agi/100 * 0.18);
+    const wingH = size * (0.08 + s.agi/100 * 0.1);
+    const wy = by + bh*0.3;
+    for(const side of [-1,1]) {
+      const wx = cx + side*(bw*0.5);
+      out += `<polygon points="${wx},${wy} ${wx+side*wingW},${wy-wingH*0.6} ${wx+side*wingW*0.7},${wy+wingH}" fill="${dc}" opacity=".9"/>`;
+      out += `<polygon points="${wx},${wy} ${wx+side*wingW*0.8},${wy-wingH*0.4} ${wx+side*wingW*0.55},${wy+wingH*0.8}" fill="${sc}" opacity=".5"/>`;
+    }
+  } else {
+    // Stubby arms
+    const aw = size*0.08, ah=size*0.05;
+    for(const side of [-1,1]) {
+      const ax = cx + side*(bw*0.55);
+      out += `<rect x="${ax-aw/2}" y="${by+bh*0.3}" width="${aw}" height="${ah}" rx="${ah/2}" fill="${dc}"/>`;
+    }
+  }
+
+  // tail driven by STM
+  if (s.stm > 30) {
+    const tw = size*0.05, tl = size*(0.1 + s.stm/100*0.14);
+    const tx = cx, ty = by+bh*1.1;
+    if (s.stm > 70) {
+      // Big spiked tail
+      out += `<polygon points="${tx-tw},${ty} ${tx+tw},${ty} ${tx+tw*0.5},${ty+tl} ${tx-tw*0.5},${ty+tl}" fill="${dc}"/>`;
+      out += `<polygon points="${tx},${ty+tl*0.6} ${tx+tw*1.8},${ty+tl*0.3} ${tx+tw*0.3},${ty+tl}" fill="${mc}" opacity=".7"/>`;
+      out += `<polygon points="${tx},${ty+tl*0.6} ${tx-tw*1.8},${ty+tl*0.3} ${tx-tw*0.3},${ty+tl}" fill="${mc}" opacity=".7"/>`;
+    } else {
+      out += `<ellipse cx="${tx}" cy="${ty+tl*0.5}" rx="${tw*0.8}" ry="${tl*0.5}" fill="${dc}" opacity=".7"/>`;
+    }
+  }
+
+  // SUP aura
+  if (s.sup > 20) {
+    const aura = s.sup / 100;
+    out += `<circle cx="${cx}" cy="${cy}" r="${size*0.44}" fill="none" stroke="${STAT_COLORS['sup']}" stroke-width="${1+aura*3}" opacity="${0.1+aura*0.3}"/>`;
+    if (s.sup > 50) {
+      out += `<circle cx="${cx}" cy="${cy}" r="${size*0.47}" fill="none" stroke="${STAT_LIGHT['sup']}" stroke-width="${0.5+aura}" opacity="${aura*0.2}"/>`;
+    }
+    // floating sparkles
+    const nSparkles = Math.floor(s.sup/25);
+    for(let i=0;i<nSparkles;i++){
+      const a = (i/nSparkles)*Math.PI*2 + 0.5;
+      const sr = size*0.42;
+      const sx2 = cx+Math.cos(a)*sr, sy2 = cy+Math.sin(a)*sr;
+      out += `<circle cx="${sx2}" cy="${sy2}" r="${size*0.018}" fill="${STAT_LIGHT['sup']}" opacity=".8"/>`;
+    }
+  }
+
+  // mouth driven by ATK vs SUP
+  const mouthY = hy + hs*0.55;
+  if (s.atk > s.sup + 20) {
+    // Angry / fangs
+    const mw = hs*0.55;
+    out += `<path d="M${hx-mw},${mouthY} Q${hx},${mouthY+hs*0.3} ${hx+mw},${mouthY}" fill="none" stroke="${dc}" stroke-width="${size*0.025}" stroke-linecap="round"/>`;
+    out += `<polygon points="${hx-mw*0.4},${mouthY} ${hx-mw*0.2},${mouthY} ${hx-mw*0.3},${mouthY+hs*0.22}" fill="#ffffff" opacity=".8"/>`;
+    out += `<polygon points="${hx+mw*0.2},${mouthY} ${hx+mw*0.4},${mouthY} ${hx+mw*0.3},${mouthY+hs*0.22}" fill="#ffffff" opacity=".8"/>`;
+  } else if (s.sup > 50) {
+    // Gentle smile
+    const mw = hs*0.4;
+    out += `<path d="M${hx-mw},${mouthY} Q${hx},${mouthY+hs*0.35} ${hx+mw},${mouthY}" fill="none" stroke="${lc}" stroke-width="${size*0.02}" stroke-linecap="round"/>`;
+  } else {
+    // Neutral
+    const mw = hs*0.3;
+    out += `<line x1="${hx-mw}" y1="${mouthY+hs*0.05}" x2="${hx+mw}" y2="${mouthY+hs*0.05}" stroke="${lc}" stroke-width="${size*0.02}" stroke-linecap="round"/>`;
+  }
+
+  // FCS gem on forehead
+  if (s.fcs > 50 && dom !== 'fcs') {
+    const gr = size * 0.03;
+    out += `<polygon points="${hx},${hy-hs*0.85} ${hx+gr},${hy-hs*0.65} ${hx},${hy-hs*0.55} ${hx-gr},${hy-hs*0.65}" fill="${STAT_COLORS['fcs']}" opacity=".9"/>`;
+  }
+
+  svg.innerHTML = out;
+}
+
+function getStats() {
+  return {
+    atk: +document.getElementById('s-atk').value,
+    stm: +document.getElementById('s-stm').value,
+    fcs: +document.getElementById('s-fcs').value,
+    agi: +document.getElementById('s-agi').value,
+    sup: +document.getElementById('s-sup').value,
+  };
+}
+
+function update() {
+  const s = getStats();
+  ['atk','stm','fcs','agi','sup'].forEach(k => {
+    document.getElementById('v-'+k).textContent = s[k];
+  });
+  const svg = document.getElementById('monster-svg');
+  drawMonster(svg, s, 120);
+  const arch = getArchetype(s);
+  document.getElementById('monster-name').textContent = getName(s);
+  document.getElementById('monster-name').style.color = STAT_COLORS[getDominant(s)];
+  const mt = document.getElementById('monster-type');
+  mt.textContent = arch.label;
+  mt.style.background = arch.color + '22';
+  mt.style.color = arch.color;
+  mt.style.border = '1px solid ' + arch.color;
+  const traits = getTraits(s);
+  document.getElementById('trait-row').innerHTML = traits.map(t =>
+    `<span class="trait" style="background:${t.c}22;color:${t.c};border:1px solid ${t.c}44">${t.t}</span>`
+  ).join('');
+}
+
+const GALLERY_PRESETS = [
+  {atk:95,stm:20,fcs:30,agi:80,sup:5},
+  {atk:10,stm:95,fcs:40,agi:20,sup:60},
+  {atk:20,stm:30,fcs:95,agi:40,sup:70},
+  {atk:40,stm:20,fcs:50,agi:95,sup:15},
+  {atk:10,stm:20,fcs:30,agi:15,sup:95},
+  {atk:80,stm:80,fcs:20,agi:30,sup:10},
+  {atk:30,stm:90,fcs:80,agi:20,sup:20},
+  {atk:20,stm:20,fcs:85,agi:80,sup:40},
+  {atk:70,stm:30,fcs:20,agi:90,sup:50},
+  {atk:50,stm:40,fcs:30,agi:20,sup:90},
+  {atk:70,stm:70,fcs:70,agi:70,sup:70},
+  {atk:100,stm:100,fcs:5,agi:5,sup:5},
+  {atk:5,stm:5,fcs:100,agi:5,sup:100},
+  {atk:5,stm:100,fcs:5,agi:100,sup:5},
+  {atk:60,stm:55,fcs:50,agi:65,sup:45},
+  {atk:90,stm:10,fcs:90,agi:10,sup:50},
+  {atk:10,stm:80,fcs:10,agi:80,sup:80},
+  {atk:50,stm:50,fcs:50,agi:5,sup:90},
+  {atk:85,stm:60,fcs:20,agi:75,sup:5},
+  {atk:5,stm:95,fcs:70,agi:5,sup:55},
+  {atk:40,stm:15,fcs:95,agi:60,sup:30},
+  {atk:75,stm:25,fcs:40,agi:85,sup:20},
+  {atk:20,stm:45,fcs:50,agi:30,sup:85},
+  {atk:95,stm:85,fcs:75,agi:65,sup:55},
+  {atk:55,stm:65,fcs:75,agi:85,sup:95},
+  {atk:30,stm:70,fcs:30,agi:70,sup:30},
+  {atk:70,stm:30,fcs:70,agi:30,sup:70},
+  {atk:50,stm:10,fcs:10,agi:10,sup:10},
+  {atk:10,stm:50,fcs:10,agi:10,sup:10},
+  {atk:10,stm:10,fcs:50,agi:10,sup:10},
+  {atk:10,stm:10,fcs:10,agi:50,sup:10},
+  {atk:10,stm:10,fcs:10,agi:10,sup:50},
+  {atk:80,stm:5,fcs:80,agi:5,sup:5},
+  {atk:5,stm:80,fcs:5,agi:80,sup:5},
+  {atk:60,stm:40,fcs:80,agi:20,sup:60},
+  {atk:20,stm:60,fcs:40,agi:60,sup:80},
+  {atk:90,stm:50,fcs:50,agi:50,sup:10},
+  {atk:10,stm:50,fcs:50,agi:50,sup:90},
+  {atk:45,stm:90,fcs:45,agi:20,sup:45},
+  {atk:45,stm:20,fcs:45,agi:90,sup:45},
+];
+
+function buildGallery() {
+  const g = document.getElementById('gallery');
+  g.innerHTML = '';
+  GALLERY_PRESETS.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'gcard';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('width','48'); svg.setAttribute('height','48');
+    svg.setAttribute('viewBox','0 0 48 48');
+    drawMonster(svg, s, 48);
+    const dom = getDominant(s);
+    const arch = getArchetype(s);
+    card.appendChild(svg);
+    const lbl = document.createElement('div');
+    lbl.className = 'gname';
+    lbl.textContent = arch.label;
+    lbl.style.color = STAT_COLORS[dom];
+    card.appendChild(lbl);
+    card.onclick = () => {
+      ['atk','stm','fcs','agi','sup'].forEach(k => {
+        document.getElementById('s-'+k).value = s[k];
+      });
+      update();
+    };
+    g.appendChild(card);
+  });
+}
+
+['atk','stm','fcs','agi','sup'].forEach(k => {
+  document.getElementById('s-'+k).addEventListener('input', update);
+});
+
+update();
+buildGallery();
+</script>
+
+</body>
+</html>

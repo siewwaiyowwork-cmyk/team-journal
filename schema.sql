@@ -81,6 +81,20 @@ CREATE TABLE IF NOT EXISTS passkeys (
     FOREIGN KEY (member_name) REFERENCES members(name) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    description TEXT NOT NULL,
+    assignee TEXT,
+    priority TEXT DEFAULT 'medium' CHECK(priority IN ('low', 'medium', 'high')),
+    status TEXT DEFAULT 'todo' CHECK(status IN ('todo', 'in_progress', 'done')),
+    module TEXT,
+    created_by TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (assignee) REFERENCES members(name) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES members(name) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS audit_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     table_name TEXT NOT NULL,
@@ -106,6 +120,9 @@ CREATE INDEX IF NOT EXISTS idx_updates_status_is_work ON updates(status, is_work
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 CREATE INDEX IF NOT EXISTS idx_passkeys_member ON passkeys(member_name);
 CREATE INDEX IF NOT EXISTS idx_passkeys_credential ON passkeys(credential_id);
+CREATE INDEX IF NOT EXISTS idx_todos_assignee ON todos(assignee);
+CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status);
+CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority);
 CREATE INDEX IF NOT EXISTS idx_audit_record ON audit_log(table_name, record_id);
 CREATE INDEX IF NOT EXISTS idx_audit_changed_by ON audit_log(changed_by);
 

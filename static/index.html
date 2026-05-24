@@ -69,6 +69,13 @@
         .task-date{color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:.82em;min-width:70px;flex-shrink:0;margin-top:2px}
         .task-text{color:var(--text);flex:1;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 
+        .card-todo-entry{display:flex;gap:6px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.78em;align-items:center}
+        .card-todo-entry:last-child{border:none}
+        .card-todo-text{color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .card-todo-btn{background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.25);color:var(--green);cursor:pointer;font-size:.7em;padding:2px 8px;border-radius:5px;transition:.15s;font-family:'Syne',sans-serif;flex-shrink:0}
+        .card-todo-btn:hover{background:rgba(0,230,118,.22);transform:scale(1.05)}
+        .card-todo-btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+
         .overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
         .detail-view{display:none}.detail-view.active{display:block}
         .overview-section.hidden{display:none}
@@ -302,6 +309,26 @@
         .ach-item:last-child{border:none}
         .ach-date{color:var(--accent);font-family:'JetBrains Mono',monospace;min-width:70px;flex-shrink:0;font-size:.82em}
         .ach-text{flex:1}
+        .todo-list{margin-top:12px;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px}
+        .todo-list-title{font-size:.85em;color:var(--text-dim);margin-bottom:10px;font-weight:700;display:flex;align-items:center;gap:6px}
+        .todo-entry{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:.85em;align-items:center;transition:.2s}
+        .todo-entry:last-child{border:none;padding-bottom:0}
+        .todo-entry:first-child{padding-top:0}
+        .todo-text{flex:1;color:var(--text);line-height:1.4}
+        .todo-badge{padding:3px 8px;border-radius:6px;font-size:.7em;font-weight:800;text-transform:uppercase;min-width:50px;text-align:center;letter-spacing:.3px}
+        .todo-badge.high{background:rgba(255,23,68,.15);color:var(--red);border:1px solid rgba(255,23,68,.3)}
+        .todo-badge.medium{background:rgba(255,214,0,.15);color:var(--yellow);border:1px solid rgba(255,214,0,.3)}
+        .todo-badge.low{background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3)}
+        .todo-actions{display:flex;gap:6px;align-items:center}
+        .todo-btn{background:var(--surface);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;font-size:.85em;padding:4px 10px;border-radius:6px;transition:.2s;font-family:'Syne',sans-serif}
+        .todo-btn:hover{background:var(--surface2);color:var(--text)}
+        .todo-btn.promote{background:rgba(0,230,118,.1);border-color:rgba(0,230,118,.3);color:var(--green)}
+        .todo-btn.promote:hover{background:rgba(0,230,118,.2);transform:scale(1.05)}
+        .todo-btn.delete{background:rgba(255,23,68,.1);border-color:rgba(255,23,68,.3);color:var(--red)}
+        .todo-btn.delete:hover{background:rgba(255,23,68,.2);transform:scale(1.05)}
+        .todo-btn.assign{background:rgba(100,181,246,.1);border-color:rgba(100,181,246,.3);color:#64b5f6}
+        .todo-btn.assign:hover{background:rgba(100,181,246,.2);transform:scale(1.05)}
+        .todo-assign-select{font-size:.8em;padding:2px 4px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);max-width:120px}
         .footer{text-align:center;padding:20px;color:var(--text-dim);font-size:.82em;border-top:1px solid var(--border);margin-top:20px}
         .leave-chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;overflow:visible}
         .leave-chart-wrap .chart-title{font-size:.9em;font-weight:600;margin-bottom:12px;color:var(--text-dim)}
@@ -540,7 +567,8 @@
                     <button onclick="showResetPassword()" id="resetPwBtn" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:.85em;margin-left:4px" title="Change Password">🔒</button>
                     <button onclick="doLogout()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.85em;margin-left:4px" title="Logout">×</button>
                 </div>
-                <button class="btn-submit" onclick="openPanel()">+ Submit Today Update</button>
+                				<button class="btn-submit" id="submitBtn" onclick="openPanel()">+ Submit Today Update</button>
+                <button class="btn-submit" id="todoBtn" onclick="openTodoPanel()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)" title="Create a new todo">+ Add Todo</button>
                 <a href="/passkey" id="passkeyLink" class="back-btn" style="display:none;margin-bottom:0;text-decoration:none" title="Setup Passkey">🔐 Passkey</a>
                 <a href="/admin" id="adminLink" class="back-btn" style="display:none;margin-bottom:0;text-decoration:none">Admin</a>
             </div>
@@ -572,6 +600,29 @@
                 <div class="ph-notice" id="phNotice"></div>
                 <div class="overview-grid" id="overviewGrid"></div>
             </section>
+
+            <div class="chart-box-full" id="team-todos-section" style="margin-top:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <div class="chart-title" style="margin-bottom:0">📋 Team Todo List <span class="info-icon" data-tooltip="What this is&#10;&#10;Open tasks for the team. Todos here are standalone items that have not yet been started as actual tracked tasks.&#10;&#10;How it works&#10;• Promote (+) — converts a todo into an in-progress task in the main feed&#10;• Assign (👤) — changes ownership to another team member&#10;• Priority badge — click to cycle high ► medium ► low&#10;• Delete (×) — removes the todo permanently&#10;&#10;Filtering&#10;Use the assignee and priority filters above to narrow down the list." style="font-size:1.1em;margin-left:4px">ℹ</span> <span class="badge" style="font-size:.6em" id="teamTodoCount"></span></div>
+                    <button class="btn-submit" onclick="openTodoPanel()" style="padding:6px 14px;font-size:.8em" title="Create a new todo">+ Add Todo</button>
+                </div>
+                <div id="teamTodosFilter" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+                    <div class="searchable-dropdown" style="position:relative" title="Filter todos by assignee">
+                        <input id="teamTodosAssigneeSearch" class="panel-input" style="width:auto;min-width:160px" placeholder="All assignees" onclick="showAssigneeDropdown()" oninput="filterAssigneeOptions(this.value)" autocomplete="off">
+                        <div id="assigneeDropdown" class="custom-dropdown" style="display:none;position:absolute;top:calc(100%+4px);left:0;z-index:1000;background:#1a1a2e;border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.5)"></div>
+                        <input type="hidden" id="teamTodosAssignee" value="">
+                    </div>
+                    <select id="teamTodosPriority" class="panel-input" style="width:auto;min-width:110px" onchange="renderTeamTodos()" title="Filter by priority">
+                        <option value="">All priorities</option>
+                        <option value="high">🔴 High</option>
+                        <option value="medium">🟡 Medium</option>
+                        <option value="low">🟢 Low</option>
+                    </select>
+                </div>
+                <div id="teamTodosContent" class="task-content" style="display:block">
+                    <div class="task-loading">Loading todos...</div>
+                </div>
+            </div>
 
             <div class="chart-box-full">
                 <div class="chart-title">Achievement Board <span class="badge" style="font-size:.6em">Most Done Wins</span> <span class="info-icon" data-tooltip="Ranked by tasks marked as Done. The bar shows how close you are to the top. Every task counts — keep pushing!">ℹ</span></div>
@@ -769,13 +820,52 @@
             <button class="panel-submit-btn" onclick="doResetPassword()">Update Password</button>
         </div>
     </div>
+    <div class="panel-overlay" id="todoOverlay">
+        <div class="submit-panel" style="max-width:500px;border-radius:20px">
+            <div class="panel-header">
+                <h2>Add Todo</h2>
+                <button class="panel-close" onclick="closeTodoPanel()">×</button>
+            </div>
+            <div class="field-group">
+                <span class="field-label">Description <span style="color:var(--red)">*</span></span>
+                <textarea class="panel-input" id="todoDesc" placeholder="What needs to be done?"></textarea>
+            </div>
+            <div class="field-group">
+                <span class="field-label">Assignee</span>
+                <select class="panel-input" id="todoAssignee">
+                    <option value="">Unassigned</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <span class="field-label">Priority</span>
+                <select class="panel-input" id="todoPriority">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <span class="field-label">Module</span>
+                <select class="panel-input" id="todoModule">
+                    <option value="">None</option>
+                </select>
+            </div>
+            <button class="panel-submit-btn" onclick="submitTodo()" title="Create new todo">Create Todo</button>
+        </div>
+    </div>
     <div class="toast" id="toast"></div>
 
-    <script>
-    const API_URL = window.location.origin;
-    var MEMBERS = [];
+	<script>
+	const API_URL = window.location.origin;
+	var MEMBERS = [];
 
-    let APP_CONFIG = {
+	function escapeHtml(text){
+		var div = document.createElement('div');
+		div.textContent = text;
+		return div.innerHTML;
+	}
+
+	let APP_CONFIG = {
         statuses: [],
         levels: [],
         leaveTypes: [],
@@ -1665,10 +1755,13 @@ function launchConfetti(x,y){
         await loadHolidays();
 
         try{
-            // Phase 1: Load critical data (fast)
-            const res = await fetch(`${API_URL}/api/dashboard-lite`);
-            if (!res.ok) throw new Error('Dashboard lite load failed');
-            const data = await res.json();
+            // Phase 1: Load dashboard-lite and todos in parallel (both are fast)
+            const [dashboardRes] = await Promise.all([
+                fetch(`${API_URL}/api/dashboard-lite`),
+                loadTeamTodos()
+            ]);
+            if (!dashboardRes.ok) throw new Error('Dashboard lite load failed');
+            const data = await dashboardRes.json();
 
             const summary = data.summary;
             const heatmap = data.heatmap;
@@ -1695,6 +1788,8 @@ function launchConfetti(x,y){
             renderChallenge(challenge);
             renderMissingProgress(missing);
 
+            // Todos already loaded in parallel; overview grid can render member cards with open todos
+            renderOverviewGrid(summary.members);
             // Phase 2: Fetch heavy data in background
             loadDashboardHeavy();
         }catch(e){
@@ -1980,6 +2075,20 @@ function launchConfetti(x,y){
                         <div class="badge-grid">${activityHtml}${hourlyBadge}</div>
                         ${rpgStatsHtml}
                         <div class="recent-tasks"><div class="recent-tasks-title">Recent Tasks</div>${recentHtml}</div>
+                        ${(()=>{
+                            var cardName = m.name;
+                            var memberTodos = (_allTodosCache||[]).filter(function(t){ return t.assignee === cardName; }).slice(0,3);
+                            if(!memberTodos.length) return '';
+                            var canAdmin = window._isAdmin;
+                            var html = memberTodos.map(function(t){
+                                var desc = escapeHtml(t.description);
+                                var todoModule = t.module ? ' ['+escapeHtml(t.module)+']' : '';
+                                var disabled = !t.assignee ? ' disabled title="Unassigned — cannot promote to task"' : ' onclick="window.promoteTodo('+t.id+')" title="Promote to in-progress task"';
+                                return '<div class="card-todo-entry"><span class="card-todo-text" title="'+desc+todoModule+'">'+desc+'</span><button class="card-todo-btn"'+disabled+'>+</button></div>';
+                            }).join('');
+                            var totalTodoCount = memberTodos.length;
+                            return '<div class="recent-tasks"><div class="recent-tasks-title">Open Todos ('+totalTodoCount+')</div>'+html+'</div>';
+                        })()}
                         ${modHtml ? `<div class="ov-modules"><div class="ov-modules-title">Top modules</div>${modHtml}</div>` : ''}
                     </div>
                 </div>
@@ -3616,7 +3725,8 @@ function launchConfetti(x,y){
             var res = await fetch(API_URL + '/api/updates/' + updateId, {
                 method: 'PUT',
                 headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({fields:{module:module,status:status,description:description,remarks:remarks}})
+                body: JSON.stringify({fields:{module:module,status:status,description:description,remarks:remarks}}),
+                credentials: 'include'
             });
             var data = await res.json();
             if(data.ok){
@@ -3642,7 +3752,7 @@ function launchConfetti(x,y){
     async function deleteUpdate(updateId, btnEl){
         if(!confirm('Delete this update? This cannot be undone.')) return;
         try{
-            var res = await fetch(API_URL + '/api/updates/' + updateId, {method: 'DELETE'});
+            var res = await fetch(API_URL + '/api/updates/' + updateId, {method:'DELETE', credentials:'include'});
             var data = await res.json();
             if(data.ok){
                 showToast('Update deleted');
@@ -3713,9 +3823,10 @@ function launchConfetti(x,y){
                 const statusPill = isYearDone
                     ? '<span class="task-status-pill done">✓</span>'
                     : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
-                const isOwner = window._userName && u.name && u.name.toLowerCase().trim() === window._userName;
-                const editBtn = (isYearDone || window._guestMode || !isOwner) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
-                const delBtn = (isYearDone || window._guestMode || !isOwner) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
+            const isOwner = window._userName && u.name && u.name.toLowerCase().trim() === window._userName;
+            const canEdit = window._isAdmin || isOwner;
+            const editBtn = (isYearDone || window._guestMode || !canEdit) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
+            const delBtn = (isYearDone || window._guestMode || !canEdit) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
                 const remarksHtml = u.remarks ? `<span class="task-remarks-badge" title="${u.remarks.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">💬</span>` : '';
                 htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${remarksHtml}${editBtn}${delBtn}</div>`;
             });
@@ -3739,8 +3850,9 @@ function launchConfetti(x,y){
                         ? '<span class="task-status-pill done">✓</span>'
                         : `<span class="task-status-pill ${u.status}">${ss.label}</span>`;
                     const isOwner = window._userName && u.name && u.name.toLowerCase().trim() === window._userName;
-                    const editBtn = (isYearDone || window._guestMode || !isOwner) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
-                    const delBtn = (isYearDone || window._guestMode || !isOwner) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
+                    const canEdit = window._isAdmin || isOwner;
+                    const editBtn = (isYearDone || window._guestMode || !canEdit) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
+                    const delBtn = (isYearDone || window._guestMode || !canEdit) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
                     const remarksHtml2 = u.remarks ? `<span class="task-remarks-badge" title="${u.remarks.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">💬</span>` : '';
                     htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${remarksHtml2}${editBtn}${delBtn}</div>`;
                 });
@@ -3923,6 +4035,7 @@ function launchConfetti(x,y){
         document.getElementById('userChipName').textContent=data.name;
         document.getElementById('userChip').style.display='inline-flex';
         window._userName = data.name.toLowerCase().trim();
+        window._isAdmin = data.role === 'admin';
 
         const isGuest = data.role === 'guest';
         window._isGuest = isGuest;
@@ -3931,12 +4044,14 @@ function launchConfetti(x,y){
         if (isGuest) {
             document.getElementById('adminLink').style.display='none';
             document.getElementById('passkeyLink').style.display='none';
-            document.querySelector('.btn-submit').style.display='none';
+            document.getElementById('submitBtn').style.display='none';
+            if(document.getElementById('todoBtn')) document.getElementById('todoBtn').style.display='none';
             document.getElementById('resetPwBtn').style.display='none';
         } else {
-            document.getElementById('adminLink').style.display = (data.role === 'admin') ? 'inline-flex' : 'none';
+            document.getElementById('adminLink').style.display = window._isAdmin ? 'inline-flex' : 'none';
             document.getElementById('passkeyLink').style.display='inline-flex';
-            document.querySelector('.btn-submit').style.display='inline-block';
+            document.getElementById('submitBtn').style.display='inline-block';
+            if(document.getElementById('todoBtn')) document.getElementById('todoBtn').style.display='inline-block';
             document.getElementById('resetPwBtn').style.display='inline-block';
         }
         const pending=window._pendingDetailSubmit;
@@ -4255,6 +4370,247 @@ function launchConfetti(x,y){
             input.value = '';
         }
     }
+
+    var _allTodosCache = [];
+
+    function openTodoPanel(){
+        document.getElementById('todoDesc').value='';
+        loadTodoDropdowns();
+        document.getElementById('todoOverlay').classList.add('open');
+    }
+
+    function closeTodoPanel(){
+        document.getElementById('todoOverlay').classList.remove('open');
+    }
+
+    function loadTodoDropdowns(){
+        var el=document.getElementById('todoAssignee');
+        if(!el) return;
+        el.innerHTML='<option value="">Unassigned</option>';
+        var seen={};
+        MEMBERS.forEach(function(m){
+            var n=m;
+            if(!n) return;
+            var key=n.toLowerCase();
+            if(seen[key]) return;
+            seen[key]=1;
+            el.innerHTML+='<option value="'+n+'">'+n+'</option>';
+        });
+        // Populate module dropdown
+        var modEl = document.getElementById('todoModule');
+        if(modEl){
+            modEl.innerHTML = '<option value="">None</option>';
+            (APP_CONFIG.modules || []).forEach(function(mod){
+                if(mod && mod.code && mod.code !== 'leave'){
+                    modEl.innerHTML += '<option value="'+mod.code+'">'+mod.code+'</option>';
+                }
+            });
+        }
+        // Now build proper dropdown
+        var dd = document.getElementById('assigneeDropdown');
+        if(dd){
+            var html = '<div class="dd-item" data-value="" style="padding:8px 12px;font-size:.85em;cursor:pointer;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,.08);transition:.15s" onmouseover="this.style.background=\'rgba(255,255,255,.06)\'" onmouseout="this.style.background=\'transparent\'" onclick="selectAssignee(\'\',\'All assignees\')">All assignees</div>';
+            var seen2={};
+            MEMBERS.forEach(function(m){
+                var n=m; if(!n) return;
+                var key=n.toLowerCase();
+                if(seen2[key]) return;
+                seen2[key]=1;
+                html += '<div class="dd-item" data-value="'+n+'" style="padding:8px 12px;font-size:.85em;cursor:pointer;color:var(--text);border-bottom:1px solid rgba(255,255,255,.04);transition:.15s" onmouseover="this.style.background=\'rgba(255,255,255,.06)\'" onmouseout="this.style.background=\'transparent\'" onclick="selectAssignee(\''+n+'\',\''+n+'\')">'+n+'</div>';
+            });
+            dd.innerHTML = html;
+        }
+    }
+
+    function showAssigneeDropdown(){
+        var dd = document.getElementById('assigneeDropdown');
+        if(!dd) return;
+        dd.style.display = 'block';
+    }
+    function hideAssigneeDropdown(){
+        var dd = document.getElementById('assigneeDropdown');
+        if(!dd) return;
+        dd.style.display = 'none';
+    }
+    function selectAssignee(value, label){
+        document.getElementById('teamTodosAssignee').value = value;
+        document.getElementById('teamTodosAssigneeSearch').value = label === 'All assignees' ? '' : label;
+        hideAssigneeDropdown();
+        renderTeamTodos();
+    }
+    function filterAssigneeOptions(query){
+        var q = query.toLowerCase().trim();
+        var dd = document.getElementById('assigneeDropdown');
+        if(!dd) return;
+        var items = dd.querySelectorAll('.dd-item');
+        items.forEach(function(item){
+            var text = item.textContent.toLowerCase();
+            item.style.display = (text.indexOf(q) !== -1) ? '' : 'none';
+        });
+    }
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e){
+        var wrap = document.querySelector('.searchable-dropdown');
+        if(wrap && !wrap.contains(e.target)){
+            hideAssigneeDropdown();
+        }
+    });
+
+    async function submitTodo(){
+        var desc=document.getElementById('todoDesc').value.trim();
+        if(!desc){ showToast('Description is required','err'); return; }
+        var assignee=document.getElementById('todoAssignee').value;
+        var priority=document.getElementById('todoPriority').value;
+        var moduleVal=document.getElementById('todoModule').value;
+        console.log('Submitting todo:', {desc, assignee, priority, module: moduleVal});
+        try{
+            var r=await fetch(API_URL+'/api/todos',{
+                method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({description:desc, assignee:assignee||null, priority:priority, module:moduleVal||null}), credentials:'include'
+            });
+            if(!r.ok){ var err=await r.json(); throw new Error(err.detail||'Failed'); }
+            var created = await r.json();
+            console.log('Created todo response:', created);
+            showToast('Todo created');
+            closeTodoPanel();
+            await loadTeamTodos();
+        }catch(e){ showToast(e.message,'err'); }
+    }
+
+    function renderTodoItems(ownerName, todos){
+        if(!todos || !todos.length) return '';
+        return todos.map(function(t){
+            var isAdmin = window._isAdmin;
+            var isOwner = window._userName && ownerName && ownerName.toLowerCase().trim() === window._userName;
+            var canManage = isAdmin || isOwner;
+            var canPromote = isAdmin || (t.assignee && t.assignee.toLowerCase().trim() === ownerName.toLowerCase().trim());
+            return '<div class="todo-entry" data-tid="'+t.id+'">'+
+                '<span class="todo-text">'+escapeHtml(t.description)+'</span>'+
+                '<span class="todo-badge '+t.priority+'">'+t.priority+'</span>'+
+                (canManage ? '<div class="todo-actions">'+
+                    (canPromote ? '<button class="todo-btn promote" title="Promote to task" onclick="window.promoteTodo('+t.id+')">+</button>' : '')+
+                    '<button class="todo-btn delete" title="Delete" onclick="window.deleteTodo('+t.id+')">×</button>'+
+                '</div>' : '') +
+            '</div>';
+        }).join('');
+    }
+
+    function renderTeamTodos(){
+        var assignee=document.getElementById('teamTodosAssignee').value;
+        var priority=document.getElementById('teamTodosPriority').value;
+        var list=_allTodosCache;
+        if(assignee) list=list.filter(function(t){ return t.assignee===assignee; });
+        if(priority) list=list.filter(function(t){ return t.priority===priority; });
+        var el=document.getElementById('teamTodosContent');
+        var countEl=document.getElementById('teamTodoCount');
+        if(countEl) countEl.textContent=list.length+' todo'+(list.length!==1?'s':'');
+        if(!list.length){ el.innerHTML='<div class="task-empty-state">No todos found</div>'; return; }
+        el.innerHTML=list.map(function(t){
+            var isAdmin = window._isAdmin;
+            var isOwner = window._userName && t.assignee && t.assignee.toLowerCase().trim() === window._userName;
+            var canManage = isAdmin || isOwner;
+            var assigneeText=t.assignee || 'Unassigned';
+            var canPromote = !!t.assignee;
+            var assignOpts = '<option value="">Unassigned</option>';
+            MEMBERS.forEach(function(m){ var n=m; if(!n) return; assignOpts+='<option value="'+n+'"'+(t.assignee===n?' selected':'')+'>'+n+'</option>'; });
+            var promoteCls = canPromote ? 'todo-btn promote' : 'todo-btn promote';
+            var promoteDisabled = canPromote ? '' : ' disabled style="opacity:.35;cursor:not-allowed;transform:none" title="Unassigned — cannot promote"';
+            var assignDisabled = canManage ? '' : ' disabled style="opacity:.35;cursor:not-allowed;transform:none" title="Not allowed"';
+            var delDisabled = canManage ? '' : ' disabled style="opacity:.35;cursor:not-allowed;transform:none" title="Not allowed"';
+            var moduleText = t.module || '-';
+            return '<div class="todo-entry" data-tid="'+t.id+'">'+
+                '<span class="todo-text"><strong>'+escapeHtml(t.description)+'</strong></span>'+
+                '<span class="todo-assignee-col" style="min-width:90px;text-align:center;color:var(--text-dim);font-size:.8em;font-family:\'JetBrains Mono\',monospace;flex-shrink:0">'+escapeHtml(assigneeText)+'</span>'+
+                '<span class="todo-module-col" style="min-width:80px;text-align:center;color:var(--text-dim);font-size:.8em;font-family:\'JetBrains Mono\',monospace;flex-shrink:0" title="'+escapeHtml(moduleText)+'">'+escapeHtml(moduleText)+'</span>'+
+                '<span class="todo-badge '+t.priority+'" onclick="window.cyclePriority('+t.id+')" style="cursor:pointer;border:1px solid transparent;transition:.15s" onmouseover="this.style.borderColor=\'rgba(255,255,255,.2)\'" onmouseout="this.style.borderColor=\'transparent\'" title="Click to change priority">'+t.priority+'</span>'+
+                '<div class="todo-actions" style="min-width:120px;justify-content:flex-end">'+
+                    '<button class="todo-btn promote" title="Promote to in-progress task" onclick="if('+canPromote+')window.promoteTodo('+t.id+');"'+promoteDisabled+'>+</button>'+
+                    '<button class="todo-btn assign" title="Reassign to another member" onclick="window.toggleAssignDropdown('+t.id+',this)"'+assignDisabled+'>👤</button>'+
+                    '<button class="todo-btn delete" title="Delete todo permanently" onclick="if('+canManage+')window.deleteTodo('+t.id+');"'+delDisabled+'>×</button>'+
+                '</div>' +
+                '<span id="assign-dd-'+t.id+'" style="display:none"><select class="todo-assign-select" onchange="window.assignTodo('+t.id+',this.value)">'+assignOpts+'</select></span>'+
+            '</div>';
+        }).join('');
+    }
+
+    async function loadTeamTodos(){
+        try{
+            var r=await fetch(API_URL+'/api/todos',{credentials:'include'});
+            console.log('Todos API status:', r.status);
+            if(!r.ok){ var err=await r.json(); console.error('Todos API error:', err); throw new Error(err.detail||'Failed to load todos'); }
+            var data=await r.json();
+            console.log('Todos data:', data);
+            _allTodosCache=data.todos||[];
+            console.log('Cached todos count:', _allTodosCache.length);
+            loadTodoDropdowns();
+            renderTeamTodos();
+        }catch(e){ console.error('loadTeamTodos error', e); document.getElementById('teamTodosContent').innerHTML='<div style="text-align:center;padding:20px;color:var(--red)">Failed to load todos: '+e.message+'</div>'; }
+    }
+
+    async function promoteTodo(todoId){
+        if(!confirm('Promote this todo to an in-progress task?')) return;
+        var todo = (_allTodosCache||[]).find(function(x){ return x.id === todoId; });
+        var moduleVal = todo && todo.module ? todo.module : '';
+        try{
+            var r=await fetch('/api/todos/'+todoId+'/promote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({module: moduleVal}),credentials:'include'});
+            if(!r.ok) throw new Error((await r.json()).detail||'Failed to promote todo');
+            var data=await r.json();
+            showToast((data.assignee||'Task')+' promoted successfully');
+            await initDashboard();
+        }catch(e){ showToast(e.message,'err'); }
+    }
+
+    async function deleteTodo(todoId){
+        if(!confirm('Delete this todo?')) return;
+        try{
+            var r=await fetch('/api/todos/'+todoId,{method:'DELETE',credentials:'include'});
+            if(!r.ok) throw new Error('Failed to delete todo');
+            showToast('Todo deleted');
+            await initDashboard();
+        }catch(e){ showToast(e.message,'err'); }
+    }
+
+    // Expose for inline onclick handlers
+    window.promoteTodo = promoteTodo;
+    window.deleteTodo = deleteTodo;
+
+    async function assignTodo(todoId, newAssignee){
+        try{
+            var body = {assignee: newAssignee || null};
+            var r=await fetch(API_URL+'/api/todos/'+todoId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),credentials:'include'});
+            if(!r.ok) throw new Error((await r.json()).detail||'Failed to update assignee');
+            showToast(newAssignee ? 'Assigned to '+newAssignee : 'Todo unassigned');
+            await loadTeamTodos();
+        }catch(e){ showToast(e.message,'err'); }
+    }
+
+    function toggleAssignDropdown(todoId, btnEl){
+        var dd=document.getElementById('assign-dd-'+todoId);
+        if(!dd) return;
+        if(dd.style.display==='none'){
+            dd.style.display='inline-block';
+            var sel=dd.querySelector('select');
+            if(sel) sel.focus();
+        } else {
+            dd.style.display='none';
+        }
+    }
+
+    async function cyclePriority(todoId){
+        var t = (_allTodosCache||[]).find(function(x){ return x.id === todoId; });
+        if(!t) return;
+        var next = {low:'medium', medium:'high', high:'low'};
+        var newPriority = next[t.priority] || 'medium';
+        try{
+            var r = await fetch(API_URL+'/api/todos/'+todoId, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({priority:newPriority}), credentials:'include'});
+            if(!r.ok) throw new Error((await r.json()).detail||'Failed');
+            showToast('Priority set to '+newPriority);
+            await loadTeamTodos();
+        }catch(e){ showToast(e.message,'err'); }
+    }
+
+    window.assignTodo = assignTodo;
+    window.toggleAssignDropdown = toggleAssignDropdown;
+    window.cyclePriority = cyclePriority;
     </script>
 </body>
 </html>

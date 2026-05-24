@@ -45,7 +45,9 @@ def _hash_password(plain):
 
 
 def _verify_password(plain, hashed):
-    return bcrypt.checkpw(plain.encode(), hashed.encode())
+    if isinstance(hashed, str):
+        hashed = hashed.encode()
+    return bcrypt.checkpw(plain.encode(), hashed)
 
 
 def _create_token(name):

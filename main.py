@@ -814,17 +814,15 @@ def get_updates(
     return {"total": total, "updates": [dict(r) for r in rows]}
 
 @app.put("/api/updates/{update_id}")
-def update_entry(update_id: int, payload: dict = Body(...)):
+def update_entry(request: Request, update_id: int, payload: dict = Body(...)):
+    name = get_current_name(request)
+    if not name:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     fields = payload.get('fields', {})
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
-    allowed = {'module','description','status','remarks'}
-    updates = {}
-    for k,v in fields.items():
-        if k in allowed:
-            updates[k] = str(v).lower().strip() if k in ('module','description') else str(v).strip()
-    if not updates:
-        raise HTTPException(status_code=400, detail="Invalid fields")
+
     conn = get_db()
     try:
         conn.execute("BEGIN")
@@ -832,19 +830,45 @@ def update_entry(update_id: int, payload: dict = Body(...)):
         if not row:
             conn.close()
             raise HTTPException(status_code=404, detail="Update not found")
-        old = dict(row)
+
+        is_admin = False
+        role_row = conn.execute("SELECT role FROM members WHERE name = ?", (name,)).fetchone()
+        if role_row and role_row["role"] == "admin":
+            is_admin = True
+        if not is_admin and row["name"] != name:
+            conn.close()
+            raise HTTPException(status_code=403, detail="Can only update your own tasks")
+
+        allowed = {'module','description','status','remarks'}
+        updates = {}
+        for k,v in fields.items():
+            if k in allowed:
+                updates[k] = str(v).lower().strip() if k in ('module','description') else str(v).strip()
+        if not updates:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Invalid fields")
+
         set_clause = ', '.join(f"{k} = ?" for k in updates.keys())
         conn.execute(f"UPDATE updates SET {set_clause} WHERE id = ?", (*updates.values(), update_id))
         conn.execute("COMMIT")
         conn.close()
         return {"ok": True, "updated": update_id}
+    except HTTPException:
+        raise
     except Exception as e:
-        conn.execute("ROLLBACK")
+        try:
+            conn.execute("ROLLBACK")
+        except:
+            pass
         conn.close()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/updates/{update_id}")
-def delete_update(update_id: int):
+def delete_update(request: Request, update_id: int):
+    name = get_current_name(request)
+    if not name:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     conn = get_db()
     try:
         conn.execute("BEGIN")
@@ -853,7 +877,16 @@ def delete_update(update_id: int):
             conn.execute("ROLLBACK")
             conn.close()
             raise HTTPException(status_code=404, detail="Update not found")
-        old = dict(row)
+
+        is_admin = False
+        role_row = conn.execute("SELECT role FROM members WHERE name = ?", (name,)).fetchone()
+        if role_row and role_row["role"] == "admin":
+            is_admin = True
+        if not is_admin and row["name"] != name:
+            conn.execute("ROLLBACK")
+            conn.close()
+            raise HTTPException(status_code=403, detail="Can only delete your own tasks")
+
         conn.execute("DELETE FROM updates WHERE id = ?", (update_id,))
         conn.execute("COMMIT")
         conn.close()
@@ -863,7 +896,7 @@ def delete_update(update_id: int):
     except Exception as e:
         try:
             conn.execute("ROLLBACK")
-        except Exception:
+        except:
             pass
         conn.close()
         raise HTTPException(status_code=500, detail=str(e))
@@ -960,36 +993,200 @@ def get_members():
     set_cached(cache_key, result)
     return result
 
-@app.post("/api/members")
-def add_member(data: dict = Body(...)):
-    name = data.get("name", "").strip().lower()
+def _get_todos_internal():
+    conn = get_db()
+    rows = conn.execute("SELECT id, description, assignee, priority, status, created_by, created_at FROM todos WHERE status != 'done' ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, created_at DESC").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.get("/api/todos")
+def get_all_todos(request: Request, assignee: Optional[str] = Query(default=None), status: Optional[str] = Query(default=None)):
+    name = get_current_name(request)
     if not name:
-        raise HTTPException(status_code=400, detail="Name is required")
+        raise HTTPException(status_code=401, detail="Authentication required")
+    conditions = ["status != 'done'"]
+    params = []
+    if assignee is not None:
+        if assignee == "" or assignee.lower() == "null":
+            conditions.append("assignee IS NULL")
+        else:
+            conditions.append("LOWER(assignee) = LOWER(?)")
+            params.append(assignee)
+    if status is not None:
+        if status.lower() == "null":
+            conditions.append("assignee IS NULL")
+        elif status == "unassigned":
+            conditions.append("assignee IS NULL")
+        elif status in ("todo", "in_progress", "done"):
+            conditions.append("status = ?")
+            params.append(status)
+    where = " AND ".join(conditions)
+    sql = f"SELECT id, description, assignee, priority, status, module, created_by, created_at FROM todos WHERE {where} ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, created_at DESC"
+    conn = get_db()
+    try:
+        rows = conn.execute(sql, params).fetchall()
+        return {"todos": [{
+            "id": r["id"],
+            "description": r["description"],
+            "assignee": r["assignee"],
+            "priority": r["priority"],
+            "status": r["status"],
+            "module": r["module"],
+            "created_by": r["created_by"],
+            "created_at": r["created_at"]
+        } for r in rows]}
+    finally:
+        conn.close()
+
+@app.post("/api/todos")
+def create_todo(request: Request, data: dict = Body(...)):
+    name = get_current_name(request)
+    if not name:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    description = str(data.get("description", "")).strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="Description is required")
+    assignee = data.get("assignee")
+    if assignee is None:
+        assignee = None
+    else:
+        assignee = str(assignee).strip()
+        if not assignee:
+            assignee = None
+    priority = data.get("priority", "medium")
+    if priority not in ("low", "medium", "high"):
+        priority = "medium"
+    module_val = data.get("module")
+    module_str = str(module_val or "").strip().lower()
+    if not module_str:
+        module_str = None
+
     conn = get_db()
     try:
         conn.execute(
-            "INSERT INTO members (name, active) VALUES (?, 1) ON CONFLICT(name) DO UPDATE SET active = 1",
-            (name,)
+            "INSERT INTO todos (description, assignee, priority, status, module, created_by) VALUES (?, ?, ?, 'todo', ?, ?)",
+            (description, assignee if assignee else None, priority, module_str, name)
         )
         conn.commit()
+        new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        row = conn.execute("SELECT * FROM todos WHERE id = ?", (new_id,)).fetchone()
+        clear_cached("todos")
+        return dict(row)
+    finally:
         conn.close()
-        return {"ok": True, "name": name}
-    except Exception as e:
-        conn.close()
-        raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/api/members/{name}")
-def remove_member(name: str):
+@app.put("/api/todos/{todo_id}")
+def update_todo(request: Request, todo_id: int, data: dict = Body(...)):
+    name = get_current_name(request)
+    if not name:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     conn = get_db()
     try:
-        conn.execute("UPDATE members SET active = 0 WHERE name = ?", (name,))
-        conn.execute("DELETE FROM updates WHERE name = ?", (name,))
+        row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Todo not found")
+        is_admin = False
+        role = conn.execute("SELECT role FROM members WHERE name = ?", (name,)).fetchone()
+        if role and role["role"] == "admin":
+            is_admin = True
+        if not is_admin and row["created_by"] != name:
+            raise HTTPException(status_code=403, detail="Can only update your own todos")
+
+        updates = []
+        params = []
+        if "description" in data:
+            d = str(data["description"] or "").strip()
+            updates.append("description = ?")
+            params.append(d)
+        if "assignee" in data:
+            a = data['assignee']
+            if a is None or (isinstance(a, str) and a.lower() == 'null'):
+                updates.append('assignee = NULL')
+            else:
+                updates.append('assignee = ?')
+                params.append(a)
+        if "priority" in data:
+            p = data.get("priority")
+            if p in ("low", "medium", "high"):
+                updates.append("priority = ?")
+                params.append(p)
+        if "status" in data:
+            s = data.get("status")
+            if s in ("todo", "in_progress", "done"):
+                updates.append("status = ?")
+                params.append(s)
+        if not updates:
+            return dict(row)
+        params.append(todo_id)
+        sql = f"UPDATE todos SET {', '.join(updates)} WHERE id = ?"
+        conn.execute(sql, params)
         conn.commit()
+        row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
+        clear_cached("todos")
+        return dict(row)
+    finally:
         conn.close()
-        return {"ok": True, "message": f"Member {name} removed and records cleared"}
-    except Exception as e:
+
+@app.delete("/api/todos/{todo_id}")
+def delete_todo(request: Request, todo_id: int):
+    name = get_current_name(request)
+    if not name:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Todo not found")
+        is_admin = False
+        role = conn.execute("SELECT role FROM members WHERE name = ?", (name,)).fetchone()
+        if role and role["role"] == "admin":
+            is_admin = True
+        if not is_admin and row["created_by"] != name:
+            raise HTTPException(status_code=403, detail="Can only delete your own todos")
+        conn.execute("DELETE FROM todos WHERE id = ?", (todo_id,))
+        conn.commit()
+        clear_cached("todos")
+        return {"ok": True}
+    finally:
         conn.close()
-        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/todos/{todo_id}/promote")
+def promote_todo(request: Request, todo_id: int, data: dict = Body(default={})):
+    name = get_current_name(request)
+    if not name:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    module = data.get("module", "").strip()
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Todo not found")
+        assignee = row["assignee"] or name
+        is_admin = False
+        role_row = conn.execute("SELECT role FROM members WHERE name = ?", (name,)).fetchone()
+        if role_row and role_row["role"] == "admin":
+            is_admin = True
+        if not is_admin and assignee != name and row["created_by"] != name:
+            raise HTTPException(status_code=403, detail="Can only promote todos assigned to you or created by you")
+        today = datetime.now().strftime('%Y-%m-%d')
+        task_module = module if module else (row["module"] or "")
+        cursor = conn.execute(
+            "INSERT INTO updates (date, name, module, description, status, leave_type, is_work) VALUES (?, ?, ?, ?, 'in_progress', NULL, 1)",
+            (today, assignee, task_module, row["description"])
+        )
+        new_id = cursor.lastrowid
+        conn.execute("UPDATE todos SET status = 'done', updated_at = CURRENT_TIMESTAMP WHERE id = ?", (todo_id,))
+        conn.commit()
+        clear_cached("todos")
+        clear_cached("summary")
+        clear_cached("dashboard")
+        clear_cached("dashboard-lite")
+        return {"ok": True, "update_id": new_id, "assignee": assignee, "description": row["description"]}
+    finally:
+        conn.close()
+
 
 @app.get("/api/summary")
 def get_summary(
