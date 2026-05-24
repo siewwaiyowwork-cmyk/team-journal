@@ -2028,12 +2028,32 @@ function launchConfetti(x,y){
                 <div class="rpg-stats">
                     <div class="rpg-stat" title="Completion Rate: ${m.done || 0} done / (${m.done || 0} done + ${m.in_progress || 0} in_progress + ${m.blocked || 0} blocked) = ${m.completion_rate || 0}%">
                         <span class="rpg-stat-label">⚔️ ATK</span>
-                        <div class="rpg-stat-bar"><div class="rpg-stat-fill attack" style="width:${m.completion_rate || 0}%"></div></div>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill attack" style="width:${Math.min(m.completion_rate || 0, 100)}%"></div></div>
                         <span class="rpg-stat-val">${m.completion_rate || 0}</span>
                     </div>
                     <div class="rpg-stat" title="Attendance: ${m.total || 0} days present / ${(window.currentRange && window.currentRange.workdays) || 58} workdays = ${m.attendance_pct || 0}% (includes leave as absent)">
                         <span class="rpg-stat-label">💚 STM</span>
-                        <div class="rpg-stat-bar"><div class="rpg-stat-fill stamina" style="width:${m.attendance_pct || 0}%"></div></div>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill stamina" style="width:${Math.min(m.attendance_pct || 0, 100)}%"></div></div>
+                        <span class="rpg-stat-val">${m.attendance_pct || 0}</span>
+                    </div>
+                    <div class="rpg-stat" title="Focus: ${totalTasks} tasks / ${activeCount} active days = ${focusPct}% (avg tasks per day x 40, capped at 100)">
+                        <span class="rpg-stat-label">🎯 FCS</span>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill focus" style="width:${focusPct}%"></div></div>
+                        <span class="rpg-stat-val">${focusPct}</span>
+                    </div>
+                    <div class="rpg-stat" title="Agility: 100 - (${m.ip_done_ratio || 0} IP/Done × 10) = ${agilityPct}. ${m.ip_done_ratio || 0} in-progress per 1 done task. Lower IP/Done = higher agility.">
+                        <span class="rpg-stat-label">⚡ AGI</span>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill agility" style="width:${Math.min(agilityPct, 100)}%"></div></div>
+                        <span class="rpg-stat-val">${agilityPct}</span>
+                    </div>
+                    <div class="rpg-stat" title="Support Work: module='support' tasks / (done + in_progress + blocked) x 100% = ${m.support_pct || 0}%. Lower = more feature work.">
+                        <span class="rpg-stat-label">🛠️ SUP</span>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill defense" style="width:${Math.min(m.support_pct || 0, 100)}%"></div></div>
+                        <span class="rpg-stat-val">${Math.min(m.support_pct || 0, 100)}%</span>
+                    </div>
+                    <div class="rpg-stat" title="Attendance: ${m.total || 0} days present / ${(window.currentRange && window.currentRange.workdays) || 58} workdays = ${m.attendance_pct || 0}% (includes leave as absent)">
+                        <span class="rpg-stat-label">💚 STM</span>
+                        <div class="rpg-stat-bar"><div class="rpg-stat-fill stamina" style="width:${Math.min(m.attendance_pct || 0, 100)}%"></div></div>
                         <span class="rpg-stat-val">${m.attendance_pct || 0}</span>
                     </div>
                     <div class="rpg-stat" title="Focus: ${totalTasks} tasks / ${activeCount} active days = ${focusPct}% (avg tasks per day x 40, capped at 100)">
