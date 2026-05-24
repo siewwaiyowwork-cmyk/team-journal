@@ -2083,7 +2083,7 @@ function launchConfetti(x,y){
                             var html = memberTodos.map(function(t){
                                 var desc = escapeHtml(t.description);
                                 var todoModule = t.module ? ' ['+escapeHtml(t.module)+']' : '';
-                                var disabled = !t.assignee ? ' disabled title="Unassigned — cannot promote to task"' : ' onclick="window.promoteTodo('+t.id+')" title="Promote to in-progress task"';
+                                var disabled = !t.assignee ? ' disabled title="Unassigned — cannot promote to task"' : ' onclick="event.stopPropagation();window.promoteTodo('+t.id+')" title="Promote to in-progress task"';
                                 return '<div class="card-todo-entry"><span class="card-todo-text" title="'+desc+todoModule+'">'+desc+'</span><button class="card-todo-btn"'+disabled+'>+</button></div>';
                             }).join('');
                             var totalTodoCount = memberTodos.length;
@@ -4472,7 +4472,7 @@ function launchConfetti(x,y){
             console.log('Created todo response:', created);
             showToast('Todo created');
             closeTodoPanel();
-            await loadTeamTodos();
+            await Promise.all([loadTeamTodos(), initDashboard()]);
         }catch(e){ showToast(e.message,'err'); }
     }
 
@@ -4555,7 +4555,109 @@ function launchConfetti(x,y){
             if(!r.ok) throw new Error((await r.json()).detail||'Failed to promote todo');
             var data=await r.json();
             showToast((data.assignee||'Task')+' promoted successfully');
-            await initDashboard();
+            localStorage.removeItem('dashboard_cache'); localStorage.removeItem('dashboard_cache_ts');
+            await Promise.all([loadTeamTodos(), initDashboard()]);
+        }catch(e){ showToast(e.message,'err'); }
+    }
+
+    async function deleteTodo(todoId){
+        if(!confirm('Delete this todo?')) return;
+        try{
+            var r=await fetch('/api/todos/'+todoId,{method:'DELETE',credentials:'include'});
+            if(!r.ok) throw new Error('Failed to delete todo');
+            showToast('Todo deleted');
+            localStorage.removeItem('dashboard_cache'); localStorage.removeItem('dashboard_cache_ts');
+            await Promise.all([loadTeamTodos(), initDashboard()]);
+        }catch(e){ showToast(e.message,'err'); }
+    }
+
+    // Expose for inline onclick handlers
+    window.promoteTodo = promoteTodo;
+    window.deleteTodo = deleteTodo;
+
+    async function assignTodo(todoId, newAssignee){
+        try{
+            var body = {assignee: newAssignee || null};
+            var r=await fetch(API_URL+'/api/todos/'+todoId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),credentials:'include'});
+            if(!r.ok) throw new Error((await r.json()).detail||'Failed to update assignee');
+            showToast(newAssignee ? 'Assigned to '+newAssignee : 'Todo unassigned');
+            localStorage.removeItem('dashboard_cache'); localStorage.removeItem('dashboard_cache_ts');
+            await Promise.all([loadTeamTodos(), initDashboard()]);
+        }catch(e){ showToast(e.message,'err'); }
+    }
+
+    function toggleAssignDropdown(todoId, btnEl){
+        var dd=document.getElementById('assign-dd-'+todoId);
+        if(!dd) return;
+        if(dd.style.display==='none'){
+            dd.style.display='inline-block';
+            var sel=dd.querySelector('select');
+            if(sel) sel.focus();
+        } else {
+            dd.style.display='none';
+        }
+    }
+
+    async function cyclePriority(todoId){
+        var t = (_allTodosCache||[]).find(function(x){ return x.id === todoId; });
+        if(!t) return;
+        var next = {low:'medium', medium:'high', high:'low'};
+        var newPriority = next[t.priority] || 'medium';
+        try{
+            var r = await fetch(API_URL+'/api/todos/'+todoId, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({priority:newPriority}), credentials:'include'});
+            if(!r.ok) throw new Error((await r.json()).detail||'Failed');
+            showToast('Priority set to '+newPriority);
+            localStorage.removeItem('dashboard_cache'); localStorage.removeItem('dashboard_cache_ts');
+            await Promise.all([loadTeamTodos(), initDashboard()]);
+        }catch(e){ showToast(e.message,'err'); }
+    }
+
+    async function deleteTodo(todoId){
+        if(!confirm('Delete this todo?')) return;
+        try{
+            var r=await fetch('/api/todos/'+todoId,{method:'DELETE',credentials:'include'});
+            if(!r.ok) throw new Error('Failed to delete todo');
+            showToast('Todo deleted');
+            await Promise.all([loadTeamTodos(), initDashboard()]);
+        }catch(e){ showToast(e.message,'err'); }
+    }
+
+    // Expose for inline onclick handlers
+    window.promoteTodo = promoteTodo;
+    window.deleteTodo = deleteTodo;
+
+    async function assignTodo(todoId, newAssignee){
+        try{
+            var body = {assignee: newAssignee || null};
+            var r=await fetch(API_URL+'/api/todos/'+todoId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),credentials:'include'});
+            if(!r.ok) throw new Error((await r.json()).detail||'Failed to update assignee');
+            showToast(newAssignee ? 'Assigned to '+newAssignee : 'Todo unassigned');
+            await Promise.all([loadTeamTodos(), initDashboard()]);
+        }catch(e){ showToast(e.message,'err'); }
+    }
+
+    function toggleAssignDropdown(todoId, btnEl){
+        var dd=document.getElementById('assign-dd-'+todoId);
+        if(!dd) return;
+        if(dd.style.display==='none'){
+            dd.style.display='inline-block';
+            var sel=dd.querySelector('select');
+            if(sel) sel.focus();
+        } else {
+            dd.style.display='none';
+        }
+    }
+
+    async function cyclePriority(todoId){
+        var t = (_allTodosCache||[]).find(function(x){ return x.id === todoId; });
+        if(!t) return;
+        var next = {low:'medium', medium:'high', high:'low'};
+        var newPriority = next[t.priority] || 'medium';
+        try{
+            var r = await fetch(API_URL+'/api/todos/'+todoId, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({priority:newPriority}), credentials:'include'});
+            if(!r.ok) throw new Error((await r.json()).detail||'Failed');
+            showToast('Priority set to '+newPriority);
+            await Promise.all([loadTeamTodos(), initDashboard()]);
         }catch(e){ showToast(e.message,'err'); }
     }
 

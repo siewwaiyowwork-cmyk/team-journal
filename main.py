@@ -41,8 +41,9 @@ def get_cached_ttl(key, ttl):
     return None
 
 def clear_cached(key):
-    if key in _CACHE:
-        del _CACHE[key]
+    keys_to_del = [k for k in _CACHE if k.startswith(key)]
+    for k in keys_to_del:
+        del _CACHE[k]
 
 _WORK_EXCLUDE_KEYWORDS = ['discussion', 'sync up', 'sync-up', 'meeting']
 
