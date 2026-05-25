@@ -610,7 +610,7 @@
                         <div id="assigneeDropdown" class="custom-dropdown" style="display:none;position:absolute;top:calc(100%+4px);left:0;z-index:1000;background:#1a1a2e;border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.5)"></div>
                         <input type="hidden" id="teamTodosAssignee" value="">
                     </div>
-                    <select id="teamTodosPriority" class="panel-input" style="width:auto;min-width:110px" onchange="renderTeamTodos()" title="Filter by priority">
+                    <select id="teamTodosPriority" class="panel-input" style="width:auto;min-width:110px" onchange="teamTodosOffset=0;renderTeamTodos()" title="Filter by priority">
                         <option value="">All priorities</option>
                         <option value="high">🔴 High</option>
                         <option value="medium">🟡 Medium</option>
@@ -619,6 +619,11 @@
                 </div>
                 <div id="teamTodosContent" class="task-content" style="display:block">
                     <div class="task-loading">Loading todos...</div>
+                </div>
+                <div class="task-pagination" id="teamTodosPagination" style="display:none;align-items:center;justify-content:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);margin-top:8px">
+                    <button class="pg-prev" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">← Prev</button>
+                    <span class="pg-info" style="font-size:.85em;color:var(--text-dim);font-family:'JetBrains Mono',monospace"></span>
+                    <button class="pg-next" style="padding:6px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:.85em;cursor:pointer;transition:.15s">Next →</button>
                 </div>
             </div>
 
@@ -4439,6 +4444,7 @@ function launchConfetti(x,y){
         document.getElementById('teamTodosAssignee').value = value;
         document.getElementById('teamTodosAssigneeSearch').value = label === 'All assignees' ? '' : label;
         hideAssigneeDropdown();
+        teamTodosOffset = 0;
         renderTeamTodos();
     }
     function filterAssigneeOptions(query){
@@ -4497,17 +4503,21 @@ function launchConfetti(x,y){
         }).join('');
     }
 
+    var teamTodosOffset = 0, teamTodosPageSize = 20;
+
     function renderTeamTodos(){
         var assignee=document.getElementById('teamTodosAssignee').value;
         var priority=document.getElementById('teamTodosPriority').value;
         var list=_allTodosCache;
         if(assignee) list=list.filter(function(t){ return t.assignee===assignee; });
         if(priority) list=list.filter(function(t){ return t.priority===priority; });
+        var total=list.length;
         var el=document.getElementById('teamTodosContent');
         var countEl=document.getElementById('teamTodoCount');
-        if(countEl) countEl.textContent=list.length+' todo'+(list.length!==1?'s':'');
-        if(!list.length){ el.innerHTML='<div class="task-empty-state">No todos found</div>'; return; }
-        el.innerHTML=list.map(function(t){
+        if(countEl) countEl.textContent=total+' todo'+(total!==1?'s':'');
+        if(!total){ el.innerHTML='<div class="task-empty-state">No todos found</div>'; updateTeamTodosPagination(total); return; }
+        var pageList=list.slice(teamTodosOffset, teamTodosOffset+teamTodosPageSize);
+        el.innerHTML=pageList.map(function(t){
             var isAdmin = window._isAdmin;
             var isOwner = window._userName && t.assignee && t.assignee.toLowerCase().trim() === window._userName;
             var isUnassigned = !t.assignee;
@@ -4534,6 +4544,28 @@ function launchConfetti(x,y){
                 '<span id="assign-dd-'+t.id+'" style="display:none"><select class="todo-assign-select" onchange="window.assignTodo('+t.id+',this.value)">'+assignOpts+'</select></span>'+
             '</div>';
         }).join('');
+        updateTeamTodosPagination(total);
+    }
+
+    function updateTeamTodosPagination(total){
+        var pag = document.getElementById('teamTodosPagination');
+        if(!pag) return;
+        var prev = pag.querySelector('.pg-prev');
+        var next = pag.querySelector('.pg-next');
+        var info = pag.querySelector('.pg-info');
+        if(total <= teamTodosPageSize){ pag.style.display = 'none'; return; }
+        pag.style.display = 'flex';
+        var currentPage = Math.floor(teamTodosOffset / teamTodosPageSize) + 1;
+        var totalPages = Math.ceil(total / teamTodosPageSize);
+        if(info) info.textContent = currentPage + ' / ' + totalPages + ' (' + total + ')';
+        if(prev) prev.disabled = teamTodosOffset <= 0;
+        if(prev) prev.style.opacity = teamTodosOffset <= 0 ? '0.5' : '1';
+        if(prev) prev.style.cursor = teamTodosOffset <= 0 ? 'not-allowed' : 'pointer';
+        if(next) next.disabled = teamTodosOffset + teamTodosPageSize >= total;
+        if(next) next.style.opacity = teamTodosOffset + teamTodosPageSize >= total ? '0.5' : '1';
+        if(next) next.style.cursor = teamTodosOffset + teamTodosPageSize >= total ? 'not-allowed' : 'pointer';
+        if(prev) prev.onclick = function(){ if(teamTodosOffset > 0){ teamTodosOffset -= teamTodosPageSize; if(teamTodosOffset < 0) teamTodosOffset = 0; renderTeamTodos(); } };
+        if(next) next.onclick = function(){ if(teamTodosOffset + teamTodosPageSize < total){ teamTodosOffset += teamTodosPageSize; renderTeamTodos(); } };
     }
 
     async function loadTeamTodos(){
