@@ -2081,10 +2081,11 @@ function launchConfetti(x,y){
                             var html = memberTodos.map(function(t){
                                 var desc = escapeHtml(t.description);
                                 var todoModule = t.module ? ' ['+escapeHtml(t.module)+']' : '';
-                                var disabled = !t.assignee ? ' disabled title="Unassigned — cannot promote to task"' : (window._guestMode ? ' disabled title="Guest mode — cannot promote"' : ' onclick="event.stopPropagation();window.promoteTodo('+t.id+')" title="Promote to in-progress task"');
-                                var isTodoAdmin = window._isAdmin;
                                 var isTodoOwner = window._userName && t.assignee && t.assignee.toLowerCase().trim() === window._userName;
-                                var canDelete = (isTodoAdmin || isTodoOwner) u0026u0026 !window._guestMode;
+                                var canPromoteCard = isTodoOwner && !window._guestMode;
+                                var disabled = !t.assignee ? ' disabled title="Unassigned — cannot promote to task"' : (!canPromoteCard ? ' disabled title="Not assigned to you"' : ' onclick="event.stopPropagation();window.promoteTodo('+t.id+')" title="Promote to in-progress task"');
+                                var isTodoAdmin = window._isAdmin;
+                                var canDelete = (isTodoAdmin || isTodoOwner) && !window._guestMode;
                                 var delBtn = canDelete ? '<button class="card-todo-btn" style="background:rgba(255,23,68,.12);border-color:rgba(255,23,68,.25);color:var(--red);margin-left:2px" onclick="event.stopPropagation();window.deleteTodo('+t.id+')" title="Delete todo">×</button>' : '';
                                 return '<div class="card-todo-entry"><span class="card-todo-text" title="'+desc+todoModule+'">'+desc+'</span><button class="card-todo-btn"'+disabled+'>+</button>'+delBtn+'</div>';
                             }).join('');
@@ -4528,7 +4529,7 @@ function launchConfetti(x,y){
                 '<div class="todo-actions" style="min-width:120px;justify-content:flex-end">'+
                     '<button class="todo-btn promote" title="Promote to in-progress task" onclick="if('+canPromote+')window.promoteTodo('+t.id+');"'+promoteDisabled+'>+</button>'+
                     '<button class="todo-btn assign" title="Reassign to another member" onclick="window.toggleAssignDropdown('+t.id+',this)"'+assignDisabled+'>👤</button>'+
-                    '<button class="todo-btn delete" title="Delete todo permanently" onclick="if('+canManage+')window.deleteTodo('+t.id+');"'+delDisabled+'>×</button>'+
+                    '<button class="todo-btn delete" title="Delete todo permanently" onclick="if('+canDelete+')window.deleteTodo('+t.id+');"'+delDisabled+'>×</button>'+
                 '</div>' +
                 '<span id="assign-dd-'+t.id+'" style="display:none"><select class="todo-assign-select" onchange="window.assignTodo('+t.id+',this.value)">'+assignOpts+'</select></span>'+
             '</div>';
