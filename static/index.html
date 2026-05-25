@@ -2081,10 +2081,10 @@ function launchConfetti(x,y){
                             var html = memberTodos.map(function(t){
                                 var desc = escapeHtml(t.description);
                                 var todoModule = t.module ? ' ['+escapeHtml(t.module)+']' : '';
-                                var disabled = !t.assignee ? ' disabled title="Unassigned — cannot promote to task"' : ' onclick="event.stopPropagation();window.promoteTodo('+t.id+')" title="Promote to in-progress task"';
+                                var disabled = !t.assignee ? ' disabled title="Unassigned — cannot promote to task"' : (window._guestMode ? ' disabled title="Guest mode — cannot promote"' : ' onclick="event.stopPropagation();window.promoteTodo('+t.id+')" title="Promote to in-progress task"');
                                 var isTodoAdmin = window._isAdmin;
                                 var isTodoOwner = window._userName && t.assignee && t.assignee.toLowerCase().trim() === window._userName;
-                                var canDelete = isTodoAdmin || isTodoOwner;
+                                var canDelete = (isTodoAdmin || isTodoOwner) u0026u0026 !window._guestMode;
                                 var delBtn = canDelete ? '<button class="card-todo-btn" style="background:rgba(255,23,68,.12);border-color:rgba(255,23,68,.25);color:var(--red);margin-left:2px" onclick="event.stopPropagation();window.deleteTodo('+t.id+')" title="Delete todo">×</button>' : '';
                                 return '<div class="card-todo-entry"><span class="card-todo-text" title="'+desc+todoModule+'">'+desc+'</span><button class="card-todo-btn"'+disabled+'>+</button>'+delBtn+'</div>';
                             }).join('');
@@ -4509,15 +4509,16 @@ function launchConfetti(x,y){
         el.innerHTML=list.map(function(t){
             var isAdmin = window._isAdmin;
             var isOwner = window._userName && t.assignee && t.assignee.toLowerCase().trim() === window._userName;
-            var canManage = isAdmin || isOwner;
+            var isUnassigned = !t.assignee;
+            var canPromote = !isUnassigned && (isAdmin || isOwner) && !window._guestMode;
+            var canAssign = !window._guestMode;
+            var canDelete = !window._guestMode && (isAdmin || isOwner || isUnassigned);
             var assigneeText=t.assignee || 'Unassigned';
-            var canPromote = !!t.assignee;
             var assignOpts = '<option value="">Unassigned</option>';
             MEMBERS.forEach(function(m){ var n=m; if(!n) return; assignOpts+='<option value="'+n+'"'+(t.assignee===n?' selected':'')+'>'+n+'</option>'; });
-            var promoteCls = canPromote ? 'todo-btn promote' : 'todo-btn promote';
-            var promoteDisabled = canPromote ? '' : ' disabled style="opacity:.35;cursor:not-allowed;transform:none" title="Unassigned — cannot promote"';
-            var assignDisabled = canManage ? '' : ' disabled style="opacity:.35;cursor:not-allowed;transform:none" title="Not allowed"';
-            var delDisabled = canManage ? '' : ' disabled style="opacity:.35;cursor:not-allowed;transform:none" title="Not allowed"';
+            var promoteDisabled = canPromote ? '' : ' disabled style="opacity:.35;cursor:not-allowed;transform:none" title="Not allowed"';
+            var assignDisabled = canAssign ? '' : ' disabled style="opacity:.35;cursor:not-allowed;transform:none" title="Not allowed"';
+            var delDisabled = canDelete ? '' : ' disabled style="opacity:.35;cursor:not-allowed;transform:none" title="Not allowed"';
             var moduleText = t.module || '-';
             return '<div class="todo-entry" data-tid="'+t.id+'">'+
                 '<span class="todo-text"><strong>'+escapeHtml(t.description)+'</strong></span>'+

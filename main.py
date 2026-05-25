@@ -1143,8 +1143,8 @@ def delete_todo(request: Request, todo_id: int):
         role = conn.execute("SELECT role FROM members WHERE name = ?", (name,)).fetchone()
         if role and role["role"] == "admin":
             is_admin = True
-        if not is_admin and row["created_by"] != name:
-            raise HTTPException(status_code=403, detail="Can only delete your own todos")
+        if not is_admin and row["created_by"] != name and row["assignee"]:
+            raise HTTPException(status_code=403, detail="Can only delete unassigned or your own todos")
         conn.execute("DELETE FROM todos WHERE id = ?", (todo_id,))
         conn.commit()
         clear_cached("todos")
