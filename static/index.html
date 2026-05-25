@@ -4531,10 +4531,12 @@ function launchConfetti(x,y){
             var assignDisabled = canAssign ? '' : ' disabled style="opacity:.35;cursor:not-allowed;transform:none" title="Not allowed"';
             var delDisabled = canDelete ? '' : ' disabled style="opacity:.35;cursor:not-allowed;transform:none" title="Not allowed"';
             var moduleText = t.module || '-';
+            var nameBadge = '<span class="task-module-badge" style="background:rgba(0,229,255,.15);color:var(--accent);border-color:var(--accent)">'+escapeHtml(assigneeText)+'</span>';
+            var moduleBadge = '<span class="task-module-badge">'+escapeHtml(moduleText)+'</span>';
             return '<div class="todo-entry" data-tid="'+t.id+'">'+
                 '<span class="todo-text"><strong>'+escapeHtml(t.description)+'</strong></span>'+
-                '<span class="todo-assignee-col" style="min-width:90px;text-align:center;color:var(--text-dim);font-size:.8em;font-family:\'JetBrains Mono\',monospace;flex-shrink:0">'+escapeHtml(assigneeText)+'</span>'+
-                '<span class="todo-module-col" style="min-width:80px;text-align:center;color:var(--text-dim);font-size:.8em;font-family:\'JetBrains Mono\',monospace;flex-shrink:0" title="'+escapeHtml(moduleText)+'">'+escapeHtml(moduleText)+'</span>'+
+                '<span class="todo-assignee-col" style="min-width:90px;text-align:center;flex-shrink:0">'+nameBadge+'</span>'+
+                '<span class="todo-module-col" style="min-width:80px;text-align:center;flex-shrink:0" title="'+escapeHtml(moduleText)+'">'+moduleBadge+'</span>'+
                 '<span class="todo-badge '+t.priority+'" onclick="window.cyclePriority('+t.id+')" style="cursor:pointer;border:1px solid transparent;transition:.15s" onmouseover="this.style.borderColor=\'rgba(255,255,255,.2)\'" onmouseout="this.style.borderColor=\'transparent\'" title="Click to change priority">'+t.priority+'</span>'+
                 '<div class="todo-actions" style="min-width:120px;justify-content:flex-end">'+
                     '<button class="todo-btn promote" title="Promote to in-progress task" onclick="if('+canPromote+')window.promoteTodo('+t.id+');"'+promoteDisabled+'>+</button>'+
