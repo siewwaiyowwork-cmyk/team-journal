@@ -1937,15 +1937,30 @@ function launchConfetti(x,y){
             var avatars = document.querySelectorAll('.office-avatar');
             if(avatars.length === 0) return;
             var avatar = avatars[Math.floor(Math.random()*avatars.length)];
-            var bubble = avatar.querySelector('.office-bubble');
-            if(!bubble || bubble.classList.contains('show')) return;
+            if(avatar._hasBubble) return;
             var moods = Object.keys(_speechLines);
             var mood = moods[Math.floor(Math.random()*moods.length)];
             var lines = _speechLines[mood];
             var line = lines[Math.floor(Math.random()*lines.length)];
-            bubble.textContent = line;
+            var rect = avatar.getBoundingClientRect();
+            var bubble = document.createElement('div');
             bubble.className = 'office-bubble office-bubble-' + mood + ' show';
-            setTimeout(function(){ bubble.classList.remove('show'); }, 2500 + Math.random()*1500);
+            bubble.textContent = line;
+            bubble.style.position = 'fixed';
+            bubble.style.left = (rect.left + rect.width/2) + 'px';
+            bubble.style.top = (rect.top - 8) + 'px';
+            bubble.style.transform = 'translate(-50%, -100%) scale(1)';
+            bubble.style.zIndex = '9999';
+            document.body.appendChild(bubble);
+            avatar._hasBubble = true;
+            setTimeout(function(){
+                bubble.style.transform = 'translate(-50%, -100%) scale(0)';
+                bubble.style.opacity = '0';
+                setTimeout(function(){
+                    if(bubble.parentNode) bubble.parentNode.removeChild(bubble);
+                    avatar._hasBubble = false;
+                }, 300);
+            }, 2500 + Math.random()*1500);
         }
         function _startSpeechLoop(){
             if(!_officeGameState.running) return;
