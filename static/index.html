@@ -548,8 +548,9 @@
         .office-room::after{content:'';position:absolute;bottom:0;left:0;right:0;height:20px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.2));pointer-events:none;border-radius:0 0 10px 10px}
         .office-room-label{font-size:.65em;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.5px;text-align:center;margin-bottom:4px;border-bottom:1px solid var(--border);padding-bottom:2px;position:relative;z-index:2}
         .office-room-leave .office-room-label{color:#ffd700;border-bottom-color:rgba(255,215,0,.3)}
-        .office-avatar{position:absolute;width:24px;height:24px;border-radius:50%;cursor:pointer;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:3;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+        .office-avatar{position:absolute;width:24px;height:24px;border-radius:50%;cursor:grab;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:3;box-shadow:0 2px 8px rgba(0,0,0,.4);user-select:none;-webkit-user-select:none}
         .office-avatar:hover{transform:scale(1.4);z-index:20;box-shadow:0 4px 16px rgba(0,0,0,.6)}
+        .office-avatar.dragging{cursor:grabbing;z-index:100;transition:none;transform:scale(1.3);box-shadow:0 6px 20px rgba(0,0,0,.7)}
         .office-avatar-leave{border:2px solid rgba(255,215,0,.5);animation:pulseLeave 2s ease-in-out infinite}
         @keyframes pulseLeave{0%,100%{box-shadow:0 0 0 0 rgba(255,215,0,.4)}50%{box-shadow:0 0 0 4px rgba(255,215,0,0)}}
         .office-avatar svg{width:100%;height:100%;border-radius:50%;background:var(--bg)}
@@ -1700,15 +1701,33 @@ function launchConfetti(x,y){
             var leaveMembers = [];
 
             members.forEach(function(m){
-                // Check if member is on leave today (most recent update is leave for today)
-                var isOnLeaveToday = (m.recent && m.recent[0] && m.recent[0].status === 'leave' && m.recent[0].date === todayStr);
+                // Check if member has any WORK update for today (non-leave status)
+                var hasWorkToday = false;
+                if (m.recent) {
+                    for (var i = 0; i < m.recent.length; i++) {
+                        if (m.recent[i].date === todayStr && m.recent[i].status !== 'leave') {
+                            hasWorkToday = true;
+                            break;
+                        }
+                    }
+                }
 
-                if (isPublicHoliday || isOnLeaveToday) {
-                    leaveMembers.push(m);
-                } else {
+                // If they logged work today, they go to their project room even on holiday/weekend
+                if (hasWorkToday) {
                     var mod = (m.modules && m.modules[0] && m.modules[0].module) || _officeGameState.rooms[Math.floor(Math.random()*_officeGameState.rooms.length)];
                     if(!roomMap[mod]) mod = 'support';
                     roomMap[mod].push(m);
+                } else {
+                    // Check if member is on leave today (most recent update is leave for today)
+                    var isOnLeaveToday = (m.recent && m.recent[0] && m.recent[0].status === 'leave' && m.recent[0].date === todayStr);
+
+                    if (isPublicHoliday || isOnLeaveToday) {
+                        leaveMembers.push(m);
+                    } else {
+                        var mod = (m.modules && m.modules[0] && m.modules[0].module) || _officeGameState.rooms[Math.floor(Math.random()*_officeGameState.rooms.length)];
+                        if(!roomMap[mod]) mod = 'support';
+                        roomMap[mod].push(m);
+                    }
                 }
             });
 
@@ -1829,6 +1848,80 @@ function launchConfetti(x,y){
             setTimeout(tick, 2000 + Math.random() * 1500);
         }
         tick();
+
+        // ── DRAG AND DROP ──────────────────────────────────────
+        function initAvatarDragAndDrop(){
+            var dragState = {avatar: null, room: null, offsetX: 0, offsetY: 0};
+            function onDown(e){
+                var avatar = e.target.closest('.office-avatar');
+                if(!avatar) return;
+                e.preventDefault();
+                var room = avatar.closest('.office-room');
+                if(!room) return;
+                var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                var rect = avatar.getBoundingClientRect();
+                dragState.avatar = avatar;
+                dragState.room = room;
+                dragState.offsetX = clientX - rect.left;
+                dragState.offsetY = clientY - rect.top;
+                avatar.classList.add('dragging');
+                avatar.style.transition = 'none';
+            }
+            function onMove(e){
+                if(!dragState.avatar) return;
+                e.preventDefault();
+                var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                var roomRect = dragState.room.getBoundingClientRect();
+                var nx = clientX - roomRect.left - dragState.offsetX;
+                var ny = clientY - roomRect.top - dragState.offsetY;
+                var maxW = dragState.room.clientWidth - 24;
+                var maxH = dragState.room.clientHeight - 24;
+                nx = Math.max(0, Math.min(nx, maxW));
+                ny = Math.max(0, Math.min(ny, maxH));
+                dragState.avatar.style.left = nx + 'px';
+                dragState.avatar.style.top = ny + 'px';
+            }
+            function onUp(e){
+                if(!dragState.avatar) return;
+                var avatar = dragState.avatar;
+                var oldRoom = dragState.room;
+                var clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+                var clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+                avatar.style.visibility = 'hidden';
+                var elem = document.elementFromPoint(clientX, clientY);
+                avatar.style.visibility = '';
+                var newRoom = elem ? elem.closest('.office-room') : null;
+                if(newRoom && newRoom !== oldRoom){
+                    newRoom.appendChild(avatar);
+                    var newRect = newRoom.getBoundingClientRect();
+                    var nx = clientX - newRect.left - dragState.offsetX;
+                    var ny = clientY - newRect.top - dragState.offsetY;
+                    var maxW = newRoom.clientWidth - 24;
+                    var maxH = newRoom.clientHeight - 24;
+                    nx = Math.max(0, Math.min(nx, maxW));
+                    ny = Math.max(0, Math.min(ny, maxH));
+                    avatar.style.left = nx + 'px';
+                    avatar.style.top = ny + 'px';
+                    var isLeaveRoom = newRoom.getAttribute('data-room') === 'leave';
+                    if(isLeaveRoom) avatar.classList.add('office-avatar-leave');
+                    else avatar.classList.remove('office-avatar-leave');
+                }
+                avatar.classList.remove('dragging');
+                avatar.style.transition = '';
+                dragState.avatar = null;
+                dragState.room = null;
+            }
+            var container = document.getElementById('officeGame');
+            container.addEventListener('mousedown', onDown);
+            container.addEventListener('touchstart', onDown, {passive: false});
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('touchmove', onMove, {passive: false});
+            document.addEventListener('mouseup', onUp);
+            document.addEventListener('touchend', onUp);
+        }
+        initAvatarDragAndDrop();
     }
 
     function stopOfficeGame(){ _officeGameState.running = false; }
