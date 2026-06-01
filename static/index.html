@@ -1833,6 +1833,8 @@ function launchConfetti(x,y){
             if(!_officeGameState.running) return;
             var avatars = document.querySelectorAll('.office-avatar');
             avatars.forEach(function(avatar){
+                if(avatar.classList.contains('dragging')) return;
+                if(avatar.dataset.userMoved) return;
                 var room = avatar.closest('.office-room');
                 if(!room) return;
                 var w = room.clientWidth - 28;
@@ -1888,6 +1890,7 @@ function launchConfetti(x,y){
                 ny = Math.max(0, Math.min(ny, maxH));
                 dragState.avatar.style.left = nx + 'px';
                 dragState.avatar.style.top = ny + 'px';
+                dragState.avatar.dataset.userMoved = 'true';
             }
             function onUp(e){
                 if(!dragState.avatar) return;
