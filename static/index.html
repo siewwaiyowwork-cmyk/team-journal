@@ -533,6 +533,30 @@
         .passkey-btn:hover{border-color:var(--accent);box-shadow:none}
         .login-divider{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--text-dim);font-size:.75em}
         .login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+        
+        /* ── Office Game ── */
+        .office-game-container{background:linear-gradient(135deg,#0a0a1a,#1a1a3a,#0a0a1a);border:1px solid rgba(0,229,255,.2);border-radius:16px;padding:14px;margin:20px 0;overflow:hidden;position:relative}
+        .office-game-container::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(0,229,255,.05),transparent 50%),radial-gradient(circle at 80% 50%,rgba(138,43,226,.05),transparent 50%);pointer-events:none}
+        .office-game-container.office-holiday{background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);border-color:rgba(255,215,0,.3)}
+        .office-game-container.office-holiday::before{background:radial-gradient(circle at 30% 30%,rgba(255,215,0,.08),transparent 50%),radial-gradient(circle at 70% 70%,rgba(255,105,180,.06),transparent 50%)}
+        .office-game-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:.85em;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.5px;position:relative;z-index:1}
+        .office-game-container.office-holiday .office-game-header{color:#ffd700;text-shadow:0 0 10px rgba(255,215,0,.3)}
+        .office-game-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;position:relative;z-index:1}
+        .office-room{background:linear-gradient(180deg,var(--surface2) 0%,var(--surface) 100%);border:1px solid var(--border);border-radius:10px;padding:6px;position:relative;height:90px;overflow:hidden;box-shadow:inset 0 2px 8px rgba(0,0,0,.3)}
+        .office-room-empty{opacity:.4;background:linear-gradient(180deg,#1a1a28 0%,#12121a 100%);border-style:dashed}
+        .office-room-leave{background:linear-gradient(180deg,#2d2d1a 0%,#1a1a10 100%);border:1px solid rgba(255,215,0,.3);box-shadow:inset 0 2px 8px rgba(255,215,0,.1),0 0 20px rgba(255,215,0,.05)}
+        .office-room::after{content:'';position:absolute;bottom:0;left:0;right:0;height:20px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.2));pointer-events:none;border-radius:0 0 10px 10px}
+        .office-room-label{font-size:.65em;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.5px;text-align:center;margin-bottom:4px;border-bottom:1px solid var(--border);padding-bottom:2px;position:relative;z-index:2}
+        .office-room-leave .office-room-label{color:#ffd700;border-bottom-color:rgba(255,215,0,.3)}
+        .office-avatar{position:absolute;width:24px;height:24px;border-radius:50%;cursor:pointer;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:3;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+        .office-avatar:hover{transform:scale(1.4);z-index:20;box-shadow:0 4px 16px rgba(0,0,0,.6)}
+        .office-avatar-leave{border:2px solid rgba(255,215,0,.5);animation:pulseLeave 2s ease-in-out infinite}
+        @keyframes pulseLeave{0%,100%{box-shadow:0 0 0 0 rgba(255,215,0,.4)}50%{box-shadow:0 0 0 4px rgba(255,215,0,0)}}
+        .office-avatar svg{width:100%;height:100%;border-radius:50%;background:var(--bg)}
+        .office-tooltip{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:.65em;color:var(--text);white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+        .office-avatar:hover .office-tooltip{opacity:1;bottom:-24px}
+        .office-emoji-deco{position:absolute;font-size:1.2em;opacity:.15;pointer-events:none;z-index:1;animation:floatEmoji 8s ease-in-out infinite}
+        @keyframes floatEmoji{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-10px) rotate(5deg)}}
     </style>
 </head>
 <body>
@@ -576,7 +600,8 @@
             <div id="missingProgressSection" style="display:none"></div>
             <div id="activityTicker" style="display:none"></div>
             <div id="challengeSection" style="display:none"></div>
-            <div id="funFactsSection" style="display:none"></div>
+            <div id="officeGameSection" style="display:none"></div>
+        <div id="funFactsSection" style="display:none"></div>
             <div id="team-insights">
                 <div class="section-title">Team Insights <span class="badge" id="insightsBadge">Loading...</span></div>
                 <div class="chart-box-full">
@@ -1648,7 +1673,165 @@ function launchConfetti(x,y){
         el.style.display = 'block';
     }
 
+    // ── OFFICE GAME ─────────────────────────────────────────
+    var _officeGameState = { running:false, members:[], rooms:['dnp','dutchboy','myd','nats','nebula','osp','rpp','san','support','swiper','talay','twanel'] };
 
+    function _memberColor(name){
+        var colors = ['#ef4444','#f97316','#f59e0b','#84cc16','#10b981','#06b6d4','#3b82f6','#8b5cf6','#d946ef','#f43f5e'];
+        var h = 0;
+        for(var i=0;i<name.length;i++) h = (h * 31 + name.charCodeAt(i)) % colors.length;
+        return colors[h];
+    }
+
+    function renderOfficeGame(members){
+        try {
+            console.log('renderOfficeGame called with', members.length, 'members');
+            var el = document.getElementById('officeGameSection');
+            if(!el) { console.log('officeGameSection element not found'); return; }
+            if(!members || !members.length){ console.log('No members, hiding office game'); el.style.display = 'none'; return; }
+            _officeGameState.members = members;
+
+            var todayStr = new Date().toISOString().split('T')[0];
+            var holidayName = getHolidayName(todayStr);
+            var isPublicHoliday = !!holidayName;
+
+            var roomMap = {};
+            _officeGameState.rooms.forEach(function(r){ roomMap[r] = []; });
+            var leaveMembers = [];
+
+            members.forEach(function(m){
+                // Check if member is on leave today (most recent update is leave for today)
+                var isOnLeaveToday = (m.recent && m.recent[0] && m.recent[0].status === 'leave' && m.recent[0].date === todayStr);
+
+                if (isPublicHoliday || isOnLeaveToday) {
+                    leaveMembers.push(m);
+                } else {
+                    var mod = (m.modules && m.modules[0] && m.modules[0].module) || _officeGameState.rooms[Math.floor(Math.random()*_officeGameState.rooms.length)];
+                    if(!roomMap[mod]) mod = 'support';
+                    roomMap[mod].push(m);
+                }
+            });
+
+            console.log('Room map built:', Object.keys(roomMap).map(function(r){ return r + ':' + roomMap[r].length; }).join(', '));
+            if (leaveMembers.length) console.log('Leave/holiday members:', leaveMembers.length);
+
+            var html = '<div class="office-game-container' + (isPublicHoliday ? ' office-holiday' : '') + '">';
+            if (isPublicHoliday) {
+                html += '<div class="office-game-header">☀️ ' + holidayName + ' — Office Closed 🌴</div>';
+            } else {
+                html += '<div class="office-game-header">🏢 The Office — Where the magic happens</div>';
+            }
+            html += '<div class="office-game-grid">';
+
+            var decoEmojis = ['💻', '📱', '☕', '🍵', '📊', '📝', '🔧', '🚀', '⚡', '💡', '🎯', '📅', '📎', '💾'];
+            var roomIdx = 0;
+
+            Object.keys(roomMap).forEach(function(room){
+                var people = roomMap[room];
+                var deco = decoEmojis[roomIdx % decoEmojis.length];
+                var isEmpty = people.length === 0;
+                html += '<div class="office-room' + (isEmpty ? ' office-room-empty' : '') + '" data-room="' + room + '">' +
+                    '<div class="office-emoji-deco" style="top:' + (10 + Math.random()*20) + 'px;right:' + (5 + Math.random()*15) + 'px;animation-delay:' + (Math.random()*5) + 's">' + (isEmpty ? '🔒' : deco) + '</div>' +
+                    '<div class="office-room-label">' + room + (isEmpty ? ' (empty)' : '') + '</div>';
+                people.forEach(function(p, idx){
+                    var color = _memberColor(p.name);
+                    var initials = p.name.split(' ').map(function(w){ return w[0]; }).join('').toUpperCase().slice(0,2);
+                    var left = 8 + (idx % 4) * 28;
+                    var top = 22 + Math.floor(idx / 4) * 28;
+                    html += '<div class="office-avatar" style="left:'+left+'px;top:'+top+'px;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:sans-serif;border:2px solid rgba(255,255,255,.2);box-shadow:0 2px 6px rgba(0,0,0,.3)" onclick="showDetail(\''+p.name.replace(/'/g,"\\'")+'\')" title="'+p.name+'">'+
+                        initials +
+                        '<span class="office-tooltip">'+p.name+'</span>'+
+                    '</div>';
+                });
+                html += '</div>';
+                roomIdx++;
+            });
+
+            // Add leave/holiday room if there are absent members
+            if (leaveMembers.length) {
+                html += '<div class="office-room office-room-leave" data-room="leave">' +
+                    '<div class="office-emoji-deco" style="top:10px;right:10px;animation-delay:0s">🏖️</div>' +
+                    '<div class="office-room-label">' + (isPublicHoliday ? 'Public Holiday' : 'On Leave') + '</div>';
+                leaveMembers.forEach(function(p, idx){
+                    var color = _memberColor(p.name);
+                    var initials = p.name.split(' ').map(function(w){ return w[0]; }).join('').toUpperCase().slice(0,2);
+                    var left = 8 + (idx % 4) * 28;
+                    var top = 22 + Math.floor(idx / 4) * 28;
+                    html += '<div class="office-avatar office-avatar-leave" style="left:'+left+'px;top:'+top+'px;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:sans-serif;border:2px solid rgba(255,255,255,.2);box-shadow:0 2px 6px rgba(0,0,0,.3)" onclick="showDetail(\''+p.name.replace(/'/g,"\\'")+'\')" title="'+p.name+'">'+
+                        initials +
+                        '<span class="office-tooltip">'+p.name+'</span>'+
+                    '</div>';
+                });
+                html += '</div>';
+            }
+
+            html += '</div></div>';
+            el.innerHTML = html;
+            el.style.display = 'block';
+            console.log('Office game rendered successfully');
+            startOfficeGame();
+        } catch(err) {
+            console.error('renderOfficeGame error:', err);
+        }
+    }
+
+    function startOfficeGame(){
+        if(_officeGameState.running) return;
+        _officeGameState.running = true;
+
+        // Room-specific icons that pop up randomly
+        var roomIcons = {
+            'dnp': '🧬', 'dutchboy': '🌷', 'myd': '📱', 'nats': '📡',
+            'nebula': '☁️', 'osp': '🔒', 'rpp': '💳', 'san': '🏥',
+            'support': '🎧', 'swiper': '💳', 'talay': '🌊', 'twanel': '📻',
+            'leave': '🏖️'
+        };
+        function popRoomIcon(){
+            if(!_officeGameState.running) return;
+            var rooms = document.querySelectorAll('.office-room');
+            if(rooms.length === 0){ setTimeout(popRoomIcon, 3000); return; }
+            var room = rooms[Math.floor(Math.random() * rooms.length)];
+            var roomName = room.getAttribute('data-room') || 'support';
+            var icon = roomIcons[roomName] || '✨';
+            var pop = document.createElement('div');
+            pop.textContent = icon;
+            pop.style.cssText = 'position:absolute;font-size:1.4em;z-index:5;left:'+(10+Math.random()*60)+'%;top:'+(10+Math.random()*50)+'%;opacity:0;transform:scale(0);transition:all .6s cubic-bezier(.34,1.56,.64,1);pointer-events:none;text-shadow:0 2px 8px rgba(0,0,0,.5)';
+            room.appendChild(pop);
+            requestAnimationFrame(function(){
+                pop.style.opacity = '1';
+                pop.style.transform = 'scale(1.2) rotate('+(Math.random()*20-10)+'deg)';
+            });
+            setTimeout(function(){
+                pop.style.opacity = '0';
+                pop.style.transform = 'scale(0) rotate('+(Math.random()*20-10)+'deg)';
+                setTimeout(function(){ if(pop.parentNode) pop.parentNode.removeChild(pop); }, 600);
+            }, 1500 + Math.random() * 1000);
+            setTimeout(popRoomIcon, 2000 + Math.random() * 4000);
+        }
+        setTimeout(popRoomIcon, 2000);
+
+        function tick(){
+            if(!_officeGameState.running) return;
+            var avatars = document.querySelectorAll('.office-avatar');
+            avatars.forEach(function(avatar){
+                var room = avatar.closest('.office-room');
+                if(!room) return;
+                var w = room.clientWidth - 28;
+                var h = room.clientHeight - 28;
+                if(Math.random() < 0.3){
+                    var nx = 4 + Math.random() * Math.max(4, w);
+                    var ny = 18 + Math.random() * Math.max(4, h - 18);
+                    avatar.style.left = nx + 'px';
+                    avatar.style.top = ny + 'px';
+                    avatar.style.transitionDuration = (1.5 + Math.random() * 2) + 's';
+                }
+            });
+            setTimeout(tick, 2000 + Math.random() * 1500);
+        }
+        tick();
+    }
+
+    function stopOfficeGame(){ _officeGameState.running = false; }
 
     // ── HOLIDAY MANAGEMENT ─────────────────────────────────
     window.holidayMap = {};
@@ -1743,6 +1926,7 @@ function launchConfetti(x,y){
                 renderMissingProgress(data.missing_progress);
                 // Heavy charts from cache
                 renderVelocityChart(data.velocity);
+                renderOfficeGame(data.summary.members);
                 renderFunFacts(data.fun_facts);
                 if (data.module_done && data.module_done.modules) {
                     renderModuleDoneChart(data.module_done);
@@ -1793,6 +1977,7 @@ function launchConfetti(x,y){
 
             // Todos already loaded in parallel; overview grid can render member cards with open todos
             renderOverviewGrid(summary.members);
+            renderOfficeGame(summary.members);
             // Phase 2: Fetch heavy data in background
             loadDashboardHeavy();
         }catch(e){
@@ -4574,14 +4759,14 @@ function launchConfetti(x,y){
         try{
             var r=await fetch(API_URL+'/api/todos',{credentials:'include'});
             console.log('Todos API status:', r.status);
-            if(!r.ok){ var err=await r.json(); console.error('Todos API error:', err); throw new Error(err.detail||'Failed to load todos'); }
+            if(!r.ok){ console.error('Todos API error:', r.status); _allTodosCache=[]; renderTeamTodos(); return; }
             var data=await r.json();
             console.log('Todos data:', data);
             _allTodosCache=data.todos||[];
             console.log('Cached todos count:', _allTodosCache.length);
             loadTodoDropdowns();
             renderTeamTodos();
-        }catch(e){ console.error('loadTeamTodos error', e); document.getElementById('teamTodosContent').innerHTML='<div style="text-align:center;padding:20px;color:var(--red)">Failed to load todos: '+e.message+'</div>'; }
+        }catch(e){ console.error('loadTeamTodos error', e); _allTodosCache=[]; renderTeamTodos(); }
     }
 
     async function promoteTodo(todoId){
