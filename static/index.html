@@ -558,6 +558,30 @@
         .office-avatar:hover .office-tooltip{opacity:1;bottom:-24px}
         .office-emoji-deco{position:absolute;font-size:1.2em;opacity:.15;pointer-events:none;z-index:1;animation:floatEmoji 8s ease-in-out infinite}
         @keyframes floatEmoji{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-10px) rotate(5deg)}}
+        @keyframes monster-breathe-wrap{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+        @keyframes monster-bounce-wrap{0%,100%{transform:translateY(0)}35%{transform:translateY(-8px)}70%{transform:translateY(-3px)}}
+        @keyframes monster-sway-wrap{0%,100%{transform:rotate(0deg)}25%{transform:rotate(10deg)}75%{transform:rotate(-10deg)}}
+        @keyframes monster-float-wrap{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+        .anim-breathe-wrap{animation:monster-breathe-wrap 2.5s ease-in-out infinite}
+        .anim-bounce-wrap{animation:monster-bounce-wrap 1.5s ease-in-out infinite}
+        .anim-sway-wrap{animation:monster-sway-wrap 2s ease-in-out infinite}
+        .anim-float-wrap{animation:monster-float-wrap 3s ease-in-out infinite}
+        .ov-monster-wrap:hover .anim-breathe-wrap,.ov-monster-wrap:hover .anim-bounce-wrap,.ov-monster-wrap:hover .anim-sway-wrap,.ov-monster-wrap:hover .anim-float-wrap{animation-play-state:paused}
+        @keyframes monster-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+        @keyframes monster-bounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-4px)}80%{transform:translateY(-1px)}}
+        @keyframes monster-sway{0%,100%{transform:rotate(0deg)}25%{transform:rotate(5deg)}75%{transform:rotate(-5deg)}}
+        @keyframes monster-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+        @keyframes monster-blink{0%,90%,100%{transform:scaleY(1)}95%{transform:scaleY(0.1)}}
+        @keyframes monster-pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+        .anim-breathe{animation:monster-breathe 3s ease-in-out infinite}
+        .anim-bounce{animation:monster-bounce 2s ease-in-out infinite}
+        .anim-sway{animation:monster-sway 2.5s ease-in-out infinite}
+        .anim-float{animation:monster-float 3s ease-in-out infinite}
+        .anim-blink{animation:monster-blink 4s ease-in-out infinite}
+        .anim-pulse{animation:monster-pulse 2s ease-in-out infinite}
+        .monster-weapon{transform-origin:center bottom;animation:monster-sway 2s ease-in-out infinite}
+        .anim-breathe,.anim-bounce,.anim-sway,.anim-float,.anim-blink,.anim-pulse{transform-origin:center center}
+        .ov-monster-wrap:hover .anim-breathe,.ov-monster-wrap:hover .anim-bounce{animation-play-state:paused}
         .office-bubble{position:fixed;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 14px;font-size:.75em;color:var(--text);white-space:normal;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.6);pointer-events:none;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;max-width:220px;text-align:center;line-height:1.4;opacity:0;transform:translate(-50%,-100%) scale(0);font-weight:600;word-wrap:break-word}
         .office-bubble.show{opacity:1;transform:translate(-50%,-100%) scale(1)}
         .office-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:var(--border)}
@@ -2493,7 +2517,16 @@ function launchConfetti(x,y){
             var stats = JSON.parse(wrap.getAttribute('data-stats'));
             var seed = wrap.getAttribute('data-seed') || '';
             var svg = wrap.querySelector('svg');
-            if(svg) drawMonster(svg, stats, 40, seed);
+                if(svg){
+                    drawMonster(svg, stats, 40, seed);
+                    var animClass='';
+                    if(stats.stm>=75) animClass='anim-breathe-wrap';
+                    else if(stats.agi>=70) animClass='anim-bounce-wrap';
+                    else if(stats.atk>=75) animClass='anim-sway-wrap';
+                    else if(stats.sup>=60) animClass='anim-float-wrap';
+                    else if(stats.fcs>=75) animClass='anim-blink';
+                    if(animClass) wrap.classList.add(animClass);
+                }
             var arch = mArchetype(stats);
             var anat = mAnatomy(stats, seed);
             wrap.addEventListener('click', function(e){
@@ -3246,6 +3279,13 @@ function launchConfetti(x,y){
                         var svg = wrap.querySelector('svg');
                         var seed = wrap.getAttribute('data-seed') || '';
                         if (svg) drawMonster(svg, monsterStats, 36, seed);
+                        var animClass2='';
+                        if(monsterStats.stm>=75) animClass2='anim-breathe-wrap';
+                        else if(monsterStats.agi>=70) animClass2='anim-bounce-wrap';
+                        else if(monsterStats.atk>=75) animClass2='anim-sway-wrap';
+                        else if(monsterStats.sup>=60) animClass2='anim-float-wrap';
+                        else if(monsterStats.fcs>=75) animClass2='anim-blink';
+                        if(animClass2) wrap.classList.add(animClass2);
                         wrap.addEventListener('click', function(e){
                             e.stopPropagation();
                             var arch = mArchetype(monsterStats);
@@ -3769,6 +3809,13 @@ function launchConfetti(x,y){
                 var dSvg = dWrap.querySelector('svg');
                 var seed = dWrap.getAttribute('data-seed') || '';
                 if(dSvg) drawMonster(dSvg, monsterStats, 60, seed);
+                var animClass2='';
+                if(monsterStats.stm>=75) animClass2='anim-breathe-wrap';
+                else if(monsterStats.agi>=70) animClass2='anim-bounce-wrap';
+                else if(monsterStats.atk>=75) animClass2='anim-sway-wrap';
+                else if(monsterStats.sup>=60) animClass2='anim-float-wrap';
+                else if(monsterStats.fcs>=75) animClass2='anim-blink';
+                if(animClass2) dWrap.classList.add(animClass2);
                 var dArch = mArchetype(monsterStats);
                 var dAnat = mAnatomy(monsterStats, seed);
                 dWrap.addEventListener('click', function(e){
