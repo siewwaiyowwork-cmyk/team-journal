@@ -1849,9 +1849,9 @@ function launchConfetti(x,y){
         }
         tick();
 
-        // ── DRAG AND DROP ──────────────────────────────────────
-        function initAvatarDragAndDrop(){
-            var dragState = {avatar: null, room: null, offsetX: 0, offsetY: 0};
+        // ── DRAG WITHIN ROOM ───────────────────────────────────
+        function initAvatarDrag(){
+            var dragState = {avatar: null, room: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, hasMoved: false};
             function onDown(e){
                 var avatar = e.target.closest('.office-avatar');
                 if(!avatar) return;
@@ -1865,6 +1865,9 @@ function launchConfetti(x,y){
                 dragState.room = room;
                 dragState.offsetX = clientX - rect.left;
                 dragState.offsetY = clientY - rect.top;
+                dragState.startX = clientX;
+                dragState.startY = clientY;
+                dragState.hasMoved = false;
                 avatar.classList.add('dragging');
                 avatar.style.transition = 'none';
             }
@@ -1873,6 +1876,9 @@ function launchConfetti(x,y){
                 e.preventDefault();
                 var clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                if(Math.abs(clientX - dragState.startX) > 3 || Math.abs(clientY - dragState.startY) > 3){
+                    dragState.hasMoved = true;
+                }
                 var roomRect = dragState.room.getBoundingClientRect();
                 var nx = clientX - roomRect.left - dragState.offsetX;
                 var ny = clientY - roomRect.top - dragState.offsetY;
@@ -1886,27 +1892,9 @@ function launchConfetti(x,y){
             function onUp(e){
                 if(!dragState.avatar) return;
                 var avatar = dragState.avatar;
-                var oldRoom = dragState.room;
-                var clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-                var clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-                avatar.style.visibility = 'hidden';
-                var elem = document.elementFromPoint(clientX, clientY);
-                avatar.style.visibility = '';
-                var newRoom = elem ? elem.closest('.office-room') : null;
-                if(newRoom && newRoom !== oldRoom){
-                    newRoom.appendChild(avatar);
-                    var newRect = newRoom.getBoundingClientRect();
-                    var nx = clientX - newRect.left - dragState.offsetX;
-                    var ny = clientY - newRect.top - dragState.offsetY;
-                    var maxW = newRoom.clientWidth - 24;
-                    var maxH = newRoom.clientHeight - 24;
-                    nx = Math.max(0, Math.min(nx, maxW));
-                    ny = Math.max(0, Math.min(ny, maxH));
-                    avatar.style.left = nx + 'px';
-                    avatar.style.top = ny + 'px';
-                    var isLeaveRoom = newRoom.getAttribute('data-room') === 'leave';
-                    if(isLeaveRoom) avatar.classList.add('office-avatar-leave');
-                    else avatar.classList.remove('office-avatar-leave');
+                if(dragState.hasMoved){
+                    window._justDraggedAvatar = true;
+                    setTimeout(function(){ window._justDraggedAvatar = false; }, 50);
                 }
                 avatar.classList.remove('dragging');
                 avatar.style.transition = '';
@@ -1921,7 +1909,7 @@ function launchConfetti(x,y){
             document.addEventListener('mouseup', onUp);
             document.addEventListener('touchend', onUp);
         }
-        initAvatarDragAndDrop();
+        initAvatarDrag();
     }
 
     function stopOfficeGame(){ _officeGameState.running = false; }
@@ -2958,6 +2946,8 @@ function launchConfetti(x,y){
     function showToast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(type==='err'?' err':'');setTimeout(function(){t.classList.add('show');},10);setTimeout(function(){t.classList.remove('show');},4000);}
 
     function showDetail(name, fromHash){
+        // Guard against detail popup when avatar was just dragged
+        if(window._justDraggedAvatar) return;
         window.currentDetailName = name;
         window._inDetailMode = true;
         document.getElementById('overview-section').classList.add('hidden');
