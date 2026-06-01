@@ -558,7 +558,7 @@
         .office-avatar:hover .office-tooltip{opacity:1;bottom:-24px}
         .office-emoji-deco{position:absolute;font-size:1.2em;opacity:.15;pointer-events:none;z-index:1;animation:floatEmoji 8s ease-in-out infinite}
         @keyframes floatEmoji{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-10px) rotate(5deg)}}
-        .office-bubble{position:fixed;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:6px 12px;font-size:.75em;color:var(--text);white-space:nowrap;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.6);pointer-events:none;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;max-width:140px;text-align:center;line-height:1.4;opacity:0;transform:translate(-50%,-100%) scale(0);font-weight:600}
+        .office-bubble{position:fixed;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 14px;font-size:.75em;color:var(--text);white-space:normal;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.6);pointer-events:none;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;max-width:220px;text-align:center;line-height:1.4;opacity:0;transform:translate(-50%,-100%) scale(0);font-weight:600;word-wrap:break-word}
         .office-bubble.show{opacity:1;transform:translate(-50%,-100%) scale(1)}
         .office-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:var(--border)}
         .office-bubble-sarcastic{border-color:#ff6b6b;color:#ff6b6b}
@@ -567,6 +567,26 @@
         .office-bubble-happy::after{border-top-color:#51cf66}
         .office-bubble-diss{border-color:#ffd43b;color:#ffd43b}
         .office-bubble-diss::after{border-top-color:#ffd43b}
+        .office-bubble-funny{border-color:#a78bfa;color:#a78bfa}
+        .office-bubble-funny::after{border-top-color:#a78bfa}
+        .office-bubble-love{border-color:#f472b6;color:#f472b6}
+        .office-bubble-love::after{border-top-color:#f472b6}
+        .office-bubble-encouraging{border-color:#34d399;color:#34d399}
+        .office-bubble-encouraging::after{border-top-color:#34d399}
+        .office-bubble-coffee{border-color:#92400e;color:#d97706}
+        .office-bubble-coffee::after{border-top-color:#92400e}
+        .office-bubble-morning{border-color:#fbbf24;color:#fbbf24}
+        .office-bubble-morning::after{border-top-color:#fbbf24}
+        .office-bubble-afternoon{border-color:#fb923c;color:#fb923c}
+        .office-bubble-afternoon::after{border-top-color:#fb923c}
+        .office-bubble-evening{border-color:#818cf8;color:#818cf8}
+        .office-bubble-evening::after{border-top-color:#818cf8}
+        .office-bubble-tech{border-color:#22d3ee;color:#22d3ee}
+        .office-bubble-tech::after{border-top-color:#22d3ee}
+        .office-bubble-roomJokes{border-color:#a3e635;color:#a3e635}
+        .office-bubble-roomJokes::after{border-top-color:#a3e635}
+        .office-bubble-weekend{border-color:#f0abfc;color:#f0abfc}
+        .office-bubble-weekend::after{border-top-color:#f0abfc}
     </style>
 </head>
 <body>
@@ -1927,10 +1947,20 @@ function launchConfetti(x,y){
 
         // ── SPEECH BUBBLES ─────────────────────────────────────
         var _speechLines = {
-            greet: ['Yo {name}!','Sup {name}?','Hi {name}!','Hey {name}!','What\'s up {name}!'],
-            sarcastic: ['So busy {name}...','Nice code {name} lol','{name} working hard?','Sure you are {name}','Not again {name}','Oops {name}','Classic {name}','Wow {name}. Just wow','Really {name}?','Uh huh {name}'],
-            diss: ['You again {name}?','Late af {name}','Bug master {name}','Missed deadline {name}','Still here {name}?','Go home {name}','Why though {name}','Nope {name}','Not impressed {name}','Try harder {name}'],
-            happy: ['Ship it {name}!','{name} crushing it!','{name} on fire!','Legend {name}!','Nice {name}!','Great work {name}!','Awesome {name}!','Nailed it {name}!','Perfect {name}!','Killing it {name}!']
+            greet: ['Yo {name}!','Sup {name}?','Hi {name}!','Hey {name}!','What\'s up {name}!','Morning {name}!','Afternoon {name}!','Evening {name}!','Yo yo {name}!','Hola {name}!','Aloha {name}!','Howdy {name}!','Greetings {name}!','Salutations {name}!','{name} in the house!','Look who it is, {name}!','{name} has entered the chat','{name} is here!','{name} reporting for duty!','{name} online!'],
+            sarcastic: ['So busy {name}...','Nice code {name} lol','{name} working hard?','Sure you are {name}','Not again {name}','Oops {name}','Classic {name}','Wow {name}. Just wow','Really {name}?','Uh huh {name}','{name} and their excuses','{name} the procrastinator','{name} MVP of meetings','{name} breaking prod again?','{name} still fixing that bug?','{name} on their 5th coffee?','{name} definitely not slacking','{name} and their 100 tabs','{name} the stack overflow expert','{name} copying from SO again?','{name} says it works on their machine','{name} the "it\'s a feature" person','{name} deploying on Friday?','{name} and their "quick fixes"','{name} the meeting avoider','{name} said they\'ll do it tomorrow','{name} probably watching YouTube','{name} the code archaeologist','{name} still reading the docs','{name} pretending to be busy'],
+            diss: ['You again {name}?','Late af {name}','Bug master {name}','Missed deadline {name}','Still here {name}?','Go home {name}','Why though {name}','Nope {name}','Not impressed {name}','Try harder {name}','{name} and their broken builds','{name} the bug creator','{name} missed standup again','{name} and their merge conflicts','{name} the meeting ghost','{name} with their excuses','{name} still hasn\'t pushed','{name} the deadline dodger','{name} and their spaghetti code','{name} probably in a meeting','{name} the task avoider','{name} with their infinite WIP','{name} the scope creeper','{name} breaking the build again','{name} and their "just one more thing"','{name} the meeting extenders','{name} with their "it\'s not a bug"','{name} the procrastination champion','{name} still writing tests? nope'],
+            happy: ['Ship it {name}!','{name} crushing it!','{name} on fire!','Legend {name}!','Nice {name}!','Great work {name}!','Awesome {name}!','Nailed it {name}!','Perfect {name}!','Killing it {name}!','{name} is unstoppable!','{name} the GOAT!','{name} MVP today!','{name} doing the impossible!','{name} making magic!','{name} is elite!','{name} delivering gems!','{name} the productivity king!','{name} is a machine!','{name} absolutely crushing!','{name} on a roll!','{name} the legend continues!','{name} making us proud!','{name} the rockstar!','{name} delivering excellence!','{name} the game changer!','{name} is incredible!','{name} the team hero!','{name} doing wonders!'],
+            funny: ['{name} code: 50% hope, 50% console.log','{name} just rm -rf the server','{name} googling "how to center div"','{name} and their rubber duck','{name}: "have you tried turning it off?"','{name} writes code that writes code','{name} the semicolon hunter','{name} lives in dark mode','{name} has 99 problems and they\'re all tabs','{name} thinks comments are suggestions','{name} and their git --force habits','{name} pushing to main directly','{name} and their "temporary" fixes','{name} the merge conflict magnet','{name} writes self-documenting spaghetti','{name} and their TODO graveyard','{name} the copy-paste wizard','{name} debugging with print statements','{name} and their "I\'ll refactor later"','{name} has a PhD in StackOverflow','{name} and their 47 open tabs','{name} the infinite loop enthusiast','{name} writes functions that write functions','{name} and their "works on my machine"','{name} the monolith builder','{name} and their 0 test coverage','{name} naming variables x, xx, xxx','{name} the callback hell resident','{name} and their global variable addiction','{name} allergic to semicolons'],
+            love: ['{name}, you\'re amazing!','{name} is the best!','Love working with {name}!','{name} is a gem!','{name} makes my day!','{name} the sunshine!','{name} is precious!','Bless {name}!','{name} is awesome!','{name} is a star!','{name} is incredible!','So grateful for {name}!','{name} is wonderful!','{name} is fantastic!','{name} is outstanding!','{name} is a treasure!','{name} is a delight!','{name} is a blessing!','{name} is a joy!','{name} is a marvel!','{name} is a phenomenon!','{name} is a wonder!','{name} is a beauty!','{name} is a champion!','{name} is a superstar!','{name} is a virtuoso!','{name} is a genius!','{name} is a mastermind!','{name} is a prodigy!','{name} is a wizard!'],
+            encouraging: ['You got this {name}!','Keep going {name}!','Don\'t stop {name}!','Stay strong {name}!','Almost there {name}!','Push through {name}!','Stay focused {name}!','Keep grinding {name}!','Believe in yourself {name}!','You can do it {name}!','Never give up {name}!','Stay positive {name}!','Keep hustling {name}!','Stay determined {name}!','Keep pushing {name}!','Stay motivated {name}!','Keep fighting {name}!','Stay resilient {name}!','Keep thriving {name}!','Stay ambitious {name}!','Keep shining {name}!','Stay hungry {name}!','Keep dreaming {name}!','Stay inspired {name}!','Keep creating {name}!','Stay innovative {name}!','Keep exploring {name}!','Stay curious {name}!','Keep learning {name}!','Stay passionate {name}!'],
+            coffee: ['{name} needs coffee ASAP','{name} runs on caffeine','{name} and their 5th cup','Coffee first, code later {name}','{name} is 80% coffee','{name} needs a refill','{name} and their espresso addiction','{name} the coffee connoisseur','{name} brewing another pot','{name} needs a coffee IV','{name} the caffeine-powered dev','{name} and their morning ritual','{name} needs more espresso','{name} the latte artist','{name} brewing some magic','{name} needs decaf... just kidding','{name} and their coffee breaks','{name} the cold brew fanatic','{name} grinding beans and code','{name} needs a double shot'],
+            morning: ['Morning energy {name}!','{name} is awake!','Early bird {name}!','{name} starting strong!','Morning hustle {name}!','{name} is ready!','Rise and grind {name}!','{name} is pumped!','{name} owns the morning!','Morning magic {name}!','{name} is on it!','{name} starts the day right!','{name} is feeling it!','Morning glory {name}!','{name} is in the zone!','{name} brings the energy!','{name} is unstoppable today!','{name} is a morning person!','{name} is thriving!','{name} is ready to conquer!'],
+            afternoon: ['{name} hitting the wall','{name} needs a snack break','{name} in the afternoon slump','{name} needs a power nap','{name} counting down to 5pm','{name} needs energy','{name} is fading','{name} needs a reboot','{name} pushing through','{name} needs a walk','{name} is surviving','{name} needs another coffee','{name} is hanging in there','{name} needs a break','{name} is halfway there','{name} needs motivation','{name} is enduring','{name} needs a stretch','{name} is persisting','{name} needs a snack'],
+            evening: ['{name} wrapping up!','Almost done {name}!','{name} finishing strong!','{name} calling it a day!','{name} did great today!','{name} is logging off!','{name} survived Monday!','{name} made it through!','{name} is heading out!','{name} deserves rest!','{name} is signing off!','{name} did awesome!','{name} is done for today!','{name} needs relaxation!','{name} earned a break!','{name} is closing shop!','{name} is wrapping up!','{name} is heading home!','{name} is clocking out!','{name} is done!'],
+            tech: ['{name} and their 47 npm packages','{name} still uses jQuery','{name} debating tabs vs spaces','{name} has 1000+ GitHub stars','{name} speaks in regex','{name} dreams in binary','{name} and their blockchain idea','{name} the Kubernetes expert','{name} the Docker whisperer','{name} and their serverless架构','{name} the microservices guru','{name} the API architect','{name} and their GraphQL obsession','{name} the TypeScript evangelist','{name} the Rust enthusiast','{name} and their WebAssembly project','{name} the AI/ML expert','{name} and their blockchain startup','{name} the cloud native dev','{name} and their edge computing idea'],
+            roomJokes: ['{name} owns the {room} room!','{name} rules {room}!','{name} is the {room} champion!','{name} dominates {room}!','{name} the {room} legend!','{name} runs {room}!','{name} is {room} MVP!','{name} the {room} master!','{name} is {room} royalty!','{name} conquered {room}!','{name} is {room} famous!','{name} the {room} expert!','{name} is {room} obsessed!','{name} lives in {room}!','{name} is {room} addicted!','{name} the {room} wizard!','{name} is {room} elite!','{name} is {room} certified!','{name} the {room} architect!','{name} is {room} legendary!'],
+            weekend: ['{name} TGIF!','{name} weekend mode!','{name} almost there!','{name} can taste freedom!','{name} is weekend ready!','{name} needs a break!','{name} is party mode!','{name} is weekend vibes!','{name} is chilling soon!','{name} needs relaxation!','{name} is adventure ready!','{name} is weekend warrior!','{name} needs fun!','{name} is freedom bound!','{name} is weekend dreaming!','{name} needs a getaway!','{name} is weekend plans ready!','{name} is chill mode activated!','{name} is weekend loading!','{name} needs a vacation!']
         };
         function _randomSpeech(){
             if(!_officeGameState.running) return;
@@ -1939,15 +1969,38 @@ function launchConfetti(x,y){
             var avatar = avatars[Math.floor(Math.random()*avatars.length)];
             if(avatar._hasBubble) return;
             var speaker = avatar.getAttribute('title') || 'Someone';
+            var room = avatar.closest('.office-room');
+            var roomName = room ? (room.getAttribute('data-room') || 'office') : 'office';
             var targetName = speaker;
             if(avatars.length > 1){
                 var others = Array.from(avatars).filter(function(a){ return a !== avatar; });
                 targetName = others[Math.floor(Math.random()*others.length)].getAttribute('title') || 'Someone';
             }
+            var hour = new Date().getHours();
+            var day = new Date().getDay();
+            var isWeekend = day === 0 || day === 6;
+            var isFriday = day === 5;
             var moods = Object.keys(_speechLines);
-            var mood = moods[Math.floor(Math.random()*moods.length)];
+            var mood;
+            if(isWeekend){
+                mood = 'weekend';
+            } else if(isFriday && hour >= 16){
+                mood = 'weekend';
+            } else if(hour < 12){
+                mood = Math.random() < 0.3 ? 'morning' : (Math.random() < 0.5 ? 'coffee' : 'greet');
+            } else if(hour < 15){
+                mood = Math.random() < 0.3 ? 'afternoon' : 'sarcastic';
+            } else if(hour >= 18){
+                mood = Math.random() < 0.4 ? 'evening' : 'happy';
+            } else {
+                mood = moods[Math.floor(Math.random()*moods.length)];
+            }
+            if(Math.random() < 0.2 && roomName !== 'leave' && roomName !== 'office'){
+                mood = 'roomJokes';
+            }
+            if(!_speechLines[mood]) mood = 'greet';
             var lines = _speechLines[mood];
-            var line = lines[Math.floor(Math.random()*lines.length)].replace(/{name}/g, targetName);
+            var line = lines[Math.floor(Math.random()*lines.length)].replace(/{name}/g, targetName).replace(/{room}/g, roomName);
             var rect = avatar.getBoundingClientRect();
             var bubble = document.createElement('div');
             bubble.className = 'office-bubble office-bubble-' + mood;
@@ -1963,7 +2016,7 @@ function launchConfetti(x,y){
                     if(bubble.parentNode) bubble.parentNode.removeChild(bubble);
                     avatar._hasBubble = false;
                 }, 300);
-            }, 2500 + Math.random()*1500);
+            }, 3000 + Math.random()*2000);
         }
         function _startSpeechLoop(){
             if(!_officeGameState.running) return;
