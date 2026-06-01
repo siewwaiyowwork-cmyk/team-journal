@@ -1927,10 +1927,10 @@ function launchConfetti(x,y){
 
         // ── SPEECH BUBBLES ─────────────────────────────────────
         var _speechLines = {
-            greet: ['Yo!','Sup?','Hi there!','Hello!','Hey!'],
-            sarcastic: ['So busy...','Nice code lol','Working hard?','Sure you are','Not again','Oops','Classic','Wow. Just wow','Really?','Uh huh'],
-            diss: ['You again?','Late af','Bug master','Missed deadline','Still here?','Go home','Why though','Nope','Not impressed','Try harder'],
-            happy: ['Ship it!','Crushing it!','On fire!','Legend!','Nice!','Great work!','Awesome!','Nailed it!','Perfect!','Killing it!']
+            greet: ['Yo {name}!','Sup {name}?','Hi {name}!','Hey {name}!','What\'s up {name}!'],
+            sarcastic: ['So busy {name}...','Nice code {name} lol','{name} working hard?','Sure you are {name}','Not again {name}','Oops {name}','Classic {name}','Wow {name}. Just wow','Really {name}?','Uh huh {name}'],
+            diss: ['You again {name}?','Late af {name}','Bug master {name}','Missed deadline {name}','Still here {name}?','Go home {name}','Why though {name}','Nope {name}','Not impressed {name}','Try harder {name}'],
+            happy: ['Ship it {name}!','{name} crushing it!','{name} on fire!','Legend {name}!','Nice {name}!','Great work {name}!','Awesome {name}!','Nailed it {name}!','Perfect {name}!','Killing it {name}!']
         };
         function _randomSpeech(){
             if(!_officeGameState.running) return;
@@ -1938,15 +1938,20 @@ function launchConfetti(x,y){
             if(avatars.length === 0) return;
             var avatar = avatars[Math.floor(Math.random()*avatars.length)];
             if(avatar._hasBubble) return;
+            var speaker = avatar.getAttribute('title') || 'Someone';
+            var targetName = speaker;
+            if(avatars.length > 1){
+                var others = Array.from(avatars).filter(function(a){ return a !== avatar; });
+                targetName = others[Math.floor(Math.random()*others.length)].getAttribute('title') || 'Someone';
+            }
             var moods = Object.keys(_speechLines);
             var mood = moods[Math.floor(Math.random()*moods.length)];
             var lines = _speechLines[mood];
-            var line = lines[Math.floor(Math.random()*lines.length)];
+            var line = lines[Math.floor(Math.random()*lines.length)].replace(/{name}/g, targetName);
             var rect = avatar.getBoundingClientRect();
-            var name = avatar.getAttribute('title') || 'Someone';
             var bubble = document.createElement('div');
             bubble.className = 'office-bubble office-bubble-' + mood;
-            bubble.textContent = name + ': ' + line;
+            bubble.textContent = speaker + ': ' + line;
             bubble.style.left = (rect.left + rect.width/2) + 'px';
             bubble.style.top = (rect.top - 8) + 'px';
             document.body.appendChild(bubble);
