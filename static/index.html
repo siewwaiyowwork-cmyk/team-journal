@@ -1943,9 +1943,10 @@ function launchConfetti(x,y){
             var lines = _speechLines[mood];
             var line = lines[Math.floor(Math.random()*lines.length)];
             var rect = avatar.getBoundingClientRect();
+            var name = avatar.getAttribute('title') || 'Someone';
             var bubble = document.createElement('div');
             bubble.className = 'office-bubble office-bubble-' + mood;
-            bubble.textContent = line;
+            bubble.textContent = name + ': ' + line;
             bubble.style.left = (rect.left + rect.width/2) + 'px';
             bubble.style.top = (rect.top - 8) + 'px';
             document.body.appendChild(bubble);
