@@ -1889,6 +1889,17 @@ function launchConfetti(x,y){
                         memberNameLower.split(' ')[0] === window._userName ||
                         window._userName.split(' ')[0] === memberNameLower
                     );
+                    var totalTasks = p.activity ? p.activity.reduce(function(sum, d){ return sum + (d.task_count || 0); }, 0) : 0;
+                    var activeCount = p.activity ? p.activity.filter(function(d){ return d.status !== 'missing'; }).length : 0;
+                    var focusPct = Math.min(100, Math.round((totalTasks / Math.max(1, activeCount)) * 40));
+                    var agilityPct = Math.max(0, Math.round(100 - ((p.ip_done_ratio || 0) * 10)));
+                    var monsterStats = {
+                        atk: Math.min(100, Math.round(p.completion_rate || 0)),
+                        stm: Math.min(100, Math.round(p.attendance_pct || 0)),
+                        fcs: Math.min(100, focusPct),
+                        agi: Math.min(100, agilityPct),
+                        sup: Math.min(100, Math.round(p.support_pct || 0))
+                    };
                     var safeName = p.name.replace(/[^a-zA-Z0-9]/g, '');
                     var svgId = 'office-avatar-leave-me-' + safeName;
                     var content = isMe ? '<svg id="'+svgId+'" class="office-avatar-me-svg" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;border-radius:50%"></svg>' : initials;
@@ -1899,12 +1910,12 @@ function launchConfetti(x,y){
                         '<span class="office-bubble"></span>'+
                     '</div>';
                     if(isMe){
-                        (function(name, id){
+                        (function(stats, name, id){
                             function tryDraw(attempts){
                                 if(typeof drawMonster === 'function'){
                                     var svg = document.getElementById(id);
                                     if(svg){
-                                        drawMonster(svg, {atk:50,stm:50,fcs:50,agi:50,sup:50}, 24, name);
+                                        drawMonster(svg, stats, 24, name);
                                         console.log('[Office/Leave] Drew monster for', name, 'in', id);
                                     } else {
                                         console.warn('[Office/Leave] SVG not found:', id);
@@ -1916,7 +1927,7 @@ function launchConfetti(x,y){
                                 }
                             }
                             setTimeout(function(){ tryDraw(10); }, 50);
-                        })(p.name, svgId);
+                        })(monsterStats, p.name, svgId);
                     }
                 });
                 html += '</div>';
