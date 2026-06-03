@@ -4,6 +4,9 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
+from zoneinfo import ZoneInfo
+MY_TZ = ZoneInfo('Asia/Kuala_Lumpur')
+
 import bcrypt
 from fastapi import APIRouter, Body, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
@@ -54,13 +57,13 @@ def _create_token(name):
     raw = secrets.token_urlsafe(24)
     _SESSIONS[raw] = {
         "name": name,
-        "expires": datetime.now().timestamp() + TOKEN_TTL_HOURS * 3600,
+        "expires": datetime.now(MY_TZ).timestamp() + TOKEN_TTL_HOURS * 3600,
     }
     return raw
 
 
 def _clear_expired_sessions():
-    now = datetime.now().timestamp()
+    now = datetime.now(MY_TZ).timestamp()
     expired = [t for t, v in _SESSIONS.items() if v["expires"] <= now]
     for t in expired:
         del _SESSIONS[t]
@@ -271,7 +274,7 @@ def passkey_register_finish(request: Request, payload: dict = Body(...)):
             result.credential_public_key.hex(),
             result.sign_count,
             ",".join(credential.get("transports", [])),
-            datetime.now().isoformat(),
+            datetime.now(MY_TZ).isoformat(),
         ),
     )
     conn.commit()
@@ -362,7 +365,7 @@ def passkey_auth_finish(request: Request, payload: dict = Body(...)):
     conn = get_db()
     conn.execute(
         "UPDATE passkeys SET sign_count = ?, last_used_at = ? WHERE credential_id = ?",
-        (result.new_sign_count, datetime.now().isoformat(), row["credential_id"]),
+        (result.new_sign_count, datetime.now(MY_TZ).isoformat(), row["credential_id"]),
     )
     conn.commit()
     conn.close()

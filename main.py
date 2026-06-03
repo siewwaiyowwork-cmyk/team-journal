@@ -17,6 +17,9 @@ import io
 import csv
 import time
 
+from zoneinfo import ZoneInfo
+MY_TZ = ZoneInfo('Asia/Kuala_Lumpur')
+
 _CACHE = {}
 _CACHE_TTL_SECONDS = 300
 _CACHE_TTL_DASHBOARD = 60
@@ -764,7 +767,7 @@ def business_days_ago(n, conn=None):
     conn = conn or get_db()
     rows = conn.execute("SELECT date FROM holidays ORDER BY date DESC").fetchall()
     holidays = {r[0] for r in rows}
-    date = datetime.now()
+    date = datetime.now(MY_TZ)
     count = 0
     while count < n:
         date -= timedelta(days=1)
@@ -909,7 +912,7 @@ def submit(payload: dict):
     cursor = conn.cursor()
     warnings = []
     for e in entries:
-        date = e.get('date', datetime.now().strftime('%Y-%m-%d'))
+        date = e.get('date', datetime.now(MY_TZ).strftime('%Y-%m-%d'))
         try:
             date = validate_date(date)
         except ValueError as ve:
@@ -1171,7 +1174,7 @@ def promote_todo(request: Request, todo_id: int, data: dict = Body(default={})):
             is_admin = True
         if not is_admin and assignee != name and row["created_by"] != name:
             raise HTTPException(status_code=403, detail="Can only promote todos assigned to you or created by you")
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now(MY_TZ).strftime('%Y-%m-%d')
         task_module = module if module else (row["module"] or "")
         cursor = conn.execute(
             "INSERT INTO updates (date, name, module, description, status, leave_type, is_work) VALUES (?, ?, ?, ?, 'in_progress', NULL, 1)",
@@ -1206,7 +1209,7 @@ def get_summary(
     if not from_date:
         from_date = business_days_ago(summary_days, conn)
     if not to_date:
-        to_date = datetime.now().strftime('%Y-%m-%d')
+        to_date = datetime.now(MY_TZ).strftime('%Y-%m-%d')
 
     def get_status_code(role):
         res = conn.execute("SELECT code FROM statuses WHERE code = ?", (role,)).fetchone()
@@ -1449,7 +1452,7 @@ def get_module_done(
     if not from_date:
         from_date = business_days_ago(get_config_int('summary_days', 90), conn)
     if not to_date:
-        to_date = datetime.now().strftime('%Y-%m-%d')
+        to_date = datetime.now(MY_TZ).strftime('%Y-%m-%d')
     
     rows = conn.execute('''
         SELECT name, module, COUNT(*) as count
@@ -1518,7 +1521,7 @@ def get_heatmap(
     if not from_date:
         from_date = business_days_ago(get_config_int('summary_days', 90), conn)
     if not to_date:
-        to_date = datetime.now().strftime('%Y-%m-%d')
+        to_date = datetime.now(MY_TZ).strftime('%Y-%m-%d')
 
     all_members = [row['name'] for row in conn.execute(
         "SELECT name FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') ORDER BY name"
@@ -1653,7 +1656,7 @@ def get_goals(
     if cached:
         return cached
 
-    now = datetime.now()
+    now = datetime.now(MY_TZ)
     if year is None:
         year = now.year
     if month is None:
@@ -1714,7 +1717,7 @@ def get_pulse():
     if cached:
         return cached
 
-    now = datetime.now()
+    now = datetime.now(MY_TZ)
     today = now.strftime('%Y-%m-%d')
     week_ago = (now - timedelta(days=get_config_int("streak_days", 7))).strftime('%Y-%m-%d')
     
@@ -1931,7 +1934,7 @@ def get_velocity(
 
 @app.get("/api/spotlight")
 def get_spotlight():
-    now = datetime.now()
+    now = datetime.now(MY_TZ)
     today = now.strftime('%Y-%m-%d')
     week_ago = (now - timedelta(days=get_config_int("streak_days", 7))).strftime('%Y-%m-%d')
     
@@ -2056,8 +2059,8 @@ def get_challenge():
         return res[0] if res else role
 
     leave_s = get_status_code('leave')
-    today = datetime.now().strftime('%Y-%m-%d')
-    week_ago = (datetime.now() - timedelta(days=get_config_int("streak_days", 7))).strftime('%Y-%m-%d')
+    today = datetime.now(MY_TZ).strftime('%Y-%m-%d')
+    week_ago = (datetime.now(MY_TZ) - timedelta(days=get_config_int("streak_days", 7))).strftime('%Y-%m-%d')
     
     members = [row['name'] for row in conn.execute(
         "SELECT name FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') ORDER BY name"
@@ -2120,9 +2123,9 @@ def get_yearly_done(
     if cached:
         return cached
 
-    current_year = datetime.now().year
+    current_year = datetime.now(MY_TZ).year
     from_date = f"{current_year}-01-01"
-    to_date = datetime.now().strftime('%Y-%m-%d')
+    to_date = datetime.now(MY_TZ).strftime('%Y-%m-%d')
     
     conn = get_db()
     
@@ -2172,7 +2175,7 @@ def get_missing_progress():
     if cached:
         return cached
 
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now(MY_TZ).strftime('%Y-%m-%d')
     conn = get_db()
     members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') ORDER BY name").fetchall()]
     updated = [r[0] for r in conn.execute("SELECT DISTINCT name FROM updates WHERE date = ?", (today,)).fetchall()]
@@ -2282,7 +2285,7 @@ def get_fun_facts():
     cached = get_cached_ttl(cache_key, 3600)
     if cached is not None:
         return cached
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now(MY_TZ).strftime('%Y-%m-%d')
     conn = get_db()
     members = [r[0] for r in conn.execute("SELECT name FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest') ORDER BY name").fetchall()]
     facts = []
@@ -2879,7 +2882,7 @@ def get_fun_facts():
     if winner:
         add_fact("🏘️", "Weekender", f"{winner} has {ratio}% weekend-to-weekday update ratio", winner)
 
-    today_dt = datetime.now()
+    today_dt = datetime.now(MY_TZ)
     streak_master = None
     curr_best_streak = 0
     for n, dates in streak_map.items():
@@ -4692,7 +4695,7 @@ def admin_dashboard(request: Request):
         members_count = conn.execute("SELECT COUNT(*) FROM members WHERE active = 1 AND name NOT IN ('vacadmin', 'guest')").fetchone()[0]
         updates_count = conn.execute("SELECT COUNT(*) FROM updates").fetchone()[0]
         holidays_count = conn.execute("SELECT COUNT(*) FROM holidays").fetchone()[0]
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now(MY_TZ).strftime('%Y-%m-%d')
         today_updates = conn.execute("SELECT COUNT(*) FROM updates WHERE date = ?", (today,)).fetchone()[0]
         return {
             "members": members_count,

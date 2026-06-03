@@ -1273,7 +1273,7 @@
         return data;
     }
 
-    function toYMD(d){return d.toISOString().split('T')[0];}
+        function toYMD(d){var y=d.getFullYear(),m=d.getMonth()+1,day=d.getDate();return y+'-'+(m<10?'0'+m:m)+'-'+(day<10?'0'+day:day);}
     function isWeekend(d){return d.getDay()===0||d.getDay()===6;}
     function isWorkday(d){return !isWeekend(d)&&!isPH(toYMD(d));}
     function getWorkdays(from,to){
@@ -1756,7 +1756,7 @@ function launchConfetti(x,y){
             if(!members || !members.length){ console.log('No members, hiding office game'); el.style.display = 'none'; return; }
             _officeGameState.members = members;
 
-            var todayStr = new Date().toISOString().split('T')[0];
+            var todayStr = toYMD(new Date());
             var holidayName = getHolidayName(todayStr);
             var isPublicHoliday = !!holidayName;
 
@@ -2436,7 +2436,7 @@ function launchConfetti(x,y){
         document.getElementById('insightsBadge').textContent = `${range.workdays} working days`;
         
         // PH notice
-        const today = new Date().toISOString().split('T')[0];
+            const today = toYMD(new Date());
         if(getHolidayName(today)) {
             document.getElementById('phNotice').innerHTML = '<strong>Public Holiday Today:</strong> ' + getHolidayName(today);
             document.getElementById('phNotice').style.display = 'flex';
@@ -2466,7 +2466,7 @@ function launchConfetti(x,y){
     }
 
     function renderOverviewGrid(members){
-        var todayStr=new Date().toISOString().split("T")[0];
+            var todayStr=toYMD(new Date());
         const grid = document.getElementById('overviewGrid');
         var fireCards=[];
         var sortedMembers = [...members].sort(function(a,b){
@@ -3426,7 +3426,7 @@ function launchConfetti(x,y){
             const day = d.getDay();
             if (day !== 0 && day !== 6) count++;
         }
-        return d.toISOString().split('T')[0];
+        return toYMD(d);
     }
     function formatDateShort(dateStr) {
         const d = new Date(dateStr);
