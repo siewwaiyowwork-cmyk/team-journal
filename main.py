@@ -1267,8 +1267,8 @@ def get_summary(
     if member_names:
         placeholders = ','.join('?' * len(member_names))
         recent_rows = conn.execute(f'''
-            SELECT name, date, description, status FROM (
-                SELECT name, date, description, status,
+            SELECT name, date, description, status, module FROM (
+                SELECT name, date, description, status, module,
                     ROW_NUMBER() OVER (PARTITION BY name ORDER BY date DESC) as rn
                 FROM updates
                 WHERE name IN ({placeholders}) AND date BETWEEN ? AND ?

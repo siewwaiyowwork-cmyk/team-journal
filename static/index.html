@@ -1778,7 +1778,7 @@ function launchConfetti(x,y){
 
                 // If they logged work today, they go to their project room even on holiday/weekend
                 if (hasWorkToday) {
-                    var mod = (m.modules && m.modules[0] && m.modules[0].module) || _officeGameState.rooms[Math.floor(Math.random()*_officeGameState.rooms.length)];
+                    var mod = (m.recent && m.recent[0] && m.recent[0].module) || (m.modules && m.modules[0] && m.modules[0].module) || _officeGameState.rooms[Math.floor(Math.random()*_officeGameState.rooms.length)];
                     if(!roomMap[mod]) mod = 'support';
                     roomMap[mod].push(m);
                 } else {
@@ -1788,7 +1788,7 @@ function launchConfetti(x,y){
                     if (isPublicHoliday || isOnLeaveToday) {
                         leaveMembers.push(m);
                     } else {
-                        var mod = (m.modules && m.modules[0] && m.modules[0].module) || _officeGameState.rooms[Math.floor(Math.random()*_officeGameState.rooms.length)];
+                        var mod = (m.recent && m.recent[0] && m.recent[0].module) || (m.modules && m.modules[0] && m.modules[0].module) || _officeGameState.rooms[Math.floor(Math.random()*_officeGameState.rooms.length)];
                         if(!roomMap[mod]) mod = 'support';
                         roomMap[mod].push(m);
                     }
