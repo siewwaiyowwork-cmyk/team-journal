@@ -1496,15 +1496,47 @@ def get_monthly_deliveries():
         return cached
     conn = get_db()
     rows = conn.execute('''
-        SELECT strftime('%Y-%m', date) AS month,
-               COUNT(*) AS count
+        SELECT strftime('%Y-%m', date) AS month, name, COUNT(*) AS count
         FROM updates
         WHERE status = 'done' AND is_work = 1
-        GROUP BY month
-        ORDER BY month
+        GROUP BY month, name
+        ORDER BY month, name
     ''').fetchall()
     conn.close()
-    result = [{"month": r["month"], "count": r["count"]} for r in rows]
+
+    months = []
+    raw_counts = {}
+    member_totals = {}
+    for r in rows:
+        month = r["month"]
+        name = r["name"]
+        if month not in months:
+            months.append(month)
+        raw_counts.setdefault(month, {})[name] = r["count"]
+        member_totals[name] = member_totals.get(name, 0) + r["count"]
+
+    # Sort members by latest month contribution descending, then by total as tie-breaker,
+    # so the top contributor of the most recent month sits at the base of the stack.
+    latest_month = months[-1] if months else None
+    members = sorted(
+        member_totals.keys(),
+        key=lambda n: (raw_counts.get(latest_month, {}).get(n, 0), member_totals[n]),
+        reverse=True
+    )
+
+    totals = []
+    counts = {}
+    for month in months:
+        month_counts = raw_counts.get(month, {})
+        totals.append(sum(month_counts.values()))
+        counts[month] = {name: month_counts.get(name, 0) for name in members}
+
+    result = {
+        "months": months,
+        "members": members,
+        "counts": {name: [counts[month].get(name, 0) for month in months] for name in members},
+        "totals": totals
+    }
     set_cached(cache_key, result)
     return result
 

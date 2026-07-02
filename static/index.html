@@ -678,7 +678,7 @@
                     <div id="module-done-container"></div>
                 </div>
                 <div class="chart-box-full" style="margin-top:16px">
-                    <div class="chart-title">Monthly Team Deliveries <span class="badge" style="font-size:.6em">Done tasks by month</span> <span class="info-icon" data-tooltip="Total tasks marked as Done by the team per month. Helps identify peak delivery months.">ℹ</span></div>
+                    <div class="chart-title">Monthly Team Deliveries <span class="badge" style="font-size:.6em">Done tasks by month by member</span> <span class="info-icon" data-tooltip="Stacked bar chart showing each member's Done task contribution per month. Total bar height is the team delivery for that month.">ℹ</span></div>
                     <div id="monthly-deliveries-container"></div>
                 </div>
             </div>
@@ -1552,68 +1552,112 @@ function launchConfetti(x,y){
     function renderMonthlyDeliveriesChart(data){
         var container = document.getElementById('monthly-deliveries-container');
         if(!container) return;
-        if(!data || !data.length){
+        if(!data || !data.months || !data.months.length){
             container.innerHTML = '<div class="task-empty-state">No delivery data yet</div>';
             return;
         }
         container.innerHTML = '<div class="chart-wrapper" id="monthly-deliveries-wrapper"><canvas id="monthly-deliveries-canvas"></canvas></div>';
         var wrapper = document.getElementById('monthly-deliveries-wrapper');
-        if(wrapper) wrapper.style.height = '320px';
+        if(wrapper) wrapper.style.height = '360px';
 
-        var labels = data.map(function(r){ return r.month; });
-        var counts = data.map(function(r){ return r.count; });
-        var maxCount = Math.max.apply(null, counts);
+        var labels = data.months;
+        var members = data.members || [];
+        var counts = data.counts || {};
+        var totals = data.totals || [];
+
+        function hexToRgba(hex, alpha){
+            var r = parseInt(hex.slice(1,3), 16);
+            var g = parseInt(hex.slice(3,5), 16);
+            var b = parseInt(hex.slice(5,7), 16);
+            return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+        }
 
         var makeChart = function() {
             if (!window.chartJsReady) { window._chartQueue.push(makeChart); return; }
             if(monthlyDeliveriesChart) monthlyDeliveriesChart.destroy();
-            monthlyDeliveriesChart = new Chart(document.getElementById('monthly-deliveries-canvas'), {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Done tasks',
-                    data: counts,
-                    backgroundColor: counts.map(function(c){
-                        return c === maxCount ? 'rgba(0,230,118,.85)' : 'rgba(0,230,118,.55)';
-                    }),
-                    borderColor: 'rgba(0,230,118,.9)',
-                    borderWidth: 1,
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        ticks: { color: '#aaa', font: { size: 11 } },
-                        grid: { color: 'rgba(255,255,255,.1)' }
+            var datasets = members.map(function(name){
+                var color = _memberColor(name);
+                var baseColor = hexToRgba(color, 0.35);
+                var topColor = hexToRgba(color, 0.95);
+                return {
+                    label: name,
+                    data: counts[name] || labels.map(function(){ return 0; }),
+                    backgroundColor: function(context){
+                        var chart = context.chart;
+                        var area = chart.chartArea;
+                        if(!area) return baseColor;
+                        var gradient = chart.ctx.createLinearGradient(0, area.bottom, 0, area.top);
+                        gradient.addColorStop(0, baseColor);
+                        gradient.addColorStop(1, topColor);
+                        return gradient;
                     },
-                    y: {
-                        ticks: { color: '#aaa', font: { size: 11 } },
-                        grid: { color: 'rgba(255,255,255,.1)' },
-                        beginAtZero: true
-                    }
+                    borderColor: topColor,
+                    borderWidth: 1,
+                    borderRadius: 0,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8
+                };
+            });
+            monthlyDeliveriesChart = new Chart(document.getElementById('monthly-deliveries-canvas'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
                 },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: 'rgba(18,18,26,.95)',
-                        titleColor: '#fff',
-                        bodyColor: '#aaa',
-                        borderColor: 'rgba(255,255,255,.2)',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                        callbacks: {
-                            label: function(context){
-                                return 'Done: ' + context.raw;
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            ticks: { color: '#aaa', font: { size: 11 } },
+                            grid: { color: 'rgba(255,255,255,.1)' }
+                        },
+                        y: {
+                            stacked: true,
+                            ticks: { color: '#aaa', font: { size: 11 } },
+                            grid: { color: 'rgba(255,255,255,.1)' },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: { color: '#aaa', font: { size: 11 }, boxWidth: 12 }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            itemSort: function(a, b){
+                                return (b.raw || 0) - (a.raw || 0);
+                            },
+                            backgroundColor: 'rgba(18,18,26,.95)',
+                            titleColor: '#fff',
+                            bodyColor: '#aaa',
+                            borderColor: 'rgba(255,255,255,.2)',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                footer: function(tooltipItems){
+                                    var total = tooltipItems.reduce(function(sum, item){ return sum + (item.raw || 0); }, 0);
+                                    return 'Total: ' + total;
+                                },
+                                label: function(context){
+                                    var chart = context.chart;
+                                    var dataIndex = context.dataIndex;
+                                    var value = context.raw || 0;
+                                    var total = chart.data.datasets.reduce(function(sum, ds){
+                                        return sum + (ds.data[dataIndex] || 0);
+                                    }, 0);
+                                    var pct = total ? Math.round((value / total) * 100) + '%' : '0%';
+                                    return context.dataset.label + ': ' + value + ' (' + pct + ')';
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
         };
         if (window.chartJsReady) { makeChart(); }
         else { window._chartQueue.push(makeChart); }
@@ -2253,7 +2297,7 @@ function launchConfetti(x,y){
                 if (data.module_done && data.module_done.modules) {
                     renderModuleDoneChart(data.module_done);
                 }
-                if (data.monthly_deliveries && data.monthly_deliveries.length) {
+                if (data.monthly_deliveries && data.monthly_deliveries.months && data.monthly_deliveries.months.length) {
                     renderMonthlyDeliveriesChart(data.monthly_deliveries);
                 }
             } catch(e) { }
@@ -2342,9 +2386,9 @@ function launchConfetti(x,y){
             if (moduleDone && moduleDone.modules) {
                 renderModuleDoneChart(moduleDone);
             }
-            if (monthlyDeliveries && monthlyDeliveries.length) {
-                renderMonthlyDeliveriesChart(monthlyDeliveries);
-            }
+                if (monthlyDeliveries && monthlyDeliveries.months && monthlyDeliveries.months.length) {
+                    renderMonthlyDeliveriesChart(monthlyDeliveries);
+                }
         }catch(e){
             console.error('Dashboard heavy load error:',e);
         }
