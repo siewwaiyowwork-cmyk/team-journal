@@ -1697,51 +1697,47 @@ function launchConfetti(x,y){
             "Might need to send a search party soon"
         ];
         
-        var hasHighlight = false;
-        var chips = '';
-        var sarcasmHtml = '';
-        
+        // Only show real ghosts: members without any update for more than 3 days
+        var ghosts = [];
         if(data.enhanced && data.enhanced.length){
-            var sorted = data.enhanced.slice().sort(function(a, b){ return b.days_since - a.days_since; });
-            sorted.forEach(function(item){
-                var isHighlight = item.days_since >= 3;
-                var isChronic = item.days_since >= 14;
-                if(isHighlight) hasHighlight = true;
-                var chipClass = isChronic ? 'missing-chip chronic' : (isHighlight ? 'missing-chip highlight' : 'missing-chip');
-                chips += '<span class="'+chipClass+'"><span class="dot"></span>'+item.name+(isChronic ? ' 🔥' : (isHighlight ? ' ('+item.days_since+'d)' : ''))+'</span>';
-            });
-            
-            var longMissing = sorted.filter(function(item){ return item.days_since >= 3; });
-            if(longMissing.length > 0){
-                var sarcasmList = longMissing.map(function(item){
-                    var isChronic = item.days_since >= 14;
-                    if(isChronic){
-                        var msg = chronicMessages[Math.floor(Math.random() * chronicMessages.length)];
-                        return '<strong style="color:#ff9100">'+item.name+'</strong>: ' + msg.replace('{days}', item.days_since);
-                    }
-                    var msg = sarcasticMessages[Math.floor(Math.random() * sarcasticMessages.length)];
-                    return '<strong>'+item.name+'</strong>: ' + msg.replace('{days}', item.days_since);
-                }).join('<br>');
-                sarcasmHtml = '<div class="sarcasm-msg">'+sarcasmList+'</div>';
-            }
-        } else {
-            chips = data.missing.map(function(name){
-                return '<span class="missing-chip"><span class="dot"></span>'+name+'</span>';
-            }).join('');
+            ghosts = data.enhanced.filter(function(item){ return item.days_since > 3; });
         }
         
-        var msg = data.missing.length === 1
-            ? data.missing[0]+' has not submit yet'
-            : data.missing.length+' members still need to share their progress';
+        if(!ghosts.length){
+            el.style.display = 'none';
+            return;
+        }
         
-        var icon = hasHighlight ? '🚨' : '⏰';
-        var title = hasHighlight ? 'URGENT: Ghost Detected' : 'Still Missing';
+        var sorted = ghosts.slice().sort(function(a, b){ return b.days_since - a.days_since; });
+        
+        var chips = sorted.map(function(item){
+            var isChronic = item.days_since >= 14;
+            var chipClass = isChronic ? 'missing-chip chronic' : 'missing-chip highlight';
+            return '<span class="'+chipClass+'"><span class="dot"></span>'+item.name+(isChronic ? ' 🔥 ('+item.days_since+'d)' : ' ('+item.days_since+'d)')+'</span>';
+        }).join('');
+        
+        var sarcasmList = sorted.map(function(item){
+            var isChronic = item.days_since >= 14;
+            if(isChronic){
+                var msg = chronicMessages[Math.floor(Math.random() * chronicMessages.length)];
+                return '<strong style="color:#ff9100">'+item.name+'</strong>: ' + msg.replace('{days}', item.days_since);
+            }
+            var msg = sarcasticMessages[Math.floor(Math.random() * sarcasticMessages.length)];
+            return '<strong>'+item.name+'</strong>: ' + msg.replace('{days}', item.days_since);
+        }).join('<br>');
+        var sarcasmHtml = '<div class="sarcasm-msg">'+sarcasmList+'</div>';
+        
+        var msg = ghosts.length === 1
+            ? ghosts[0].name+' has ghosted the team'
+            : ghosts.length+' ghosts detected haunting the team';
+        
+        var title = '👻 Ghost Detected';
         
         el.innerHTML = '<div class="missing-progress-card">'+
-            '<div class="missing-progress-icon">'+icon+'</div>'+
+            '<div class="missing-progress-icon">👻</div>'+
             '<div class="missing-progress-body">'+
                 '<div class="missing-progress-title">'+title+'</div>'+
-                '<div class="missing-progress-msg">'+msg+' for today ('+data.today+')</div>'+
+                '<div class="missing-progress-msg">'+msg+' · no update for more than 3 days</div>'+
                 '<div class="missing-progress-members">'+chips+'</div>'+
                 sarcasmHtml+
             '</div>'+
