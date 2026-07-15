@@ -4407,7 +4407,7 @@ function launchConfetti(x,y){
             const canEdit = window._isAdmin || isOwner;
             const editBtn = (isYearDone || window._guestMode || !canEdit) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
             const delBtn = (isYearDone || window._guestMode || !canEdit) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
-                const remarksHtml = u.remarks ? `<span class="task-remarks-badge" title="${u.remarks.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">💬</span>` : '';
+                const remarksHtml = u.remarks ? `<span class="task-remarks-badge" data-remarks="${u.remarks.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}" title="${u.remarks.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">💬</span>` : '';
                 htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${remarksHtml}${editBtn}${delBtn}</div>`;
             });
         } else {
@@ -4433,7 +4433,7 @@ function launchConfetti(x,y){
                     const canEdit = window._isAdmin || isOwner;
                     const editBtn = (isYearDone || window._guestMode || !canEdit) ? '' : `<button class="task-edit-btn" onclick="showEditForm(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:.72em;cursor:pointer;transition:.15s">Edit</button>`;
                     const delBtn = (isYearDone || window._guestMode || !canEdit) ? '' : `<button class="task-edit-btn" onclick="deleteUpdate(${u.id}, this)" style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--red);font-size:.72em;cursor:pointer;transition:.15s" title="Delete">×</button>`;
-                    const remarksHtml2 = u.remarks ? `<span class="task-remarks-badge" title="${u.remarks.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">💬</span>` : '';
+                    const remarksHtml2 = u.remarks ? `<span class="task-remarks-badge" data-remarks="${u.remarks.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}" title="${u.remarks.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">💬</span>` : '';
                     htmlOut += `<div class="task-entry ${weekClass}" data-update-id="${u.id}">${dateStr}${moduleBadge}<span class="task-desc">${u.description || 'No description'}</span>${statusPill}${remarksHtml2}${editBtn}${delBtn}</div>`;
                 });
             });
